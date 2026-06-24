@@ -1,0 +1,8 @@
+{
+  "name": "제로리스크",
+  "description": "실제 돈을 쓰지 않고 한국 주식 시장을 그대로 체험할 수 있는 모의투자 플랫폼",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,46 @@
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
+@import "tailwindcss";
+
+html {
+  scrollbar-gutter: stable;
+}
+
+@theme {
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --color-brand: #4A5DF9;
+  --color-up: #FF3B30;
+  --color-down: #007AFF;
+  --color-flat: #8E8E93;
+  --color-bg-web: #F2F4F6;
+  --color-bg-main: #FDFDFD;
+  --color-surface: #FFFFFF;
+  --color-border-color: #E5E5EA; /* renamed to avoid conflict with border class */
+  --color-text-primary: #1C1C1E;
+  --color-text-secondary: #8E8E93;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #F2F2F7 25%, #E8E8E8 50%, #F2F2F7 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.6s infinite linear;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-web text-text-primary font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

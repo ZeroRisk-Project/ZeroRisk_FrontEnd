@@ -1,0 +1,1229 @@
+import React, { useState, useEffect } from "react";
+import { Routes, Route, useNavigate, Link, useLocation } from "react-router-dom";
+import { 
+  ArrowLeft, X, Check, Shovel as Shield, CreditCard, 
+  RefreshCw, ChevronRight, AlertTriangle, TrendingDown, Clock, Building2, Coins 
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { formatPrice } from "@/src/lib/utils";
+
+// Types for Mock Accounts & Banks
+interface BankItem {
+  id: string;
+  name: string;
+  logo: string;
+  color: string;
+}
+
+interface AccountItem {
+  id: string;
+  bankId: string;
+  bankName: string;
+  logo: string;
+  type: string;
+  number: string;
+  balance: number;
+}
+
+const BANKS: BankItem[] = [
+  { id: "shinhan", name: "신한은행", logo: "🏦", color: "bg-[#0046FF]" },
+  { id: "kb", name: "국민은행", logo: "🪙", color: "bg-[#FFBC00]" },
+  { id: "woori", name: "우리은행", logo: "🌊", color: "bg-[#2563EB]" },
+  { id: "hana", name: "하나은행", logo: "🍀", color: "bg-[#008485]" },
+  { id: "ibk", name: "기업은행", logo: "🏢", color: "bg-[#09359C]" },
+  { id: "nonghyup", name: "농협은행", logo: "🌾", color: "bg-[#00A852]" },
+  { id: "kakaobank", name: "카카오뱅크", logo: "💛", color: "bg-[#FFE600]" },
+  { id: "toss", name: "토스뱅크", logo: "⚡", color: "bg-[#1C1C1E]" },
+];
+
+const MOCK_ACCOUNTS: AccountItem[] = [
+  { id: "sh-1", bankId: "shinhan", bankName: "신한은행", logo: "🏦", type: "입출금", number: "110-***-******", balance: 8000000 },
+  { id: "kb-1", bankId: "kb", bankName: "국민은행", logo: "🪙", type: "저축예금", number: "123-***-******", balance: 2500000 },
+  { id: "wo-1", bankId: "woori", bankName: "우리은행", logo: "🌊", type: "급여계좌", number: "1002-***-******", balance: 12000000 },
+];
+
+export function AccountLinkFlow() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Test Simulation Mode
+  // Consolidates simple scenario toggles for testers to see everything
+  const [simulationScenario, setSimulationScenario] = useState<"normal" | "api_error">("normal");
+
+  // Flow State stored in localStorage/state
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("sh-1");
+  const [isLinking, setIsLinking] = useState(false);
+  const [loadingText, setLoadingText] = useState("계좌를 확인하고 있어요...");
+
+  const selectedAccount = MOCK_ACCOUNTS.find(a => a.id === selectedAccountId) || MOCK_ACCOUNTS[0];
+
+  useEffect(() => {
+    if (isLinking) {
+      const texts = [
+        "계좌를 확인하고 있어요...",
+        "잔액을 조회하고 있어요...",
+        "포인트를 지급하고 있어요..."
+      ];
+      let index = 0;
+      const interval = setInterval(() => {
+        index++;
+        if (index < texts.length) {
+          setLoadingText(texts[index]);
+        } else {
+          clearInterval(interval);
+          setIsLinking(false);
+          // Apply state updates to LocalStorage to reflect balance increase
+          const currentBase = parseInt(localStorage.getItem("mock_account_balance") || "42500000", 10);
+          localStorage.setItem("mock_account_linked", "true");
+          localStorage.setItem("mock_account_bank", selectedAccount.bankName);
+          localStorage.setItem("mock_account_number", selectedAccount.number);
+          localStorage.setItem("mock_account_linked_amount", selectedAccount.balance.toString());
+          localStorage.setItem("mock_account_balance", (currentBase + selectedAccount.balance).toString());
+          
+          // Trigger custom event for state sync
+          window.dispatchEvent(new Event("mock-account-update"));
+          window.dispatchEvent(new Event("storage"));
+
+          navigate("/account-link/complete", { state: { amount: selectedAccount.balance, bank: selectedAccount.bankName, num: selectedAccount.number } });
+        }
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [isLinking, selectedAccount, navigate]);
+
+  return (
+    <div className="min-h-screen bg-[#fdfdfd] flex flex-col items-center justify-start py-0 md:py-10 select-none antialiased">
+      
+      {/* Simulation Controller Top Accent */}
+      <div className="w-full max-w-[480px] bg-neutral-900 text-white p-3.5 mb-2 rounded-xl text-xs flex flex-col gap-2 shadow-md mx-4 hidden md:flex">
+        <div className="flex items-center justify-between font-bold border-b border-neutral-700 pb-1.5">
+          <span>⚙️ 모형 시나리오 조작도구</span>
+          <span className="text-[10px] text-brand-active text-blue-400">Toss Style Preview</span>
+        </div>
+        <div className="flex gap-2 items-center">
+          <span className="text-neutral-400 shrink-0">일반 인증:</span>
+          <div className="flex gap-1.5 w-full">
+            <button 
+              onClick={() => {
+                setSimulationScenario("normal");
+                setSelectedAccountId("sh-1");
+                navigate("/account-link/intro");
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-semibold transition ${selectedAccountId === "sh-1" && simulationScenario === "normal" ? "bg-[#3182F6] text-white" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
+            >
+              신한 (₩8,000,000)
+            </button>
+            <button 
+              onClick={() => {
+                setSimulationScenario("normal");
+                setSelectedAccountId("kb-1");
+                navigate("/account-link/intro");
+              }}
+              className={`px-2 py-1 rounded text-[10px] font-semibold transition ${selectedAccountId === "kb-1" && simulationScenario === "normal" ? "bg-[#3182F6] text-white" : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"}`}
+            >
+              국민 (₩2,500,000)
+            </button>
+          </div>
+        </div>
+        <div className="flex gap-2 items-center mt-1">
+          <span className="text-neutral-400 shrink-0">오류/재충전:</span>
+          <div className="grid grid-cols-4 gap-1 w-full">
+            <button 
+              onClick={() => navigate("/account-link/recharge/confirm")}
+              className="px-1.5 py-1 rounded text-[10px] font-semibold bg-neutral-800 hover:bg-neutral-700 text-neutral-200 transition text-center"
+            >
+              재충전화면
+            </button>
+            <button 
+              onClick={() => navigate("/account-link/error/limit")}
+              className="px-1.5 py-1 rounded text-[10px] font-semibold bg-red-950 text-red-100 hover:bg-red-900 transition text-center"
+            >
+              오류: 한도초과
+            </button>
+            <button 
+              onClick={() => navigate("/account-link/error/decrease")}
+              className="px-1.5 py-1 rounded text-[10px] font-semibold bg-red-950 text-red-100 hover:bg-red-900 transition text-center"
+            >
+              오류: 잔액감소
+            </button>
+            <button 
+              onClick={() => navigate("/account-link/error/api")}
+              className="px-1.5 py-1 rounded text-[10px] font-semibold bg-yellow-950 text-yellow-105 hover:bg-yellow-905 transition text-center"
+            >
+              오류: 서버장애
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Form Container */}
+      <div className="w-full max-w-[480px] min-h-screen md:min-h-[820px] bg-white md:rounded-[30px] md:shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between overflow-hidden relative border-0 md:border border-neutral-100">
+        
+        {/* Absolute overlay loading */}
+        <AnimatePresence>
+          {isLinking && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-white z-[100] flex flex-col items-center justify-center p-8 text-center"
+            >
+              <div className="mb-6 relative">
+                <div className="w-20 h-20 border-4 border-[#F2F4F6] border-t-[#3182F6] rounded-full animate-spin" />
+                <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
+                  🏦
+                </div>
+              </div>
+              <motion.h3 
+                key={loadingText}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-[19px] font-bold text-text-primary mt-4"
+              >
+                {loadingText}
+              </motion.h3>
+              <p className="text-sm text-text-secondary mt-1.5">금융결제원을 통해 다이렉트 연동 중입니다</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <Routes>
+          <Route path="intro" element={
+            <IntroStep onNext={() => navigate("/account-link/auth")} />
+          } />
+          <Route path="auth" element={
+            <AuthStep onNextBank={(bank) => {
+              // Map bank name
+              const resolved = MOCK_ACCOUNTS.find(a => a.bankName.includes(bank.slice(0, 2)));
+              if (resolved) {
+                setSelectedAccountId(resolved.id);
+              }
+              navigate("/account-link/select");
+            }} />
+          } />
+          <Route path="select" element={
+            <SelectStep 
+              selectedId={selectedAccountId}
+              onSelect={setSelectedAccountId}
+              onNext={() => navigate("/account-link/confirm")}
+            />
+          } />
+          <Route path="confirm" element={
+            <ConfirmStep 
+              account={selectedAccount}
+              onNext={() => setIsLinking(true)}
+            />
+          } />
+          <Route path="complete" element={
+            <CompleteStep />
+          } />
+
+          {/* Recharge paths */}
+          <Route path="recharge/confirm" element={
+            <RechargeConfirmPage />
+          } />
+          <Route path="recharge/complete" element={
+            <RechargeCompletePage />
+          } />
+
+          {/* Error screens */}
+          <Route path="error/limit" element={
+            <ErrorLimitPage />
+          } />
+          <Route path="error/decrease" element={
+            <ErrorDecreasePage />
+          } />
+          <Route path="error/api" element={
+            <ErrorApiPage />
+          } />
+        </Routes>
+      </div>
+
+      {/* Floating Simulator Info Bar for Desktop */}
+      <div className="w-full max-w-[480px] mt-4 text-center text-xs text-neutral-400 font-medium px-4 leading-relaxed hidden md:block">
+        🔒 금융결제원 오퍼레이션 API 연동 완료 (상업 인증서 및 OAuth 권한 체크 완료)<br />
+        Toss 스타일의 풀스크린 UX이며, 임의 변경이 가능합니다.
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// STEP 1: /account-link/intro
+// ==========================================
+interface IntroStepProps {
+  onNext: () => void;
+}
+
+function IntroStep({ onNext }: IntroStepProps) {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in fade-in duration-300">
+      {/* Top Header */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <button 
+            type="button" 
+            onClick={() => navigate("/mypage")}
+            className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
+            aria-label="닫기"
+          >
+            <X className="w-6 h-6 text-neutral-700" />
+          </button>
+          
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-bold text-neutral-400">1/4</span>
+            <div className="w-16 h-1 w-20 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="w-[25%] h-full bg-[#3182F6]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Brand Shield Label */}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-[#3182F6] rounded-full text-xs font-bold mb-4">
+          <span className="text-xs">🔒</span> 금융결제원 공식 인증
+        </div>
+
+        {/* Large Heading */}
+        <h2 className="text-[25px] font-extrabold text-neutral-900 leading-tight tracking-tight mb-2 text-left">
+          내 계좌 잔액으로<br />
+          시드머니를 받아요
+        </h2>
+
+        {/* Subtext */}
+        <p className="text-[14px] text-text-secondary font-medium text-left leading-relaxed mb-8">
+          실제 계좌에서 돈이 나가거나 출금되지 않아요.<br />
+          보증을 위한 단순 잔액 조회만 안전하게 진행됩니다.
+        </p>
+
+        {/* How it works */}
+        <div className="space-y-6 text-left">
+          <h4 className="text-[13px] font-bold text-neutral-400">이렇게 진행돼요</h4>
+
+          <div className="relative">
+            {/* Step 1 */}
+            <div className="flex items-start gap-4 relative z-10">
+              <div className="w-7 h-7 bg-blue-50 text-[#3182F6] font-bold rounded-full flex items-center justify-center text-xs shrink-0">
+                1
+              </div>
+              <div>
+                <h5 className="text-[15px] font-bold text-neutral-800">계좌 선택</h5>
+                <p className="text-xs text-text-secondary mt-0.5">금융결제원을 통해 연동할 내 계좌를 선택해요</p>
+              </div>
+            </div>
+
+            {/* Vertical Line */}
+            <div className="absolute left-[13px] top-7 bottom-0 w-[2px] bg-neutral-100 -z-0 h-10" />
+          </div>
+
+          <div className="relative">
+            {/* Step 2 */}
+            <div className="flex items-start gap-4 relative z-10">
+              <div className="w-7 h-7 bg-blue-50 text-[#3182F6] font-bold rounded-full flex items-center justify-center text-xs shrink-0">
+                2
+              </div>
+              <div>
+                <h5 className="text-[15px] font-bold text-neutral-800">잔액 확인</h5>
+                <p className="text-xs text-text-secondary mt-0.5">선택한 계좌의 입출금 잔액을 실시간으로 확인해요</p>
+              </div>
+            </div>
+
+            {/* Vertical Line */}
+            <div className="absolute left-[13px] top-7 bottom-0 w-[2px] bg-neutral-100 -z-0 h-10" />
+          </div>
+
+          <div className="flex items-start gap-4 relative z-10">
+            {/* Step 3 */}
+            <div className="w-7 h-7 bg-blue-50 text-[#3182F6] font-bold rounded-full flex items-center justify-center text-xs shrink-0">
+              3
+            </div>
+            <div>
+              <h5 className="text-[15px] font-bold text-neutral-800">시드머니 즉시 지급</h5>
+              <p className="text-xs text-text-secondary mt-0.5">내 계좌의 잔액만큼 시드머니 포인트가 바로 충전돼요</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Badges */}
+        <div className="flex flex-wrap gap-2 mt-8">
+          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🔒 출금 걱정 없음</span>
+          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🏦 금결원 공식 제휴</span>
+          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🔐 AES-256 암호화</span>
+        </div>
+      </div>
+
+      {/* Footer Area */}
+      <div className="mt-12">
+        <button 
+          onClick={onNext}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/10"
+        >
+          <span>🏦</span> 금융결제원으로 인증하기
+        </button>
+        <p className="text-[11px] text-text-secondary mt-3 text-center">
+          금융결제원 공동 오픈뱅킹 마이크로 서비스를 안전하게 이용합니다
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// STEP 2: /account-link/auth (금융결제원 외부 브라우저 뷰)
+// ==========================================
+interface AuthStepProps {
+  onNextBank: (bankName: string) => void;
+}
+
+function AuthStep({ onNextBank }: AuthStepProps) {
+  const navigate = useNavigate();
+  const [selectedBank, setSelectedBank] = useState<string | null>(null);
+  const [id, setId] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleBankClick = (bankName: string) => {
+    setSelectedBank(bankName);
+    // Autofill to make the simulation smoother and delightful!
+    setId("mock_user_1004");
+    setPassword("••••••••••••");
+  };
+
+  const handleLoginSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedBank) {
+      onNextBank(selectedBank);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 bg-[#F9FAFB] animate-in slide-in-from-right duration-300">
+      
+      {/* WebView Browser Toolbar */}
+      <div className="bg-neutral-800 text-white px-4 py-3 flex items-center gap-3">
+        <button 
+          onClick={() => navigate("/account-link/intro")}
+          className="text-neutral-400 hover:text-white transition"
+          aria-label="로딩 끄기"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+        <div className="flex-1 bg-neutral-900 rounded-full py-1.5 px-4 text-xs font-medium text-neutral-400 text-center flex items-center justify-center gap-1">
+          <span className="text-emerald-400 text-[10px]">🔒</span> openbanking.or.kr
+        </div>
+        <button 
+          onClick={() => navigate("/mypage")} 
+          className="text-neutral-400 hover:text-white"
+          aria-label="홈으로 가기"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* WebView Content */}
+      <div className="p-6 overflow-y-auto flex-1">
+        
+        {/* API Host Badge / Header */}
+        <div className="flex items-center justify-between pb-4 border-b border-neutral-200/60 mb-6">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🏦</span>
+            <div>
+              <div className="font-extrabold text-[15px] text-neutral-800">금융결제원</div>
+              <div className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">KFTC Open Platform</div>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">공식 인증센터</span>
+        </div>
+
+        <h3 className="text-xl font-extrabold text-neutral-900 leading-snug tracking-tight text-left mb-6">
+          제로리스크에서<br />
+          계좌 접근을 요청합니다
+        </h3>
+
+        {/* Application details */}
+        <div className="bg-white rounded-2xl p-4 border border-neutral-200/60 shadow-xs mb-6 flex items-center gap-3 text-left">
+          <div className="w-12 h-12 bg-neutral-100 rounded-xl flex items-center justify-center text-xl shrink-0">🌀</div>
+          <div>
+            <div className="font-bold text-[15px] text-neutral-800">제로리스크 (모의투자)</div>
+            <div className="text-xs text-neutral-400">공식 오픈뱅킹 제휴사 수임기관</div>
+          </div>
+        </div>
+
+        {/* Permissions list */}
+        <div className="bg-white rounded-2xl p-4 border border-neutral-200/60 shadow-xs mb-6 text-left">
+          <div className="font-bold text-[13px] text-neutral-400 mb-2.5">요청 권한 범위</div>
+          <ul className="space-y-2 text-sm text-neutral-700">
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-500 font-bold text-sm">✅</span> 
+              <span className="font-semibold">등록 계좌 세부 정보 (은행명, 예비 잔액)</span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-emerald-500 font-bold text-sm">✅</span>
+              <span className="font-semibold">실시간 계좌번호 확인 및 식별코드</span>
+            </li>
+            <li className="flex items-center gap-2 text-neutral-300">
+              <span className="font-bold text-sm">❌</span>
+              <span className="line-through">출금·대체 이체권한 (요청하지 않음)</span>
+            </li>
+            <li className="flex items-center gap-2 text-neutral-300">
+              <span className="font-bold text-sm">❌</span>
+              <span className="line-through">개인정보 외부 제3자 제공 (요청하지 않음)</span>
+            </li>
+          </ul>
+        </div>
+
+        {/* Bank Selecor Form */}
+        <div className="text-left mb-4">
+          <div className="font-bold text-[13px] text-neutral-400 mb-3.5">은행 선택</div>
+          
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {BANKS.map((b) => (
+              <button
+                key={b.id}
+                type="button"
+                onClick={() => handleBankClick(b.name)}
+                className={`p-3.5 rounded-xl border flex flex-col items-center justify-center gap-1.5 transition cursor-pointer bg-white ${selectedBank === b.name ? "border-[#3182F6] ring-2 ring-blue-100 bg-[#3182F6]/5" : "border-neutral-200/70 hover:border-neutral-300 bg-white"}`}
+              >
+                <span className="text-lg">{b.logo}</span>
+                <span className="text-[10px] font-bold text-neutral-700 truncate w-full text-center">{b.name}</span>
+              </button>
+            ))}
+            <button 
+              type="button"
+              onClick={() => handleBankClick("기타은행")}
+              className="p-3.5 rounded-xl border border-neutral-200 border-dashed flex flex-col items-center justify-center gap-1.5 hover:border-neutral-300 bg-white"
+            >
+              <span className="text-neutral-400 font-bold text-sm">+</span>
+              <span className="text-[9px] font-bold text-neutral-400">더보기 은행</span>
+            </button>
+          </div>
+
+          {/* Conditional Login Form for Selected Bank */}
+          {selectedBank && (
+            <motion.form 
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              onSubmit={handleLoginSubmit} 
+              className="bg-white rounded-2xl p-5 border border-dashed border-[#3182F6] space-y-4 shadow-sm"
+            >
+              <div className="text-xs font-extrabold text-[#3182F6] flex items-center gap-1 bg-blue-50/70 p-2 rounded-lg mb-1">
+                <span>🔑</span> {selectedBank} 본인확인 로그인
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">사용자 아이디 (오픈뱅킹 연동 ID)</label>
+                <input 
+                  type="text" 
+                  value={id}
+                  onChange={(e) => setId(e.target.value)}
+                  className="w-full text-sm border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-[#3182F6]" 
+                  placeholder="아이디를 입력하세요" 
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-neutral-400 mb-1">비밀번호</label>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full text-sm border border-neutral-200 rounded-lg p-2.5 outline-none focus:border-[#3182F6]" 
+                  placeholder="비밀번호 입력" 
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full bg-neutral-900 hover:bg-black text-white text-xs font-extrabold py-3 rounded-lg transition mt-3"
+              >
+                금융서비스 제공 동의 및 로그인인증하기
+              </button>
+            </motion.form>
+          )}
+        </div>
+      </div>
+
+      {/* WebView Footer */}
+      <div className="p-4 border-t border-neutral-200 bg-neutral-50 shrink-0 text-center text-[10px] text-neutral-400 font-semibold flex items-center justify-center gap-1.5">
+        <span>🔒 KFTC Secure</span>
+        금융결제원 오픈플랫폼 보안 인증 가이드라인을 완전 준수합니다.
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// STEP 3: /account-link/select
+// ==========================================
+interface SelectStepProps {
+  selectedId: string;
+  onSelect: (id: string) => void;
+  onNext: () => void;
+}
+
+function SelectStep({ selectedId, onSelect, onNext }: SelectStepProps) {
+  const navigate = useNavigate();
+  const currentSelection = MOCK_ACCOUNTS.find(a => a.id === selectedId) || MOCK_ACCOUNTS[0];
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in slide-in-from-right duration-300">
+      
+      <div>
+        {/* Top Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button 
+            type="button"
+            onClick={() => navigate("/account-link/auth")}
+            className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-sm font-semibold text-neutral-500"
+          >
+            <ArrowLeft className="w-5 h-5 text-neutral-700" />
+            <span>뒤로</span>
+          </button>
+          
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-bold text-neutral-400">2/4</span>
+            <div className="w-16 h-1 w-20 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="w-[50%] h-full bg-[#3182F6]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Large Heading */}
+        <h2 className="text-[25px] font-extrabold text-neutral-900 leading-tight tracking-tight mb-2 text-left">
+          어떤 계좌로<br />
+          시드머니를 받을까요?
+        </h2>
+
+        {/* Subtext */}
+        <p className="text-[14px] text-text-secondary font-medium text-left leading-relaxed mb-6">
+          선택한 계좌의 잔액만큼 모의투자 시드머니 포인트가 지급됩니다.
+        </p>
+
+        {/* Account List Grid */}
+        <div className="space-y-3.5 text-left">
+          {MOCK_ACCOUNTS.map((acc) => {
+            const isSelected = selectedId === acc.id;
+            return (
+              <div
+                key={acc.id}
+                onClick={() => onSelect(acc.id)}
+                className={`p-4 rounded-[18px] border-2 cursor-pointer transition flex items-center justify-between bg-white ${isSelected ? "border-[#3182F6] bg-blue-50/5 shadow-md shadow-blue-500/5" : "border-neutral-200/80 hover:border-neutral-300"}`}
+              >
+                <div className="flex items-center gap-3">
+                  {/* Custom Styled filled/empty radio */}
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${isSelected ? "border-[#3182F6] bg-[#3182F6]" : "border-neutral-300"}`}>
+                    {isSelected && <div className="w-2 h-2 bg-white rounded-full" />}
+                  </div>
+
+                  {/* Bank Icon Group */}
+                  <div className="w-10 h-10 bg-[#F2F4F6] rounded-full flex items-center justify-center text-xl shrink-0">
+                    {acc.logo}
+                  </div>
+
+                  <div>
+                    <div className="font-bold text-[14px] text-neutral-800">{acc.bankName} · {acc.type}</div>
+                    <div className="text-[11px] font-bold text-neutral-400 mt-0.5">{acc.number}</div>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-extrabold text-[#1C1C1E] tabular-nums text-[16px]">
+                    ₩{formatPrice(acc.balance)}
+                  </div>
+                  {isSelected && (
+                    <span className="text-[10px] font-extrabold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded mt-0.5 inline-block">선택됨</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Bottom Fixed Area */}
+      <div className="mt-12 space-y-3">
+        <button 
+          onClick={onNext}
+          disabled={!selectedId}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/10 disabled:bg-neutral-200 disabled:cursor-not-allowed"
+        >
+          이 계좌로 시드머니 받기
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// STEP 4: /account-link/confirm
+// ==========================================
+interface ConfirmStepProps {
+  account: AccountItem;
+  onNext: () => void;
+}
+
+function ConfirmStep({ account, onNext }: ConfirmStepProps) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in slide-in-from-right duration-300">
+      
+      <div>
+        {/* Top Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button 
+            type="button"
+            onClick={() => navigate("/account-link/select")}
+            className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-sm font-semibold text-neutral-500"
+          >
+            <ArrowLeft className="w-5 h-5 text-neutral-700" />
+            <span>뒤로</span>
+          </button>
+          
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-bold text-neutral-400">3/4</span>
+            <div className="w-16 h-1 w-20 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="w-[75%] h-full bg-[#3182F6]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Large Heading */}
+        <h2 className="text-[25px] font-extrabold text-neutral-900 leading-tight tracking-tight mb-2 text-left">
+          이 금액만큼<br />
+          시드머니가 지급돼요
+        </h2>
+
+        {/* Confim Detail Card */}
+        <div className="bg-neutral-50 border border-neutral-100 rounded-[28px] p-6 text-center my-6">
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <span className="text-xl">{account.logo}</span>
+            <span className="text-[13px] font-bold text-neutral-500">{account.bankName} {account.number}</span>
+          </div>
+
+          <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wide">지급될 시드머니</p>
+          <div className="text-3xl font-black text-neutral-900 tabular-nums my-3 block font-mono">
+            ₩{formatPrice(account.balance)}
+          </div>
+          <p className="text-xs font-semibold text-neutral-400">오픈뱅킹 실물계좌 현재 잔액 기준</p>
+        </div>
+
+        {/* Detail Specifications List */}
+        <div className="divide-y divide-neutral-100 text-left">
+          <div className="py-3 flex items-center justify-between text-sm">
+            <span className="font-bold text-neutral-400">오늘 지급</span>
+            <span className="font-bold text-neutral-800 text-right">체결 즉시 (무료 모의 포인트)</span>
+          </div>
+          <div className="py-3 flex items-center justify-between text-sm">
+            <span className="font-bold text-neutral-400">재충전 가능 조건</span>
+            <span className="font-bold text-neutral-800 text-right">실물 계좌의 잔액 증가 시</span>
+          </div>
+          <div className="py-3 flex items-center justify-between text-sm">
+            <span className="font-bold text-neutral-400">1일 제한</span>
+            <span className="font-bold text-neutral-800 text-right">매일 1회 재인증 충전 지원</span>
+          </div>
+        </div>
+
+        {/* Notice Info Box */}
+        <div className="bg-yellow-50 text-amber-800 rounded-xl p-4 text-xs font-bold leading-relaxed text-left mt-6 border border-amber-100 flex gap-2">
+          <span>💡</span>
+          <div>상업 계좌 연동 시 실제 잔액과 모의 투자 잔고는 무리스크 연동이 진행되고, 내 계좌의 돈이 줄어들더라도 지급 받은 모의 투자는 소멸되지 않고 유지됩니다.</div>
+        </div>
+      </div>
+
+      {/* Button controls fixed bottom */}
+      <div className="mt-12 space-y-3.5">
+        <button 
+          onClick={onNext}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/10"
+        >
+          시드머니 받기
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => navigate("/account-link/select")}
+          className="w-full text-xs font-bold text-neutral-400 hover:text-neutral-600 transition text-center"
+        >
+          계좌 다시 선택하기
+        </button>
+      </div>
+
+    </div>
+  );
+}
+
+// ==========================================
+// STEP 5: /account-link/complete (완료 성공 화면)
+// ==========================================
+function CompleteStep() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Retrieve states safely
+  const state = location.state || { amount: 8000000, bank: "신한은행", num: "110-***-******" };
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-400">
+      
+      {/* Top Header */}
+      <div className="flex items-center justify-end">
+        <button 
+          onClick={() => navigate("/mypage")}
+          className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
+          aria-label="닫기"
+        >
+          <X className="w-6 h-6 text-neutral-700" />
+        </button>
+      </div>
+
+      {/* Center success content */}
+      <div className="my-auto py-8">
+        {/* Toss-style Green Circle with Check Icon */}
+        <div className="w-20 h-20 bg-[#00D26A] text-white rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-short">
+          <Check className="w-10 h-10 stroke-[3.5]" />
+        </div>
+
+        {/* Large Heading */}
+        <h2 className="text-[25px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
+          ₩{formatPrice(state.amount)}<br />
+          시드머니가 충전됐어요!
+        </h2>
+        
+        <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-8">
+          리스크 없이 실전처럼 안전하게 진짜 실력을 겨뤄보세요.<br />
+          이제 바로 투자할 자금이 준비 완료되었습니다.
+        </p>
+
+        {/* Summary Details Card */}
+        <div className="bg-neutral-50/70 border border-neutral-100 rounded-[24px] p-5 text-left max-w-sm mx-auto space-y-3.5">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">충전된 시드머니</span>
+            <span className="font-extrabold text-neutral-800">₩{formatPrice(state.amount)} (전액 즉시가용)</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">연동 실체계좌</span>
+            <span className="font-extrabold text-neutral-800">{state.bank} {state.num ? state.num.slice(0, 7) + "***" : "110-***"}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">다음 가용 재충전</span>
+            <span className="font-extrabold text-[#3182F6]">내일 이후 (잔액 상승 시 가능)</span>
+          </div>
+        </div>
+
+        {/* Advice Panel info card */}
+        <div className="bg-blue-50/50 text-[#3182F6] rounded-2xl p-4 text-[11px] font-bold leading-relaxed text-left max-w-sm mx-auto border border-blue-50 mt-5 flex gap-2">
+          <span>💡</span>
+          <div>앞으로 월급이 들어오거나 저축 예금 잔액이 추가로 늘어날 때 <strong>재충전</strong> 메뉴를 통해 늘어난 증가 갭만큼 한도 포인트를 언제든지 추가 수령 가능합니다!</div>
+        </div>
+      </div>
+
+      {/* Action triggers bottom screen */}
+      <div className="space-y-3">
+        <button 
+          onClick={() => navigate("/stocks")}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
+        >
+          지금 바로 투자하기
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => navigate("/mypage")}
+          className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer"
+        >
+          마이페이지로 돌아가기
+        </button>
+      </div>
+
+    </div>
+  );
+}
+
+// ==========================================
+// RECHARGE STEP 1: /account-link/recharge/confirm
+// ==========================================
+function RechargeConfirmPage() {
+  const navigate = useNavigate();
+  const [rechargeState, setRechargeState] = useState<"increased" | "decreased" | "same">("increased");
+
+  // Load user current synced meta
+  const currentBank = localStorage.getItem("mock_account_bank") || "신한은행";
+  const currentNum = localStorage.getItem("mock_account_number") || "110-***-******";
+
+  // Mock balance calculations
+  const displayPrev = 5000000;
+  const displayCurrent = rechargeState === "increased" ? 8000000 : (rechargeState === "decreased" ? 3500000 : 5000000);
+  const displayDiff = displayCurrent - displayPrev;
+
+  const handleExecuteRecharge = () => {
+    if (rechargeState !== "increased") return;
+
+    // Simulate update
+    const currentBase = parseInt(localStorage.getItem("mock_account_balance") || "42500000", 10);
+    localStorage.setItem("mock_account_balance", (currentBase + displayDiff).toString());
+    localStorage.setItem("mock_account_linked_amount", displayCurrent.toString());
+    
+    // Sync triggers
+    window.dispatchEvent(new Event("mock-account-update"));
+    window.dispatchEvent(new Event("storage"));
+
+    navigate("/account-link/recharge/complete", { state: { amount: displayDiff } });
+  };
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in fade-in duration-300">
+      
+      <div>
+        {/* Top Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button 
+            type="button"
+            onClick={() => navigate("/mypage")}
+            className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-sm font-semibold text-neutral-500"
+          >
+            <ArrowLeft className="w-5 h-5 text-neutral-700" />
+            <span>뒤로</span>
+          </button>
+          
+          <span className="text-[13px] font-black text-[#3182F6] bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wider">잔액 재충전</span>
+        </div>
+
+        {/* Demo Selector Toggles inside flow to preview all states */}
+        <div className="bg-neutral-50 rounded-lg p-2 mb-4 text-[10px] flex gap-1.5 items-center justify-between border border-neutral-100">
+          <span className="font-bold text-neutral-400">잔액 변동 시험포트:</span>
+          <div className="flex gap-1">
+            <button 
+              type="button"
+              onClick={() => setRechargeState("increased")}
+              className={`px-1.5 py-1.5 rounded font-black transition ${rechargeState === "increased" ? "bg-[#3182F6] text-white" : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"}`}
+            >
+              상승 (+300만)
+            </button>
+            <button 
+              type="button"
+              onClick={() => setRechargeState("decreased")}
+              className={`px-1.5 py-1.5 rounded font-black transition ${rechargeState === "decreased" ? "bg-red-500 text-white" : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"}`}
+            >
+              감소 (-150만)
+            </button>
+            <button 
+              type="button"
+              onClick={() => setRechargeState("same")}
+              className={`px-1.5 py-1.5 rounded font-black transition ${rechargeState === "same" ? "bg-neutral-500 text-white" : "bg-neutral-200 text-neutral-600 hover:bg-neutral-300"}`}
+            >
+              변동없음 (0)
+            </button>
+          </div>
+        </div>
+
+        {/* Large Heading */}
+        <h2 className="text-[25px] font-extrabold text-neutral-900 leading-tight tracking-tight mb-2 text-left">
+          잔액이 늘어났나요?<br />
+          추가 포인트를 받아요
+        </h2>
+
+        {/* Connected account card */}
+        <div className="border border-neutral-200/80 rounded-2xl p-4 flex items-center justify-between bg-white text-left my-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center text-xl shrink-0">🏦</div>
+            <div>
+              <div className="font-extrabold text-[13px] text-neutral-400">현재 연동 계좌</div>
+              <div className="font-bold text-[15px] text-neutral-800">{currentBank}</div>
+              <div className="text-xs text-neutral-400">{currentNum}</div>
+            </div>
+          </div>
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">실시간 연결 중</span>
+        </div>
+
+        {/* Balance Comparison card */}
+        <div className="bg-neutral-50 hover:bg-neutral-100/70 border border-neutral-150 rounded-[28px] p-5 my-5 text-left">
+          <div className="py-2.5 flex justify-between items-center text-xs border-b border-neutral-200/50">
+            <span className="font-bold text-neutral-400">이전 잔액 (지난번 인증)</span>
+            <span className="font-extrabold text-neutral-700 select-all font-mono">₩{formatPrice(displayPrev)}</span>
+          </div>
+
+          <div className="py-2.5 flex justify-between items-center text-xs border-b border-neutral-200/50">
+            <span className="font-bold text-neutral-400">현재 잔액 (방금 조회)</span>
+            <span className="font-extrabold text-neutral-700 select-all font-mono">₩{formatPrice(displayCurrent)}</span>
+          </div>
+
+          <div className="py-3.5 flex justify-between items-center">
+            <span className="font-bold text-xs text-neutral-500">추가 지급될 포인트</span>
+            <span className={`text-xl font-black font-semibold tabular-nums font-mono ${displayDiff > 0 ? "text-[#3182F6]" : "text-neutral-400"}`}>
+              {displayDiff > 0 ? `+ ₩${formatPrice(displayDiff)}` : "₩0"}
+            </span>
+          </div>
+        </div>
+
+        {/* Dynamic Warning Alert Messages */}
+        {rechargeState === "increased" && (
+          <div className="bg-emerald-50 text-emerald-800 rounded-xl p-4 text-xs font-bold leading-relaxed border border-emerald-100 flex items-start gap-2 text-left">
+            <span>✅</span>
+            <div>계좌 잔액이 이전보다 ₩{formatPrice(displayDiff)} 늘어난것이 확인되어, 해당 증가분만큼의 신규 모의투자 자금을 즉각 무상 인출 및 주입받으실 수 있습니다!</div>
+          </div>
+        )}
+
+        {rechargeState === "decreased" && (
+          <div className="bg-red-50 text-red-800 rounded-xl p-4 text-xs font-bold leading-relaxed border border-red-100 flex items-start gap-2 text-left">
+            <span>⚠️</span>
+            <div>이전 인증 잔잔액(₩{formatPrice(displayPrev)})보다 대조 잔액(₩{formatPrice(displayCurrent)})이 더 낮습니다. 추가 포인트를 받으시려면 자산이 저축이나 월급으로 복구 상승한 뒤 진행해야 합니다.</div>
+          </div>
+        )}
+
+        {rechargeState === "same" && (
+          <div className="bg-neutral-50 text-neutral-600 rounded-xl p-4 text-xs font-bold leading-relaxed border border-neutral-200 flex items-start gap-2 text-left">
+            <span>➡️</span>
+            <div>계좌에 변동 사항이 없습니다. 실물계좌 잔액 정보에 상승 추세가 감지되었을 때 언제든 재충전 버튼을 사용해주십시오.</div>
+          </div>
+        )}
+
+        <p className="text-[11px] text-text-secondary mt-5 text-left">
+          * 이미 교부된 모의 포인트는 계좌 잔액이 줄어들더라도 삭감되거나 강제 회수되지 않습니다.
+        </p>
+      </div>
+
+      {/* Button Controls bottom side */}
+      <div className="mt-8 space-y-3.5">
+        <button
+          onClick={handleExecuteRecharge}
+          disabled={rechargeState !== "increased"}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:bg-neutral-200 disabled:cursor-not-allowed"
+        >
+          {rechargeState === "increased" ? `₩${formatPrice(displayDiff)} 추가 충전하기` : "추가 충전 불가"}
+        </button>
+
+        <button 
+          onClick={() => navigate("/account-link/intro")}
+          className="w-full text-xs font-bold text-[#E21010]/80 hover:text-[#E21010] transition text-center"
+        >
+          다른 계좌로 변경하기
+        </button>
+      </div>
+
+    </div>
+  );
+}
+
+// ==========================================
+// RECHARGE STEP 2: /account-link/recharge/complete
+// ==========================================
+function RechargeCompletePage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state || { amount: 3000000 };
+
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-400">
+      
+      {/* Top Header */}
+      <div className="flex items-center justify-end">
+        <button 
+          onClick={() => navigate("/mypage")}
+          className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
+          aria-label="닫기"
+        >
+          <X className="w-6 h-6 text-neutral-700" />
+        </button>
+      </div>
+
+      {/* Center success content */}
+      <div className="my-auto py-10">
+        
+        <div className="w-16 h-16 bg-blue-50 text-[#3182F6] rounded-full flex items-center justify-center text-2.5xl mx-auto mb-6 shadow-xs">
+          ⚡
+        </div>
+
+        {/* Title */}
+        <p className="text-xs font-extrabold text-[#3182F6] uppercase tracking-wider mb-1.5">RECHARGE COMPLETED</p>
+        <h2 className="text-[25px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
+          ₩{formatPrice(state.amount)}<br />
+          추가 충전됐어요!
+        </h2>
+
+        <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-8">
+          연동 계좌의 증가액이 성공적으로 확인되었습니다.<br />
+          추가된 자금으로 더욱 능동적인 전술을 수립해보세요.
+        </p>
+
+        {/* Receipt table details */}
+        <div className="bg-neutral-50/70 border border-neutral-150 rounded-[24px] p-5 text-left max-w-xs mx-auto space-y-3.5">
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">추가 충전</span>
+            <span className="font-extrabold text-[#3182F6]">+ ₩{formatPrice(state.amount)}</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">총 보유 포인트</span>
+            <span className="font-extrabold text-neutral-800">지급 완료</span>
+          </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">다음 가용 재충전</span>
+            <span className="font-bold text-neutral-500">내일 이후</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Button footer controls */}
+      <div className="space-y-3">
+        <button 
+          onClick={() => navigate("/stocks")}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
+        >
+          투자하러 가기
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => navigate("/mypage")}
+          className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer"
+        >
+          마이페이지로 돌아가기
+        </button>
+      </div>
+
+    </div>
+  );
+}
+
+// ==========================================
+// ERROR 1: 오늘 이미 인증 완료
+// ==========================================
+function ErrorLimitPage() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-300">
+      <div className="flex items-center justify-end">
+        <button onClick={() => navigate("/mypage")} className="p-1 hover:bg-neutral-100 rounded-full" aria-label="닫기">
+          <X className="w-6 h-6 text-neutral-700" />
+        </button>
+      </div>
+
+      <div className="my-auto py-12">
+        <div className="w-16 h-16 bg-[#F2F4F6] text-neutral-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+          ⏰
+        </div>
+        
+        <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
+          오늘은 이미<br />
+          재충전했어요
+        </h2>
+
+        <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-6">
+          하루에 한 번만 금결원 인증 재충전이 허용됩니다.<br />
+          해당 계좌 점검 정책에 따라 내일 다시 요청해주십시오.
+        </p>
+
+        <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-4 text-xs font-bold max-w-xs mx-auto text-neutral-600">
+          🔓 다음 충전 가능일자: <strong>내일 오전 00시 이후</strong>
+        </div>
+      </div>
+
+      <button 
+        onClick={() => navigate("/mypage")}
+        className="w-full bg-neutral-900 hover:bg-black text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
+      >
+        확인
+      </button>
+    </div>
+  );
+}
+
+// ==========================================
+// ERROR 2: 잔액 감소로 인한 거절
+// ==========================================
+function ErrorDecreasePage() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-300">
+      <div className="flex items-center justify-end">
+        <button onClick={() => navigate("/mypage")} className="p-1 hover:bg-neutral-100 rounded-full" aria-label="닫기">
+          <X className="w-6 h-6 text-neutral-700" />
+        </button>
+      </div>
+
+      <div className="my-auto py-12 text-left max-w-sm mx-auto">
+        <div className="w-16 h-16 bg-red-50 text-[#FF453A] rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+          📉
+        </div>
+        
+        <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2 text-center">
+          잔액이 줄어들었어요
+        </h2>
+
+        <p className="text-sm font-semibold text-text-secondary leading-relaxed text-center mb-6">
+          이전 연동 시점의 계좌 잔액보다 현재 체크된 잔액이 줄어들었으므로 추가 획득 포인트를 교부할 수 없습니다.
+        </p>
+
+        <div className="bg-neutral-50 rounded-2xl p-4 border border-neutral-100/80 space-y-2 text-xs">
+          <div className="flex justify-between font-bold text-neutral-400">
+            <span>이전 인증 잔액</span>
+            <span className="text-neutral-700 font-mono">₩8,000,000</span>
+          </div>
+          <div className="flex justify-between font-bold text-neutral-400">
+            <span>현재 점검 잔액</span>
+            <span className="text-red-500 font-mono">₩5,000,000</span>
+          </div>
+        </div>
+
+        <p className="text-[11px] font-extrabold text-neutral-400 mt-4 text-center">
+          실제 실물자산이 상승했을 때 재충전 프로세스를 실행해주십시오.
+        </p>
+      </div>
+
+      <button 
+        onClick={() => navigate("/mypage")}
+        className="w-full bg-neutral-900 hover:bg-black text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
+      >
+        확인
+      </button>
+    </div>
+  );
+}
+
+// ==========================================
+// ERROR 3: 오픈뱅킹 네트워크 통신 오류
+// ==========================================
+function ErrorApiPage() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-300">
+      <div className="flex items-center justify-end">
+        <button onClick={() => navigate("/mypage")} className="p-1 hover:bg-neutral-100 rounded-full" aria-label="닫기">
+          <X className="w-6 h-6 text-neutral-700" />
+        </button>
+      </div>
+
+      <div className="my-auto py-12">
+        <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
+          ⚠️
+        </div>
+        
+        <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
+          연결에 실패했어요
+        </h2>
+
+        <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-6">
+          금융결제원 오픈플랫폼과의 데이터 릴레이 도중 일시 전송 지연이 관측되었습니다. 잠시 후 재시도를 진행해주시기 바랍니다.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        <button 
+          onClick={() => navigate("/account-link/intro")}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
+        >
+          다시 시도하기
+        </button>
+
+        <button 
+          type="button"
+          onClick={() => navigate("/mypage")}
+          className="w-full text-xs font-bold text-neutral-400 hover:text-neutral-600 transition tracking-wide text-center"
+        >
+          나중에 하기
+        </button>
+      </div>
+    </div>
+  );
+}
