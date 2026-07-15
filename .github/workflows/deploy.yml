@@ -1,0 +1,52 @@
+name: Frontend CI/CD (Docker)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Prepare Deployment Files
+        run: |
+          mkdir -p deploy
+          cp -r dist deploy/
+          cp Dockerfile deploy/
+          cp nginx.conf deploy/
+
+      - name: Deliver to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "deploy/*"
+          target: "/home/ubuntu/app/frontend"
+          strip_components: 1
+
+      - name: Deploy with Docker Compose
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ubuntu/app
+            sudo docker compose stop frontend
+            sudo docker compose rm -f frontend
+            sudo docker compose up -d --build frontend
