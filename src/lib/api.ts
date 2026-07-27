@@ -6,6 +6,7 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    maxRedirects: 0,
 });
 
 // 서버 공통 에러 응답 포맷: { success, errorCode, message }
@@ -23,8 +24,14 @@ api.interceptors.response.use(
     async (error) => {
         const originalRequest = error.config;
         const status = error.response?.status;
+        const SILENT_CHECK_URLS = ['/users/me'];
 
-        if (status === 401 && !originalRequest._retry && originalRequest.url !== '/auth/reissue') {
+        if (
+            status === 401 &&
+            !originalRequest._retry &&
+            originalRequest.url !== '/auth/reissue' &&
+            !SILENT_CHECK_URLS.includes(originalRequest.url)
+        ) {
             if (isRefreshing) {
                 await new Promise<void>((resolve) => refreshWaiters.push(resolve));
                 return api(originalRequest);
