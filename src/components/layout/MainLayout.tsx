@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Bell, User, ChevronDown, Wallet } from "lucide-react";
 import { cn, formatPrice } from "@/src/lib/utils";
+import api from "@/src/lib/api";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -69,9 +70,17 @@ export function MainLayout() {
   const [showAccountAlert, setShowAccountAlert] = useState(true);
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem("isLoggedIn") !== "false";
-  });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const checkLoginStatus = async () => {
+    try {
+      const response = await api.get("/users/me");
+      console.log("users/me 성공:", response.status, response.data);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.log("users/me 실패:", error);
+      setIsLoggedIn(false);
+    }
+  };
   const [activeAccount, setActiveAccount] = useState(() => {
     const saved = localStorage.getItem("mock_account_balance");
     const balanceVal = saved ? parseInt(saved, 10) : 50000000;
@@ -107,14 +116,10 @@ export function MainLayout() {
   const notificationRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleAuthChange = () => {
-      setIsLoggedIn(localStorage.getItem("isLoggedIn") !== "false");
-    };
-    window.addEventListener("auth-change", handleAuthChange);
-    window.addEventListener("storage", handleAuthChange);
+    checkLoginStatus();
+    window.addEventListener("auth-change", checkLoginStatus);
     return () => {
-      window.removeEventListener("auth-change", handleAuthChange);
-      window.removeEventListener("storage", handleAuthChange);
+      window.removeEventListener("auth-change", checkLoginStatus);
     };
   }, []);
 
@@ -336,8 +341,8 @@ export function MainLayout() {
                     )}
                     <div className="h-px bg-border-color my-1"></div>
                     <button
-                      onClick={() => {
-                        localStorage.setItem("isLoggedIn", "false");
+                      onClick={async () => {
+                        await api.post("/auth/logout");
                         window.dispatchEvent(new Event("auth-change"));
                         setIsUserMenuOpen(false);
                       }}
@@ -358,7 +363,7 @@ export function MainLayout() {
         <div className="absolute top-[80px] left-0 right-0 z-30 py-3 px-6 select-none pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="max-w-7xl mx-auto flex flex-col items-end gap-3 pointer-events-auto w-full md:max-w-[600px] md:ml-auto">
             {showAccountAlert && (
-              <div 
+              <div
                 onClick={() => navigate("/mypage")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
@@ -369,7 +374,7 @@ export function MainLayout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate("/account-link/intro");
@@ -378,7 +383,7 @@ export function MainLayout() {
                   >
                     연동하기
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowAccountAlert(false);
@@ -387,7 +392,7 @@ export function MainLayout() {
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M18 6L6 18M6 6l12 12"/>
+                      <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
@@ -395,7 +400,7 @@ export function MainLayout() {
             )}
 
             {showCompAlert && (
-              <div 
+              <div
                 onClick={() => navigate("/competitions")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
@@ -407,7 +412,7 @@ export function MainLayout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate("/competitions");
@@ -416,7 +421,7 @@ export function MainLayout() {
                   >
                     대회 보기
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowCompAlert(false);
@@ -425,7 +430,7 @@ export function MainLayout() {
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M18 6L6 18M6 6l12 12"/>
+                      <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
@@ -433,7 +438,7 @@ export function MainLayout() {
             )}
 
             {showRankAlert && (
-              <div 
+              <div
                 onClick={() => navigate("/ranking")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
@@ -445,7 +450,7 @@ export function MainLayout() {
                   </div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate("/ranking");
@@ -454,7 +459,7 @@ export function MainLayout() {
                   >
                     랭킹 보기
                   </button>
-                  <button 
+                  <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowRankAlert(false);
@@ -462,7 +467,7 @@ export function MainLayout() {
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                      <path d="M18 6L6 18M6 6l12 12"/>
+                      <path d="M18 6L6 18M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
@@ -479,12 +484,12 @@ export function MainLayout() {
           location.pathname === "/" || location.pathname === "/about"
             ? ""
             : cn(
-                "mx-auto px-6 py-8",
-                location.pathname.startsWith("/stocks") &&
-                  !location.pathname.includes("/compare")
-                  ? "max-w-[1800px]"
-                  : "max-w-7xl"
-              )
+              "mx-auto px-6 py-8",
+              location.pathname.startsWith("/stocks") &&
+                !location.pathname.includes("/compare")
+                ? "max-w-[1800px]"
+                : "max-w-7xl"
+            )
         )}
       >
         <Outlet />
