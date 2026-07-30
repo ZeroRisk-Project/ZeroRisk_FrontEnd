@@ -81,30 +81,25 @@ export function MainLayout() {
       setIsLoggedIn(false);
     }
   };
-  const [activeAccount, setActiveAccount] = useState(() => {
-    const saved = localStorage.getItem("mock_account_balance");
-    const balanceVal = saved ? parseInt(saved, 10) : 50000000;
-    return { id: "main", name: "웹 메인 계좌", balance: balanceVal };
-  });
+  const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
+
+  const fetchMainAccountBalance = async () => {
+    try {
+      const response = await api.get("/accounts");
+      const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
+      if (basicAccount) {
+        setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: basicAccount.balance });
+      }
+    } catch {
+      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+    }
+  };
 
   useEffect(() => {
-    const handleAccountSync = () => {
-      const savedBalance = localStorage.getItem("mock_account_balance");
-      if (savedBalance) {
-        const balanceVal = parseInt(savedBalance, 10);
-        setActiveAccount(prev => {
-          if (prev.id === "main") {
-            return { ...prev, balance: balanceVal };
-          }
-          return prev;
-        });
-      }
-    };
-    window.addEventListener("mock-account-update", handleAccountSync);
-    window.addEventListener("storage", handleAccountSync);
+    fetchMainAccountBalance();
+    window.addEventListener("auth-change", fetchMainAccountBalance);
     return () => {
-      window.removeEventListener("mock-account-update", handleAccountSync);
-      window.removeEventListener("storage", handleAccountSync);
+      window.removeEventListener("auth-change", fetchMainAccountBalance);
     };
   }, []);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
