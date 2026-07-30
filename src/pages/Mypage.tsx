@@ -17,6 +17,7 @@ import {
 import { formatPrice, cn } from "@/src/lib/utils";
 import { Link } from "react-router-dom";
 import { STOCKS_DATA } from "./Stocks";
+import api from "@/src/lib/api";
 
 const MOCK_CALENDAR_DATA: Record<
   number,
@@ -117,29 +118,34 @@ export function Mypage() {
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
 
-  const [mainAccountBalance, setMainAccountBalance] = useState(() => {
-    const saved = localStorage.getItem("mock_account_balance");
-    return saved ? parseInt(saved, 10) : 42500000;
-  });
-
-  const [isLinked, setIsLinked] = useState(() => {
-    return localStorage.getItem("mock_account_linked") === "true";
-  });
+  const [mainAccountBalance, setMainAccountBalance] = useState(0);
+  const [isLinked, setIsLinked] = useState(false);
 
   useEffect(() => {
-    const syncStates = () => {
-      const savedBalance = localStorage.getItem("mock_account_balance");
-      if (savedBalance) {
-        setMainAccountBalance(parseInt(savedBalance, 10));
+    const fetchAccounts = async () => {
+      try {
+        const response = await api.get("/accounts");
+        const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
+        if (basicAccount) {
+          setMainAccountBalance(basicAccount.balance);
+        }
+      } catch {
+        setMainAccountBalance(0);
       }
-      setIsLinked(localStorage.getItem("mock_account_linked") === "true");
     };
-    window.addEventListener("mock-account-update", syncStates);
-    window.addEventListener("storage", syncStates);
-    return () => {
-      window.removeEventListener("mock-account-update", syncStates);
-      window.removeEventListener("storage", syncStates);
+    fetchAccounts();
+  }, []);
+
+  useEffect(() => {
+    const checkLinkStatus = async () => {
+      try {
+        await api.get("/openbanking/auths");
+        setIsLinked(true);
+      } catch {
+        setIsLinked(false);
+      }
     };
+    checkLinkStatus();
   }, []);
 
   const [favStockCodes, setFavStockCodes] = useState<string[]>(() => {
