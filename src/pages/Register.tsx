@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ChevronRight, X, ArrowLeft } from "lucide-react";
+import api from "@/src/lib/api";
 
 export function Register() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export function Register() {
   const [code, setCode] = useState("");
   const [isCodeVerified, setIsCodeVerified] = useState(false);
   const [countdown, setCountdown] = useState(293); // 4:53
+  const [sendError, setSendError] = useState("");
   
   // Step 2 states
   const [nickname, setNickname] = useState("");
@@ -28,6 +30,7 @@ export function Register() {
     marketing: false
   });
   const [showModal, setShowModal] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState("");
 
   // Format countdown
   const formatTime = (seconds: number) => {
@@ -43,17 +46,14 @@ export function Register() {
     }
   }, [isEmailSent, isCodeVerified, countdown]);
 
-  const handleSendEmail = () => {
-    setIsEmailSent(true);
-    setCountdown(293);
-  };
-
-  const handleVerifyCode = () => {
-    if (code === "123456") {
-      setIsCodeVerified(true);
-    } else {
-      setIsCodeVerified(false);
-      // Could show error state here
+  const handleSendEmail = async () => {
+    try {
+      await api.post("/auth/send-code", { email });
+      setIsEmailSent(true);
+      setCountdown(293);
+      setSendError("");
+    } catch (error: any) {
+      setSendError(error.response?.data?.message ?? "인증번호 발송에 실패했습니다.");
     }
   };
 
@@ -71,6 +71,17 @@ export function Register() {
     const newTerms = { ...terms, [key]: !terms[key] };
     setTerms(newTerms);
     setIsAllAgreed(newTerms.service && newTerms.privacy && newTerms.marketing);
+  };
+
+  const handleSignupComplete = async () => {
+    try {
+      await api.post("/auth/signup", { email, nickname, password });
+      await api.post("/auth/login", { email, password });
+      window.dispatchEvent(new Event("auth-change"));
+      navigate("/");
+    } catch (error: any) {
+      setSignupError(error.response?.data?.message ?? "회원가입에 실패했습니다.");
+    }
   };
 
   return (
@@ -133,6 +144,9 @@ export function Register() {
               {email && !isEmailSent && (
                 <p className="text-[12px] text-[#34C759] font-medium -mt-2">사용 가능한 이메일입니다</p>
               )}
+              {sendError && (
+                <p className="text-[12px] text-[#FF3B30] font-medium -mt-2">{sendError}</p>
+              )}
 
               {isEmailSent && (
                 <div className="relative pt-4 animate-in fade-in duration-300">
@@ -141,13 +155,18 @@ export function Register() {
                     id="code"
                     value={code}
                     maxLength={6}
-                    onChange={(e) => {
-                      setCode(e.target.value);
-                      if (e.target.value.length === 6) {
-                        // auto verify mock
-                        if (e.target.value === "123456") setIsCodeVerified(true);
-                      } else {
-                        setIsCodeVerified(false);
+                    onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
+                      const value = e.target.value;
+                      setCode(value);
+                      setIsCodeVerified(false);
+
+                      if (value.length === 6) {
+                        try {
+                          await api.post("/auth/verify-code", { email, code: value });
+                          setIsCodeVerified(true);
+                        } catch {
+                          setIsCodeVerified(false);
+                        }
                       }
                     }}
                     className="peer w-full border-b border-[#E5E5EA] py-3 text-[17px] text-[#191F28] tracking-widest bg-transparent outline-none focus:border-brand transition-colors placeholder-transparent"
@@ -390,11 +409,7 @@ export function Register() {
 
             <div className="mt-8">
                <button
-                  onClick={() => {
-                    localStorage.setItem("isLoggedIn", "true");
-                    window.dispatchEvent(new Event("auth-change"));
-                    navigate("/");
-                  }}
+                  onClick={handleSignupComplete}
                   disabled={!terms.service || !terms.privacy}
                   className={`w-full font-bold text-[16px] py-4 rounded-[16px] transition-colors active:scale-[0.98] ${
                     terms.service && terms.privacy ? "bg-brand text-white hover:bg-brand/90" : "bg-[#F2F4F6] text-[#C7C7CC] cursor-not-allowed"
@@ -402,6 +417,9 @@ export function Register() {
                >
                   회원가입 완료
                </button>
+               {signupError && (
+                 <p className="text-[12px] text-[#FF3B30] font-medium mt-2 text-center">{signupError}</p>
+               )}
             </div>
           </div>
         )}

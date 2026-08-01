@@ -27,7 +27,7 @@ import { PublicProfile } from "@/src/pages/PublicProfile";
 import { Login } from "@/src/pages/Login";
 import { Register } from "@/src/pages/Register";
 import { ForgotPassword } from "@/src/pages/ForgotPassword";
-import { OAuthAdditional } from "@/src/pages/OAuthAdditional";
+import { OAuthSuccess } from "./pages/OAuthSuccess";
 
 // New Footer Pages
 import { About } from "@/src/pages/About";
@@ -72,7 +72,7 @@ export default function App() {
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
-        <Route path="oauth2/additional" element={<OAuthAdditional />} />
+        <Route path="oauth2/success" element={<OAuthSuccess />} />
         <Route path="account-link/*" element={<AccountLinkFlow />} />
       </Routes>
     </BrowserRouter>

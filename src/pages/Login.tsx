@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import api from "@/src/lib/api";
 
 export function Login() {
   const navigate = useNavigate();
@@ -10,27 +11,23 @@ export function Login() {
   const [failedAttempts, setFailedAttempts] = useState(0);
   const [isError, setIsError] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setIsError(true);
       setFailedAttempts((prev) => prev + 1);
       return;
     }
-    
-    // Simulate error state if they enter error@mock.com or password has "error"
-    if (email === "error@mock.com" || password.toLowerCase() === "error") {
+
+    try {
+      await api.post("/auth/login", { email, password });
+      window.dispatchEvent(new Event("auth-change"));
+      navigate("/");
+    } catch (error) {
       setIsError(true);
       setFailedAttempts((prev) => prev + 1);
-      return;
     }
-
-    // Otherwise success login!
-    localStorage.setItem("isLoggedIn", "true");
-    window.dispatchEvent(new Event("auth-change"));
-    navigate("/");
   };
-
   return (
     <div className="min-h-screen bg-white flex flex-col pt-20 pb-12 px-6 sm:px-8 animate-in fade-in duration-300">
       <div className="w-full max-w-md mx-auto flex flex-col">
@@ -39,7 +36,7 @@ export function Login() {
         </Link>
 
         <div className="mb-8">
-           {/* Logo / Brand name could go here if needed, but heading is below */}
+          {/* Logo / Brand name could go here if needed, but heading is below */}
           <h1 className="text-[26px] font-bold tracking-tight text-[#191F28] leading-tight mb-2">
             안녕하세요,<br /><span className="text-brand">제로리스크</span>입니다
           </h1>
@@ -62,9 +59,8 @@ export function Login() {
               />
               <label
                 htmlFor="email"
-                className={`absolute left-0 transition-all cursor-text pointer-events-none ${
-                  email ? "-top-3 text-[12px] text-[#8B95A1]" : "top-3 text-[17px] text-[#8B95A1] peer-focus:-top-3 peer-focus:text-[12px] peer-focus:text-brand"
-                }`}
+                className={`absolute left-0 transition-all cursor-text pointer-events-none ${email ? "-top-3 text-[12px] text-[#8B95A1]" : "top-3 text-[17px] text-[#8B95A1] peer-focus:-top-3 peer-focus:text-[12px] peer-focus:text-brand"
+                  }`}
               >
                 이메일
               </label>
@@ -72,7 +68,7 @@ export function Login() {
 
             {/* Password Input */}
             <div className="relative">
-               <input
+              <input
                 type={showPassword ? "text" : "password"}
                 id="password"
                 value={password}
@@ -82,9 +78,8 @@ export function Login() {
               />
               <label
                 htmlFor="password"
-                className={`absolute left-0 transition-all cursor-text pointer-events-none ${
-                  password ? "-top-3 text-[12px] text-[#8B95A1]" : "top-3 text-[17px] text-[#8B95A1] peer-focus:-top-3 peer-focus:text-[12px] peer-focus:text-brand"
-                }`}
+                className={`absolute left-0 transition-all cursor-text pointer-events-none ${password ? "-top-3 text-[12px] text-[#8B95A1]" : "top-3 text-[17px] text-[#8B95A1] peer-focus:-top-3 peer-focus:text-[12px] peer-focus:text-brand"
+                  }`}
               >
                 비밀번호
               </label>
@@ -98,22 +93,22 @@ export function Login() {
             </div>
 
             {isError && (
-               <p className="text-[13px] text-[#FF3B30] mt-2 font-medium">이메일 또는 비밀번호를 확인해주세요</p>
+              <p className="text-[13px] text-[#FF3B30] mt-2 font-medium">이메일 또는 비밀번호를 확인해주세요</p>
             )}
 
             {/* Recaptcha mockup */}
             {failedAttempts >= 5 && (
               <div className="mt-4 border border-[#E5E5EA] bg-white rounded-md p-4 flex items-center justify-between shadow-sm animate-in fade-in duration-200">
-                 <div className="flex items-center gap-3">
-                   <div className="w-6 h-6 border-2 border-[#C7C7CC] rounded-[4px] bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-center">
-                      {/* empty checkbox */}
-                   </div>
-                   <span className="text-[14px] text-[#191F28]">로봇이 아닙니다</span>
-                 </div>
-                 <div className="flex flex-col items-center">
-                   <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" className="w-8" />
-                   <span className="text-[9px] text-[#8B95A1] mt-1">reCAPTCHA</span>
-                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-6 h-6 border-2 border-[#C7C7CC] rounded-[4px] bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-center">
+                    {/* empty checkbox */}
+                  </div>
+                  <span className="text-[14px] text-[#191F28]">로봇이 아닙니다</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" className="w-8" />
+                  <span className="text-[9px] text-[#8B95A1] mt-1">reCAPTCHA</span>
+                </div>
               </div>
             )}
           </div>
@@ -125,7 +120,7 @@ export function Login() {
             >
               로그인
             </button>
-            
+
             <div className="flex items-center justify-center gap-4 text-[13px] text-[#8B95A1] font-medium pt-1">
               <Link to="/forgot-password" className="hover:text-[#191F28] transition-colors">비밀번호 찾기</Link>
               <div className="w-[1px] h-3 bg-[#E5E5EA]"></div>
@@ -142,25 +137,21 @@ export function Login() {
           </div>
 
           <div className="space-y-3">
-            <Link to="/oauth2/additional" className="w-full flex items-center justify-center gap-2 border border-[#E5E5EA] bg-white text-[#191F28] font-bold text-[15px] py-3.5 rounded-[16px] hover:bg-gray-50 transition-colors active:scale-[0.98]">
-               <svg width="20" height="20" viewBox="0 0 48 48">
-                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-               </svg>
-               Google 계정으로 로그인
-            </Link>
-            <button onClick={() => {
-              localStorage.setItem("isLoggedIn", "true");
-              window.dispatchEvent(new Event("auth-change"));
-              navigate("/");
-            }} className="w-full flex items-center justify-center gap-2 border border-[#FEE500] bg-[#FEE500] text-[#000000] font-bold text-[15px] py-3.5 rounded-[16px] hover:bg-[#FEE500]/90 transition-colors active:scale-[0.98]">
-               <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                 <path d="M12 3c-5.522 0-10 3.468-10 7.74 0 2.768 1.838 5.176 4.636 6.541-.15.545-1.127 3.99-1.295 4.634-.208.8.274.792.578.587 0 0 3.754-2.528 5.253-3.62.27.027.548.041.828.041 5.522 0 10-3.468 10-7.74S17.522 3 12 3z"/>
-               </svg>
-               카카오로 로그인
-            </button>
+            <a href="http://localhost:8081/oauth2/authorization/google" className="w-full flex items-center justify-center gap-2 border border-[#E5E5EA] bg-white text-[#191F28] font-bold text-[15px] py-3.5 rounded-[16px] hover:bg-gray-50 transition-colors active:scale-[0.98]">
+              <svg width="20" height="20" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+              </svg>
+              Google 계정으로 로그인
+            </a>
+            <a href="http://localhost:8081/oauth2/authorization/kakao" className="w-full flex items-center justify-center gap-2 border border-[#FEE500] bg-[#FEE500] text-[#000000] font-bold text-[15px] py-3.5 rounded-[16px] hover:bg-[#FEE500]/90 transition-colors active:scale-[0.98]">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 3c-5.522 0-10 3.468-10 7.74 0 2.768 1.838 5.176 4.636 6.541-.15.545-1.127 3.99-1.295 4.634-.208.8.274.792.578.587 0 0 3.754-2.528 5.253-3.62.27.027.548.041.828.041 5.522 0 10-3.468 10-7.74S17.522 3 12 3z" />
+              </svg>
+              카카오로 로그인
+            </a>
           </div>
         </div>
       </div>
