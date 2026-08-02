@@ -15,7 +15,7 @@ import {
   Settings,
 } from "lucide-react";
 import { formatPrice, cn } from "@/src/lib/utils";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "./Stocks";
 import api from "@/src/lib/api";
 
@@ -113,6 +113,7 @@ export function formatCompetitionPeriod(period: string): string {
 }
 
 export function Mypage() {
+  const navigate = useNavigate();
   const [mainFilter, setMainFilter] = useState("거래내역");
   const [txTab, setTxTab] = useState("거래내역");
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
@@ -262,8 +263,11 @@ export function Mypage() {
                 >
                   <Settings className="w-5 h-5" />
                 </Link>
-                <Button className="bg-brand hover:bg-brand/90 text-white border-transparent px-4 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer">
-                  프로필 수정
+                <Button
+                  onClick={() => navigate(isLinked ? "/account-link/recharge/confirm" : "/account-link/intro")}
+                  className="bg-brand hover:bg-brand/90 text-white border-transparent px-4 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer"
+                >
+                  {isLinked ? "충전하기" : "연동하기"}
                 </Button>
               </div>
             </div>
