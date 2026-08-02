@@ -71,14 +71,17 @@ export function MainLayout() {
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const checkLoginStatus = async () => {
     try {
       const response = await api.get("/users/me");
       console.log("users/me 성공:", response.status, response.data);
       setIsLoggedIn(true);
+      setIsAdmin(response.data.userRole === "ADMIN");
     } catch (error) {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
+      setIsAdmin(false);
     }
   };
   const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
@@ -105,7 +108,6 @@ export function MainLayout() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
-  const isAdmin = true; // Demo toggle for admin menu
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
