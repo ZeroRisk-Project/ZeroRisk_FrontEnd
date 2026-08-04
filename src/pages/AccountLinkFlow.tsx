@@ -140,12 +140,6 @@ export function AccountLinkFlow() {
           } />
 
           {/* Error screens */}
-          <Route path="error/limit" element={
-            <ErrorLimitPage />
-          } />
-          <Route path="error/decrease" element={
-            <ErrorDecreasePage />
-          } />
           <Route path="error/api" element={
             <ErrorApiPage />
           } />
@@ -312,16 +306,29 @@ function AmountStep({ onNext }: AmountStepProps) {
   const isValid = amountNumber > 0 && amountNumber <= availableAmount;
 
   return (
-    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8">
+    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in slide-in-from-right duration-300">
       <div>
-        <button type="button" onClick={() => navigate("/mypage")} className="p-1 mb-4">
-          <X className="w-6 h-6 text-neutral-700" />
-        </button>
+        <div className="flex items-center justify-between mb-4">
+          <button
+            type="button"
+            onClick={() => navigate("/account-link/intro")}
+            className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-sm font-semibold text-neutral-500"
+          >
+            <ArrowLeft className="w-5 h-5 text-neutral-700" />
+            <span>뒤로</span>
+          </button>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[12px] font-bold text-neutral-400">2/3</span>
+            <div className="w-16 h-1 w-20 bg-neutral-100 rounded-full overflow-hidden">
+              <div className="w-[66%] h-full bg-[#3182F6]" />
+            </div>
+          </div>
+        </div>
 
-        <h2 className="text-[22px] font-extrabold text-neutral-900 mb-2">
+        <h2 className="text-[25px] font-extrabold text-neutral-900 leading-tight tracking-tight mb-2 text-left">
           받을 시드머니 금액을<br />직접 정해보세요
         </h2>
-        <p className="text-sm text-text-secondary mb-6">
+        <p className="text-[14px] text-text-secondary font-medium text-left leading-relaxed mb-6">
           {loading ? "한도를 확인하는 중..." : `최대 ₩${formatPrice(availableAmount)}까지 받을 수 있어요`}
         </p>
 
@@ -330,24 +337,26 @@ function AmountStep({ onNext }: AmountStepProps) {
           value={inputAmount}
           onChange={(e) => setInputAmount(e.target.value)}
           placeholder="받을 금액을 입력하세요"
-          className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6]"
+          className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6] transition-colors"
         />
         <button
           type="button"
           onClick={() => setInputAmount(String(availableAmount))}
-          className="text-sm font-bold text-[#3182F6] mt-2"
+          className="text-sm font-bold text-[#3182F6] mt-3"
         >
           전액 입력 (₩{formatPrice(availableAmount)})
         </button>
       </div>
 
-      <button
-        onClick={() => onNext(amountNumber)}
-        disabled={!isValid}
-        className="w-full bg-[#3182F6] disabled:bg-neutral-200 text-white py-4 rounded-[16px] font-bold text-[16px] mt-8"
-      >
-        다음
-      </button>
+      <div className="mt-12">
+        <button
+          onClick={() => onNext(amountNumber)}
+          disabled={!isValid}
+          className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors disabled:bg-neutral-200 disabled:cursor-not-allowed"
+        >
+          다음
+        </button>
+      </div>
     </div>
   );
 }
@@ -399,7 +408,7 @@ function ConfirmStep({ onNext }: ConfirmStepProps) {
           <div className="text-3xl font-black text-neutral-900 tabular-nums my-3 block font-mono">
             ₩{formatPrice(amount)}
           </div>
-          <p className="text-xs font-semibold text-neutral-400">실물계좌 잔액 및 지급 한도 기준으로 계산됨</p>
+          <p className="text-xs font-semibold text-neutral-400">직접 입력하신 금액입니다</p>
         </div>
 
         {/* Detail Specifications List */}
@@ -410,11 +419,7 @@ function ConfirmStep({ onNext }: ConfirmStepProps) {
           </div>
           <div className="py-3 flex items-center justify-between text-sm">
             <span className="font-bold text-neutral-400">재충전 가능 조건</span>
-            <span className="font-bold text-neutral-800 text-right">실물 계좌의 잔액 증가 시</span>
-          </div>
-          <div className="py-3 flex items-center justify-between text-sm">
-            <span className="font-bold text-neutral-400">1일 제한</span>
-            <span className="font-bold text-neutral-800 text-right">매일 1회 재인증 충전 지원</span>
+            <span className="font-bold text-neutral-800 text-right">잔여 한도 내 언제든 가능</span>
           </div>
         </div>
 
@@ -539,41 +544,37 @@ function CompleteStep() {
 // ==========================================
 function RechargeConfirmPage() {
   const navigate = useNavigate();
-  const [availableAmount, setAvailableAmount] = useState(0);
-  const [rechargeError, setRechargeError] = useState("");
   const [currentBank, setCurrentBank] = useState("");
   const [currentNum, setCurrentNum] = useState("");
+  const [availableAmount, setAvailableAmount] = useState(0);
   const [inputAmount, setInputAmount] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [rechargeError, setRechargeError] = useState("");
 
   useEffect(() => {
-    const fetchAuth = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.get("/openbanking/auths");
-        setCurrentBank(response.data.bankName);
-        setCurrentNum(response.data.accountNumMasked);
+        const [authRes, limitRes] = await Promise.all([
+          api.get("/openbanking/auths"),
+          api.get("/openbanking/balance-limit"),
+        ]);
+        setCurrentBank(authRes.data.bankName);
+        setCurrentNum(authRes.data.accountNumMasked);
+        setAvailableAmount(limitRes.data.availableChargeAmount);
       } catch {
-        // 인증 정보가 없는 경우(OPENBANKING_002) — 정상 케이스, 빈 값 유지
-      }
-    };
-    fetchAuth();
-  }, []);
-
-  useEffect(() => {
-    const fetchLimit = async () => {
-      try {
-        const response = await api.get("/openbanking/balance-limit");
-        setAvailableAmount(response.data.availableChargeAmount);
-      } catch (error) {
         setAvailableAmount(0);
+      } finally {
+        setLoading(false);
       }
     };
-    fetchLimit();
+    fetchData();
   }, []);
 
   const amountNumber = Number(inputAmount) || 0;
+  const isValid = amountNumber > 0 && amountNumber <= availableAmount;
 
   const handleExecuteRecharge = async () => {
-    if (amountNumber <= 0 || amountNumber > availableAmount) return;
+    if (!isValid) return;
     try {
       await api.post("/openbanking/recharge", { amount: amountNumber });
       navigate("/account-link/recharge/complete", { state: { amount: amountNumber } });
@@ -621,21 +622,26 @@ function RechargeConfirmPage() {
 
         {/* Amount Input */}
         <div className="bg-neutral-50 border border-neutral-150 rounded-[28px] p-5 my-5 text-left">
-          <p className="text-sm mb-2 font-bold text-neutral-600">최대 ₩{formatPrice(availableAmount)}까지 받을 수 있어요</p>
+          <p className="text-sm text-text-secondary mb-2">
+            {loading ? "한도를 확인하는 중..." : `최대 ₩${formatPrice(availableAmount)}까지 추가로 받을 수 있어요`}
+          </p>
           <input
             type="number"
             value={inputAmount}
             onChange={(e) => setInputAmount(e.target.value)}
             placeholder="받을 금액을 입력하세요"
-            className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6] bg-transparent"
+            className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6] transition-colors bg-transparent"
           />
           <button
             type="button"
             onClick={() => setInputAmount(String(availableAmount))}
-            className="text-sm font-bold text-[#3182F6] mt-2"
+            className="text-sm font-bold text-[#3182F6] mt-3"
           >
             전액 입력
           </button>
+          {rechargeError && (
+            <p className="text-[12px] text-[#FF3B30] font-medium mt-3">{rechargeError}</p>
+          )}
         </div>
 
         <p className="text-[11px] text-text-secondary mt-5 text-left">
@@ -647,14 +653,13 @@ function RechargeConfirmPage() {
       <div className="mt-8 space-y-3.5">
         <button
           onClick={handleExecuteRecharge}
-          disabled={amountNumber <= 0 || amountNumber > availableAmount}
+          disabled={!isValid}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:bg-neutral-200 disabled:cursor-not-allowed"
         >
-          충전하기
+          재충전하기
         </button>
-        {rechargeError && <p className="text-red-500 text-sm mt-2">{rechargeError}</p>}
 
-        <button 
+        <button
           onClick={() => navigate("/account-link/intro")}
           className="w-full text-xs font-bold text-[#E21010]/80 hover:text-[#E21010] transition text-center"
         >
@@ -717,10 +722,6 @@ function RechargeCompletePage() {
             <span className="font-bold text-neutral-400">총 보유 포인트</span>
             <span className="font-extrabold text-neutral-800">지급 완료</span>
           </div>
-          <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-neutral-400">다음 가용 재충전</span>
-            <span className="font-bold text-neutral-500">내일 이후</span>
-          </div>
         </div>
       </div>
 
@@ -747,102 +748,7 @@ function RechargeCompletePage() {
 }
 
 // ==========================================
-// ERROR 1: 오늘 이미 인증 완료
-// ==========================================
-function ErrorLimitPage() {
-  const navigate = useNavigate();
-  return (
-    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-300">
-      <div className="flex items-center justify-end">
-        <button onClick={() => navigate("/mypage")} className="p-1 hover:bg-neutral-100 rounded-full" aria-label="닫기">
-          <X className="w-6 h-6 text-neutral-700" />
-        </button>
-      </div>
-
-      <div className="my-auto py-12">
-        <div className="w-16 h-16 bg-[#F2F4F6] text-neutral-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
-          ⏰
-        </div>
-        
-        <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
-          오늘은 이미<br />
-          재충전했어요
-        </h2>
-
-        <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-6">
-          하루에 한 번만 금결원 인증 재충전이 허용됩니다.<br />
-          해당 계좌 점검 정책에 따라 내일 다시 요청해주십시오.
-        </p>
-
-        <div className="bg-neutral-50 border border-neutral-100 rounded-xl p-4 text-xs font-bold max-w-xs mx-auto text-neutral-600">
-          🔓 다음 충전 가능일자: <strong>내일 오전 00시 이후</strong>
-        </div>
-      </div>
-
-      <button 
-        onClick={() => navigate("/mypage")}
-        className="w-full bg-neutral-900 hover:bg-black text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
-      >
-        확인
-      </button>
-    </div>
-  );
-}
-
-// ==========================================
-// ERROR 2: 잔액 감소로 인한 거절
-// ==========================================
-function ErrorDecreasePage() {
-  const navigate = useNavigate();
-  return (
-    <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-300">
-      <div className="flex items-center justify-end">
-        <button onClick={() => navigate("/mypage")} className="p-1 hover:bg-neutral-100 rounded-full" aria-label="닫기">
-          <X className="w-6 h-6 text-neutral-700" />
-        </button>
-      </div>
-
-      <div className="my-auto py-12 text-left max-w-sm mx-auto">
-        <div className="w-16 h-16 bg-red-50 text-[#FF453A] rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
-          📉
-        </div>
-        
-        <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2 text-center">
-          잔액이 줄어들었어요
-        </h2>
-
-        <p className="text-sm font-semibold text-text-secondary leading-relaxed text-center mb-6">
-          이전 연동 시점의 계좌 잔액보다 현재 체크된 잔액이 줄어들었으므로 추가 획득 포인트를 교부할 수 없습니다.
-        </p>
-
-        <div className="bg-neutral-50 rounded-2xl p-4 border border-neutral-100/80 space-y-2 text-xs">
-          <div className="flex justify-between font-bold text-neutral-400">
-            <span>이전 인증 잔액</span>
-            <span className="text-neutral-700 font-mono">₩8,000,000</span>
-          </div>
-          <div className="flex justify-between font-bold text-neutral-400">
-            <span>현재 점검 잔액</span>
-            <span className="text-red-500 font-mono">₩5,000,000</span>
-          </div>
-        </div>
-
-        <p className="text-[11px] font-extrabold text-neutral-400 mt-4 text-center">
-          실제 실물자산이 상승했을 때 재충전 프로세스를 실행해주십시오.
-        </p>
-      </div>
-
-      <button 
-        onClick={() => navigate("/mypage")}
-        className="w-full bg-neutral-900 hover:bg-black text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
-      >
-        확인
-      </button>
-    </div>
-  );
-}
-
-// ==========================================
-// ERROR 3: 오픈뱅킹 네트워크 통신 오류
+// ERROR: 오픈뱅킹 네트워크 통신 오류
 // ==========================================
 function ErrorApiPage() {
   const navigate = useNavigate();
