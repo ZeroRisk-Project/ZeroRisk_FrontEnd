@@ -1,17 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Input } from "@/src/components/ui/Input";
 import { Badge } from "@/src/components/ui/Badge";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trophy, Lock, Globe, Plus, X, Search, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
+import { ArrowLeft, Trophy, Plus, X, Search, ChevronLeft, ChevronRight, Calendar } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import api from "@/src/lib/api";
 
 export function CompetitionCreate() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const response = await api.get("/users/me");
+        if (response.data.userRole !== "ADMIN") {
+          navigate("/competitions");
+        }
+      } catch {
+        navigate("/competitions");
+      }
+    };
+    checkAdmin();
+  }, [navigate]);
+
+
   const formatDateStr = (date: Date) => {
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -139,44 +155,46 @@ export function CompetitionCreate() {
     return diffDays;
   };
   const [initialAmount, setInitialAmount] = useState("1000");
-  const [maxParticipants, setMaxParticipants] = useState("1000");
-  const [isSecret, setIsSecret] = useState(false);
-  const [password, setPassword] = useState("");
+  const [maxParticipants, setMaxParticipants] = useState("");
 
   const [stockSearch, setStockSearch] = useState("");
   const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [allowedStocks, setAllowedStocks] = useState<
-    { name: string; code: string }[]
-  >([]);
+  const [searchResults, setSearchResults] = useState<{ id: number; code: string; name: string }[]>([]);
+  const [allowedStocks, setAllowedStocks] = useState<{ id: number; name: string; code: string }[]>([]);
 
-  const STOCKS_DATA = [
-    { code: "005930", name: "삼성전자" },
-    { code: "000660", name: "SK하이닉스" },
-    { code: "373220", name: "LG에너지솔루션" },
-    { code: "207940", name: "삼성바이오로직스" },
-    { code: "005380", name: "현대차" },
-    { code: "000270", name: "기아" },
-    { code: "035420", name: "NAVER" },
-    { code: "035720", name: "카카오" },
-  ];
+  useEffect(() => {
+    if (stockSearch.trim() === "") {
+      setSearchResults([]);
+      return;
+    }
+    const fetchResults = async () => {
+      try {
+        const response = await api.get("/stocks/search", { params: { keyword: stockSearch } });
+        setSearchResults(response.data.content);
+      } catch {
+        setSearchResults([]);
+      }
+    };
+    fetchResults();
+  }, [stockSearch]);
 
-  const filteredStocks = STOCKS_DATA.filter(
-    (stock) =>
-      (stock.name.includes(stockSearch) || stock.code.includes(stockSearch)) &&
-      !allowedStocks.find((s) => s.code === stock.code),
+  const filteredStocks = searchResults.filter(
+    (stock) => !allowedStocks.find((s) => s.id === stock.id),
   );
 
-  const handleStockSelect = (stock: { name: string; code: string }) => {
+  const handleStockSelect = (stock: { id: number; name: string; code: string }) => {
     setAllowedStocks([...allowedStocks, stock]);
     setStockSearch("");
     setIsSearchFocused(false);
   };
 
-  const removeStock = (code: string) => {
-    setAllowedStocks(allowedStocks.filter((s) => s.code !== code));
+  const removeStock = (id: number) => {
+    setAllowedStocks(allowedStocks.filter((s) => s.id !== id));
   };
 
-  const handleCreate = () => {
+  const [createError, setCreateError] = useState("");
+
+  const handleCreate = async () => {
     if (!title.trim()) {
       alert("대회 이름을 입력해주세요.");
       return;
@@ -186,54 +204,23 @@ export function CompetitionCreate() {
       return;
     }
 
-    const savedList = localStorage.getItem("competitions_list");
-    let currentCompetitions = [];
-    if (savedList) {
-      try {
-        currentCompetitions = JSON.parse(savedList);
-      } catch (e) {
-        console.error(e);
-      }
+    try {
+      await api.post("/admin/competitions", {
+        title,
+        description,
+        startAt: `${startDate}T00:00:00`,
+        endAt: `${endDate}T23:59:59`,
+        seedMoney: (parseInt(initialAmount) || 1000) * 10000,
+        isPublic: true,
+        allowedStockIds: allowedStocks.map((s) => s.id),
+        maxParticipants: maxParticipants.trim() === "" ? null : parseInt(maxParticipants),
+      });
+
+      sessionStorage.setItem("show_created_toast", `🏆 [ ${title} ] 대회가 성공적으로 개최되었습니다.`);
+      navigate("/competitions");
+    } catch (error: any) {
+      setCreateError(error.response?.data?.message ?? "대회 생성에 실패했습니다.");
     }
-
-    // Determine status based on dates
-    let compStatus: "WAITING" | "ONGOING" | "FINISHED" = "WAITING";
-    const todayStr = formatDateStr(new Date());
-    if (todayStr >= startDate && todayStr <= endDate) {
-      compStatus = "ONGOING";
-    } else if (todayStr > endDate) {
-      compStatus = "FINISHED";
-    }
-
-    // Create unique ID
-    const maxId = currentCompetitions.reduce((max: number, c: any) => (c.id && c.id > max ? c.id : max), 0);
-    const newId = maxId > 0 ? maxId + 1 : 101;
-
-    const createdComp = {
-      id: newId,
-      title: title,
-      description: description,
-      startDate: startDate,
-      endDate: endDate,
-      seedMoney: (parseInt(initialAmount) || 1000) * 10000,
-      initialAmount: (parseInt(initialAmount) || 1000) * 10000,
-      participants: 0,
-      maxParticipants: maxParticipants ? parseInt(maxParticipants) : "무제한",
-      status: compStatus,
-      isOpen: true,
-      isOfficial: false,
-      target: allowedStocks.length > 0 ? allowedStocks.map(s => s.name).join(", ") : "전체",
-      hasPassword: isSecret,
-      password: password,
-      dday: compStatus === "WAITING" ? "D-Day" : compStatus === "ONGOING" ? "진행중" : "종료"
-    };
-
-    const nextList = [createdComp, ...currentCompetitions];
-    localStorage.setItem("competitions_list", JSON.stringify(nextList));
-
-    // Save success toast message to display on the competitions list page
-    sessionStorage.setItem("show_created_toast", `🏆 [ ${title} ] 대회가 성공적으로 개최되었습니다.`);
-    navigate("/competitions");
   };
 
   return (
@@ -303,7 +290,7 @@ export function CompetitionCreate() {
                         <ul className="py-2">
                           {filteredStocks.map((stock) => (
                             <li
-                              key={stock.code}
+                              key={stock.id}
                               className="px-4 py-2.5 hover:bg-bg-main cursor-pointer flex justify-between items-center transition-colors text-sm"
                               onClick={() => handleStockSelect(stock)}
                             >
@@ -338,13 +325,13 @@ export function CompetitionCreate() {
                 ) : (
                   allowedStocks.map((stock) => (
                     <Badge
-                      key={stock.code}
+                      key={stock.id}
                       variant="secondary"
                       className="h-[34px] px-3.5 flex items-center gap-1.5 rounded-full border border-border-color/40 bg-[#F8F9FA] hover:bg-[#E9ECEF] transition-colors text-[13px] text-text-primary font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
                     >
                       <span className="leading-none">{stock.name}</span>
                       <button
-                        onClick={() => removeStock(stock.code)}
+                        onClick={() => removeStock(stock.id)}
                         className="text-text-secondary hover:text-red-500 transition-colors flex items-center justify-center p-0.5 rounded-full hover:bg-border-color/20 shrink-0"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -511,119 +498,51 @@ export function CompetitionCreate() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-5">
-              <div className="flex flex-col gap-4">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  참가자 초기 투자금
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary cursor-pointer appearance-none"
-                    value={initialAmount}
-                    onChange={(e) => setInitialAmount(e.target.value)}
-                  >
-                    <option value="100">100 만원</option>
-                    <option value="500">500 만원</option>
-                    <option value="1000">1,000 만원</option>
-                    <option value="5000">5,000 만원</option>
-                    <option value="10000">1 억원</option>
-                    <option value="50000">5 억원</option>
-                    <option value="100000">10 억원</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-text-secondary">
-                  대회 시작 시 생성될 초기 자본
-                </p>
-              </div>
-              <div className="flex flex-col gap-4">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  최대 참가자 수 제한
-                </label>
-                <div className="relative">
-                  <select
-                    className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary cursor-pointer appearance-none"
-                    value={maxParticipants}
-                    onChange={(e) => setMaxParticipants(e.target.value)}
-                  >
-                    <option value="10">10 명</option>
-                    <option value="30">30 명</option>
-                    <option value="50">50 명</option>
-                    <option value="100">100 명</option>
-                    <option value="500">500 명</option>
-                    <option value="1000">1,000 명</option>
-                    <option value="">무제한</option>
-                  </select>
-                  <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
-                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                      <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                    </svg>
-                  </div>
-                </div>
-                <p className="text-xs font-semibold text-text-secondary">
-                  대회에 참가할 수 있는 최대 인원
-                </p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 pt-2">
+            <div className="flex flex-col gap-4">
               <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                공개 설정
+                참가자 초기 투자금
               </label>
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setIsSecret(false)}
-                  className={cn(
-                    "flex-1 py-4 px-4 rounded-[12px] border-2 flex items-center justify-center gap-2.5 transition-colors cursor-pointer",
-                    !isSecret
-                      ? "border-brand bg-brand/5 text-brand"
-                      : "border-border-color bg-surface text-text-secondary",
-                  )}
+              <div className="relative">
+                <select
+                  className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary cursor-pointer appearance-none"
+                  value={initialAmount}
+                  onChange={(e) => setInitialAmount(e.target.value)}
                 >
-                  <Globe className="w-5 h-5" />
-                  <span className="text-[15px] font-black">공개 대회</span>
-                </button>
-                <button
-                  onClick={() => setIsSecret(true)}
-                  className={cn(
-                    "flex-1 py-4 px-4 rounded-[12px] border-2 flex items-center justify-center gap-2.5 transition-colors cursor-pointer",
-                    isSecret
-                      ? "border-brand bg-brand/5 text-brand"
-                      : "border-border-color bg-surface text-text-secondary",
-                  )}
-                >
-                  <Lock className="w-5 h-5" />
-                  <span className="text-[15px] font-black">비밀 대회</span>
-                </button>
-              </div>
-              {isSecret && (
-                <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-3 relative">
-                  <Lock className="w-4 h-4 text-text-secondary absolute left-3 top-1/2 -translate-y-1/2" />
-                  <Input
-                    type="password"
-                    placeholder="입장 비밀번호를 입력해주세요"
-                    value={password}
-                    maxLength={6}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "" || /^[0-9]+$/.test(val)) {
-                        setPassword(val.slice(0, 6));
-                      }
-                    }}
-                    className="pl-10 font-bold text-[15px] h-11"
-                  />
+                  <option value="100">100 만원</option>
+                  <option value="500">500 만원</option>
+                  <option value="1000">1,000 만원</option>
+                  <option value="5000">5,000 만원</option>
+                  <option value="10000">1 억원</option>
+                  <option value="50000">5 억원</option>
+                  <option value="100000">10 억원</option>
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                  </svg>
                 </div>
-              )}
+              </div>
+              <p className="text-xs font-semibold text-text-secondary">
+                대회 시작 시 생성될 초기 자본
+              </p>
             </div>
 
-
+            <div className="flex flex-col gap-2">
+              <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
+                최대 참가자 수 (선택)
+              </label>
+              <input
+                type="number"
+                value={maxParticipants}
+                onChange={(e) => setMaxParticipants(e.target.value)}
+                placeholder="비워두면 무제한"
+                className="w-full border-b-2 border-neutral-200 py-2 text-lg font-bold outline-none focus:border-[#3182F6]"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 pt-5 border-t border-border-color">
+            {createError && <p className="text-sm text-down text-center">{createError}</p>}
             <Button className="w-full h-12 text-[15px] font-black rounded-[14px]" onClick={handleCreate}>
               개최하기
             </Button>
