@@ -15,6 +15,7 @@ import {
   CheckSquare,
   Square
 } from "lucide-react";
+import api from "@/src/lib/api";
 
 // Types
 type ActiveSheet =
@@ -29,6 +30,8 @@ type ActiveSheet =
 
 type AccountType = "general" | "social";
 
+const DEFAULT_PROFILE_IMAGE = "/default-profile.png";
+
 export function MypageSettings() {
   const navigate = useNavigate();
 
@@ -37,26 +40,28 @@ export function MypageSettings() {
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
 
   // Profile Edit States
-  const [nickname, setNickname] = useState("강원준");
-  const [tempNickname, setTempNickname] = useState("강원준");
-  const [profilePic, setProfilePic] = useState("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop");
+  const [nickname, setNickname] = useState("불러오는 중");
+  const [tempNickname, setTempNickname] = useState("");
+  const [profilePic, setProfilePic] = useState(DEFAULT_PROFILE_IMAGE);
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [nicknameSuccess, setNicknameSuccess] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [loading, setLoading] = useState(true);
 
   // Password Change States
-  const [accountType, setAccountType] = useState<AccountType>("general"); // can toggle in sheet to show both states
+  const [accountType, setAccountType] = useState<AccountType>("general");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   // Social Connections
   const [isGoogleConnected, setIsGoogleConnected] = useState(true);
   const [isKakaoConnected, setIsKakaoConnected] = useState(false);
 
   // Email Change State
-  const [email, setEmail] = useState("dnjswns@gmail.com");
-  const [tempEmail, setTempEmail] = useState("dnjswns@gmail.com");
+  const [email, setEmail] = useState("");
+  const [tempEmail, setTempEmail] = useState("");
 
   // Notifications Toggles
   const [notifTrade, setNotifTrade] = useState(true);
@@ -84,12 +89,31 @@ export function MypageSettings() {
     };
   }, []);
 
+  useEffect(() => {
+    const fetchMyInfo = async () => {
+      try {
+        const response = await api.get("/users/me");
+        setNickname(response.data.nickname);
+        setEmail(response.data.email);
+        setProfilePic(response.data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
+        setAccountType(response.data.oauthProvider ? "social" : "general");
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMyInfo();
+  }, []);
+
   // Delete Account States
   const [deleteStep, setDeleteStep] = useState<1 | 2 | 3>(1);
   const [deleteReason, setDeleteReason] = useState("");
   const [deleteReasonText, setDeleteReasonText] = useState("");
   const [confirmDeleteCheck1, setConfirmDeleteCheck1] = useState(false);
   const [confirmDeleteCheck2, setConfirmDeleteCheck2] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   // Logout Dialog
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -177,9 +201,12 @@ export function MypageSettings() {
       setDeleteReasonText("");
       setConfirmDeleteCheck1(false);
       setConfirmDeleteCheck2(false);
+      setDeletePassword("");
+      setDeleteError("");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
+      setPasswordError(null);
     };
 
     return (
@@ -273,11 +300,16 @@ export function MypageSettings() {
                   <p className="text-[11px] font-medium text-neutral-400 pl-1">12자 이하, 특수문자 불가</p>
                 </div>
 
-                <button 
-                  onClick={() => {
-                    setNickname(tempNickname);
-                    triggerNotification("닉네임이 성공적으로 변경되었습니다.");
-                    closeSheet();
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.patch("/users/me", { nickname: tempNickname, profileImageUrl: profilePic });
+                      setNickname(tempNickname);
+                      triggerNotification("닉네임이 성공적으로 변경되었습니다.");
+                      closeSheet();
+                    } catch (error: any) {
+                      setNicknameError(error.response?.data?.message ?? "변경에 실패했습니다.");
+                    }
                   }}
                   disabled={!!nicknameError || tempNickname === nickname || !tempNickname.trim()}
                   className="w-full bg-[#4B80EB] disabled:bg-neutral-200 text-white font-bold py-4 rounded-[16px] transition-all hover:bg-blue-600 disabled:text-neutral-400 mt-4 cursor-pointer"
@@ -378,10 +410,19 @@ export function MypageSettings() {
                       )}
                     </div>
 
-                    <button 
-                      onClick={() => {
-                        triggerNotification("비밀번호가 안전하게 변경되었습니다.");
-                        closeSheet();
+                    {passwordError && (
+                      <p className="text-[12px] font-bold text-red-500 pl-1">❌ {passwordError}</p>
+                    )}
+
+                    <button
+                      onClick={async () => {
+                        try {
+                          await api.patch("/users/me/password", { currentPassword, newPassword });
+                          triggerNotification("비밀번호가 안전하게 변경되었습니다.");
+                          closeSheet();
+                        } catch (error: any) {
+                          setPasswordError(error.response?.data?.message ?? "변경에 실패했습니다.");
+                        }
                       }}
                       disabled={!isPasswordChangeValid}
                       className="w-full bg-[#4B80EB] disabled:bg-neutral-200 text-white font-bold py-4 rounded-[16px] hover:bg-blue-600 disabled:text-neutral-400 mt-4 transition-all cursor-pointer"
@@ -786,20 +827,45 @@ export function MypageSettings() {
                       </p>
                     </button>
 
+                    {accountType !== "social" && (
+                      <div className="space-y-1.5">
+                        <label className="text-[13px] font-bold text-neutral-500">비밀번호 확인</label>
+                        <input
+                          type="password"
+                          value={deletePassword}
+                          onChange={(e) => setDeletePassword(e.target.value)}
+                          className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 focus:border-neutral-400 rounded-[16px] text-base outline-none transition"
+                          placeholder="본인 확인을 위해 비밀번호를 입력해 주세요"
+                        />
+                      </div>
+                    )}
+
+                    {deleteError && (
+                      <p className="text-[12px] font-bold text-red-500 pl-1">❌ {deleteError}</p>
+                    )}
+
                     <div className="flex gap-2.5">
-                      <button 
+                      <button
                         onClick={() => setDeleteStep(2)}
                         className="flex-1 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold py-4 rounded-[16px] transition cursor-pointer"
                       >
                         이전
                       </button>
-                      <button 
-                        onClick={() => {
-                          triggerNotification("회원 탈퇴 요청이 정상 접수되었습니다. 이용해주셔서 감사합니다.");
-                          closeSheet();
-                          navigate("/");
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.delete("/users/me", {
+                              data: { password: accountType === "social" ? undefined : deletePassword },
+                            });
+                            triggerNotification("회원 탈퇴 요청이 정상 접수되었습니다. 이용해주셔서 감사합니다.");
+                            closeSheet();
+                            window.dispatchEvent(new Event("auth-change"));
+                            navigate("/");
+                          } catch (error: any) {
+                            setDeleteError(error.response?.data?.message ?? "탈퇴에 실패했습니다.");
+                          }
                         }}
-                        disabled={!confirmDeleteCheck1 || !confirmDeleteCheck2}
+                        disabled={!confirmDeleteCheck1 || !confirmDeleteCheck2 || (accountType !== "social" && !deletePassword)}
                         className="flex-1 bg-red-500 hover:bg-red-600 disabled:bg-neutral-200 disabled:text-neutral-400 text-white font-bold py-4 rounded-[16px] transition-colors cursor-pointer"
                       >
                         탈퇴하기
@@ -825,61 +891,6 @@ export function MypageSettings() {
           <span>{showNotification}</span>
         </div>
       )}
-
-      {/* Top Header Selector Bar - Show all states request */}
-      <div className="max-w-[680px] mx-auto px-4 mb-4">
-        <div className="bg-white/80 backdrop-blur-md rounded-[16px] p-3 text-xs flex flex-wrap gap-2 items-center justify-center border border-slate-200 shadow-xs">
-          <span className="font-bold text-neutral-500">📌 상태 임의 확인:</span>
-          <button 
-            onClick={() => setActiveSheet("profile_edit")}
-            className="px-2.5 py-1 bg-[#F2F4F6] text-neutral-800 hover:bg-neutral-200 rounded-md font-bold transition-all text-[11px]"
-          >
-            프로필 편집
-          </button>
-          <button 
-            onClick={() => {
-              setActiveSheet("password_change");
-              setAccountType("general");
-            }}
-            className="px-2.5 py-1 bg-[#F2F4F6] text-neutral-800 hover:bg-neutral-200 rounded-md font-bold transition-all text-[11px]"
-          >
-            일반 암호변경
-          </button>
-          <button 
-            onClick={() => {
-              setActiveSheet("password_change");
-              setAccountType("social");
-            }}
-            className="px-2.5 py-1 bg-[#F2F4F6] text-neutral-800 hover:bg-neutral-200 rounded-md font-bold transition-all text-[11px]"
-          >
-            소셜 암호변경
-          </button>
-          <button 
-            onClick={() => setActiveSheet("reset_confirm")}
-            className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-md font-bold transition-all text-[11px]"
-          >
-            자금 초기화
-          </button>
-          <button 
-            onClick={() => {
-              setActiveSheet("account_delete");
-              setDeleteStep(1);
-            }}
-            className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-md font-bold transition-all text-[11px]"
-          >
-            회원탈퇴 1
-          </button>
-          <button 
-            onClick={() => {
-              setActiveSheet("account_delete");
-              setDeleteStep(3);
-            }}
-            className="px-2.5 py-1 bg-red-50 text-red-600 hover:bg-red-100 rounded-md font-bold transition-all text-[11px]"
-          >
-            회원탈퇴 3
-          </button>
-        </div>
-      </div>
 
       {/* Main Container */}
       <div className="max-w-[680px] mx-auto px-4">
