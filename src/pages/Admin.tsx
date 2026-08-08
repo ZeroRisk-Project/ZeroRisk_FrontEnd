@@ -25,42 +25,10 @@ import {
   Globe
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import api from "@/src/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
-
-const STOCKS_DATA = [
-  { code: "005930", name: "삼성전자" },
-  { code: "000660", name: "SK하이닉스" },
-  { code: "373220", name: "LG에너지솔루션" },
-  { code: "207940", name: "삼성바이오로직스" },
-  { code: "005380", name: "현대차" },
-  { code: "000270", name: "기아" },
-  { code: "035420", name: "NAVER" },
-  { code: "035720", name: "카카오" },
-];
-
-const formatDateStr = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
-const formatKoreanDate = (dateStr: string) => {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-");
-  return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`;
-};
-
-const getDurationDays = (start: string, end: string) => {
-  if (!start || !end) return 0;
-  const sDate = new Date(start);
-  const eDate = new Date(end);
-  const diffTime = Math.abs(eDate.getTime() - sDate.getTime());
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  return diffDays;
-};
 
 // Interfaces
 interface UserItem {
@@ -102,7 +70,7 @@ interface CompetitionItem {
   endDate: string;
   seedMoney: number;
   participants: number;
-  status: "WAITING" | "ONGOING" | "FINISHED";
+  status: "SCHEDULED" | "ONGOING" | "ENDED";
   isOpen: boolean;
   isOfficial?: boolean;
   initialAmount?: number;
@@ -165,13 +133,6 @@ const INITIAL_INQUIRIES: InquiryItem[] = [
   { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
 ];
 
-const INITIAL_COMPETITIONS: CompetitionItem[] = [
-  { id: 1, title: "제1회 제로리스크 대학생 실전 투자 대회", startDate: "2026-07-01", endDate: "2026-07-31", seedMoney: 50000000, participants: 342, status: "WAITING", isOpen: true },
-  { id: 2, title: "여름맞이 강남 6월 빅딜 게릴라 투자전", startDate: "2026-06-01", endDate: "2026-06-30", seedMoney: 10000000, participants: 624, status: "ONGOING", isOpen: true },
-  { id: 3, title: "봄바람 부는 리스크 프리 주말 상금 챌린지", startDate: "2026-05-10", endDate: "2026-05-24", seedMoney: 30000000, participants: 189, status: "FINISHED", isOpen: true },
-  { id: 4, title: "VIP 비공개 스칼핑 스피드 페스티벌", startDate: "2026-08-15", endDate: "2026-08-30", seedMoney: 100000000, participants: 0, status: "WAITING", isOpen: false },
-];
-
 const INITIAL_LOGS: ActivityLog[] = [
   { id: 1, date: "2026-06-16 10:42:15", type: "접속" as any, target: "강원준", content: "관리자 대시보드 로그인 성공 및 웹 세션 연장", ip: "112.222.84.95" },
   { id: 2, date: "2026-06-16 09:30:15", type: "대회" as any, target: "전체", content: "새 투자대회 [제1회 제로리스크 대학생 실전 투자 대회] 개설 등록 완료", ip: "112.222.84.95" },
@@ -211,28 +172,21 @@ export function Admin() {
   const [users, setUsers] = useState<UserItem[]>(INITIAL_USERS);
   const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
   const [inquiries, setInquiries] = useState<InquiryItem[]>(INITIAL_INQUIRIES);
-  const [competitions, setCompetitions] = useState<CompetitionItem[]>(() => {
-    const saved = localStorage.getItem("competitions_list");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
+  const [competitions, setCompetitions] = useState<any[]>([]);
+
+  const fetchAdminCompetitions = async () => {
+    try {
+      const response = await api.get("/competitions", { params: { size: 100 } });
+      setCompetitions(response.data.content);
+    } catch (error) {
+      console.error(error);
     }
-    const defaults: CompetitionItem[] = [
-      { id: 1, title: "제1회 제로리스크 대학생 실전 투자 대회", startDate: "2026-07-01", endDate: "2026-07-31", seedMoney: 50000000, participants: 4, status: "ONGOING", isOpen: true, isOfficial: true },
-      { id: 2, title: "대학생 모의투자 챔피언십", startDate: "2026-12-01", endDate: "2026-12-31", seedMoney: 5000000, participants: 2, status: "WAITING", isOpen: true, isOfficial: false },
-      { id: 3, title: "제1회 우주항공 테마 단타대회", startDate: "2026-10-01", endDate: "2026-10-15", seedMoney: 10000000, participants: 2, status: "FINISHED", isOpen: true, isOfficial: true },
-      { id: 4, title: "삼성전자 수익률 대결", startDate: "2026-11-10", endDate: "2026-11-20", seedMoney: 5000000, participants: 3, status: "ONGOING", isOpen: true, isOfficial: false }
-    ];
-    localStorage.setItem("competitions_list", JSON.stringify(defaults));
-    return defaults;
-  });
+  };
 
   useEffect(() => {
-    localStorage.setItem("competitions_list", JSON.stringify(competitions));
-  }, [competitions]);
+    fetchAdminCompetitions();
+  }, []);
+
   const [logs, setLogs] = useState<ActivityLog[]>(() => {
     const saved = localStorage.getItem("admin_activity_logs");
     if (saved) {
@@ -263,39 +217,7 @@ export function Admin() {
   }, [userLogs]);
 
   // Competition Participants State
-  const [compParticipants, setCompParticipants] = useState<{ [compId: number]: UserItem[] }>(() => {
-    const saved = localStorage.getItem("competition_participants_map");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    const initialMap: { [compId: number]: UserItem[] } = {
-      1: [
-        INITIAL_USERS[1], // 투자왕김철수
-        INITIAL_USERS[2], // 단타머신
-        INITIAL_USERS[4], // 김코딩
-        INITIAL_USERS[6], // 불마켓코리아
-      ],
-      2: [
-        INITIAL_USERS[2], // 단타머신
-        INITIAL_USERS[4], // 김코딩
-      ],
-      3: [
-        INITIAL_USERS[1], // 투자왕김철수
-        INITIAL_USERS[6], // 불마켓코리아
-      ],
-      4: [
-        INITIAL_USERS[1], // 투자왕김철수
-        INITIAL_USERS[2], // 단타머신
-        INITIAL_USERS[4], // 김코딩
-      ]
-    };
-    localStorage.setItem("competition_participants_map", JSON.stringify(initialMap));
-    return initialMap;
-  });
+  const [compParticipants, setCompParticipants] = useState<{ [compId: number]: any[] }>({});
 
   // Competition Participant modal states
   const [selectedCompForParticipants, setSelectedCompForParticipants] = useState<CompetitionItem | null>(null);
@@ -368,6 +290,38 @@ export function Admin() {
   const [suspensionTime, setSuspensionTime] = useState("-1");
   const [suspensionReason, setSuspensionReason] = useState("");
 
+  // Competition Edit Modal
+  const [editCompModal, setEditCompModal] = useState<{ isOpen: boolean; competition: any | null }>({ isOpen: false, competition: null });
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editIsPublic, setEditIsPublic] = useState(true);
+  const [editMaxParticipants, setEditMaxParticipants] = useState("");
+  const [editError, setEditError] = useState("");
+
+  const handleEditSubmit = async () => {
+    if (!editTitle.trim() || !editStartDate || !editEndDate) {
+      setEditError("필수 항목을 입력해주세요.");
+      return;
+    }
+    try {
+      await api.put(`/admin/competitions/${editCompModal.competition.id}`, {
+        title: editTitle,
+        description: editDescription,
+        startAt: `${editStartDate}T00:00:00`,
+        endAt: `${editEndDate}T23:59:59`,
+        isPublic: editIsPublic,
+        maxParticipants: editMaxParticipants.trim() === "" ? null : parseInt(editMaxParticipants),
+      });
+      await fetchAdminCompetitions();
+      triggerToast(`${editTitle} 대회 정보가 수정되었습니다.`);
+      setEditCompModal({ isOpen: false, competition: null });
+    } catch (error: any) {
+      setEditError(error.response?.data?.message ?? "수정에 실패했습니다.");
+    }
+  };
+
   // Activity Log Modal
   const [activityModal, setActivityModal] = useState<{ isOpen: boolean; user: UserItem | null }>({ isOpen: false, user: null });
   const [logFilter, setLogFilter] = useState<string>("전체");
@@ -379,28 +333,6 @@ export function Admin() {
   const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "미답변" | "답변완료">("전체");
   const [answerModal, setAnswerModal] = useState<{ isOpen: boolean; inquiry: InquiryItem | null }>({ isOpen: false, inquiry: null });
   const [answerText, setAnswerText] = useState("");
-
-  // 4. Competitions State Actions
-  const [newCompModal, setNewCompModal] = useState(false);
-  const [newCompTitle, setNewCompTitle] = useState("");
-  const [newCompDescription, setNewCompDescription] = useState("");
-  const [newCompStartDate, setNewCompStartDate] = useState("");
-  const [newCompEndDate, setNewCompEndDate] = useState("");
-  const [newCompInitialAmount, setNewCompInitialAmount] = useState("1000"); // 만원 단위 (1000 = 1000만원)
-  const [newCompMaxParticipants, setNewCompMaxParticipants] = useState("1000");
-  const [newCompIsSecret, setNewCompIsSecret] = useState(false);
-  const [newCompPassword, setNewCompPassword] = useState("");
-  const [newCompIsOfficial, setNewCompIsOfficial] = useState(false);
-
-  // Calendar States for Admin Comp creation
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [hoveredDate, setHoveredDate] = useState<string | null>(null);
-
-  // Stock Search / Restriction States for Admin Comp creation
-  const [stockSearch, setStockSearch] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [allowedStocks, setAllowedStocks] = useState<{ name: string; code: string }[]>([]);
 
   // 5. Log Monitoring Pagination Filter
   const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "접속" | "대회" | "문의" | "회원수정" | "신고처리" | "기타">("전체");
@@ -415,108 +347,6 @@ export function Admin() {
     }, 450);
     return () => clearTimeout(timer);
   }, [activeTab]);
-
-  const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(currentYear - 1);
-    } else {
-      setCurrentMonth(currentMonth - 1);
-    }
-  };
-
-  const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(currentYear + 1);
-    } else {
-      setCurrentMonth(currentMonth + 1);
-    }
-  };
-
-  const getCalendarDays = () => {
-    const firstDayIndex = new Date(currentYear, currentMonth, 1).getDay();
-    
-    // Previous month padding days
-    const prevMonthDays = [];
-    const tempDate = new Date(currentYear, currentMonth, 0);
-    const prevMonthLastDate = tempDate.getDate();
-    for (let i = firstDayIndex - 1; i >= 0; i--) {
-      prevMonthDays.unshift({
-        date: new Date(currentYear, currentMonth - 1, prevMonthLastDate - i),
-        isCurrentMonth: false,
-      });
-    }
-
-    // Current month days
-    const currentMonthDays = [];
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    for (let i = 1; i <= daysInMonth; i++) {
-      currentMonthDays.push({
-        date: new Date(currentYear, currentMonth, i),
-        isCurrentMonth: true,
-      });
-    }
-
-    // Next month padding days
-    const totalSlots = prevMonthDays.length + currentMonthDays.length;
-    const remainingSlots = (7 - (totalSlots % 7)) % 7;
-    const nextMonthDays = [];
-    for (let i = 1; i <= remainingSlots; i++) {
-      nextMonthDays.push({
-        date: new Date(currentYear, currentMonth + 1, i),
-        isCurrentMonth: false,
-      });
-    }
-
-    return [...prevMonthDays, ...currentMonthDays, ...nextMonthDays];
-  };
-
-  const handleDayClick = (dateStr: string) => {
-    const todayStr = formatDateStr(new Date());
-    if (dateStr < todayStr) return;
-    if (!newCompStartDate || (newCompStartDate && newCompEndDate)) {
-      setNewCompStartDate(dateStr);
-      setNewCompEndDate("");
-    } else {
-      if (dateStr >= newCompStartDate) {
-        setNewCompEndDate(dateStr);
-      } else {
-        setNewCompStartDate(dateStr);
-        setNewCompEndDate("");
-      }
-    }
-  };
-
-  const handleDayMouseEnter = (dateStr: string) => {
-    const todayStr = formatDateStr(new Date());
-    if (dateStr < todayStr) return;
-    if (newCompStartDate && !newCompEndDate && dateStr >= newCompStartDate) {
-      setHoveredDate(dateStr);
-    }
-  };
-
-  const setPreset = (days: number) => {
-    const today = new Date();
-    const startStr = formatDateStr(today);
-    const end = new Date();
-    end.setDate(today.getDate() + days - 1);
-    const endStr = formatDateStr(end);
-    setNewCompStartDate(startStr);
-    setNewCompEndDate(endStr);
-    setCurrentYear(today.getFullYear());
-    setCurrentMonth(today.getMonth());
-  };
-
-  const handleStockSelect = (stock: { name: string; code: string }) => {
-    setAllowedStocks([...allowedStocks, stock]);
-    setStockSearch("");
-    setIsSearchFocused(false);
-  };
-
-  const removeStock = (code: string) => {
-    setAllowedStocks(allowedStocks.filter((s) => s.code !== code));
-  };
 
   // Helper selectors
   const totalInquiriesCount = inquiries.filter(i => i.status === "미답변").length;
@@ -1502,21 +1332,7 @@ export function Admin() {
                     <p className="text-[#8E8E93] text-[14px]">웹 서비스상에 열려있는 주식 실시간 및 게릴라 모의투자 대회를 기획하고 배포합니다</p>
                   </div>
                   <button
-                    onClick={() => {
-                      setNewCompTitle("");
-                      setNewCompDescription("");
-                      setNewCompStartDate("");
-                      setNewCompEndDate("");
-                      setNewCompInitialAmount("1000");
-                      setNewCompMaxParticipants("1000");
-                      setNewCompIsSecret(false);
-                      setNewCompPassword("");
-                      setNewCompIsOfficial(false);
-                      setAllowedStocks([]);
-                      setStockSearch("");
-                      setIsSearchFocused(false);
-                      setNewCompModal(true);
-                    }}
+                    onClick={() => navigate("/competitions/create")}
                     className="bg-[#4A5DF9] hover:bg-[#4A5DF9]/90 text-white font-bold text-[13px] px-4 py-2.5 rounded-[12px] flex items-center gap-1.5 shadow-sm transition cursor-pointer"
                   >
                     <Plus className="w-4 h-4" />
@@ -1542,16 +1358,32 @@ export function Admin() {
                       </thead>
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {competitions.map((comp, idx) => {
-                          const toggleOpenStatus = () => {
-                            setCompetitions(prev => prev.map(c => c.id === comp.id ? { ...c, isOpen: !c.isOpen } : c));
-                            triggerToast(`${comp.title}의 공개상태를 노출 ${!comp.isOpen ? "ON" : "OFF"} 하였습니다.`);
-                            logAdminAction("기타", comp.title, `대회 공개여부를 [${!comp.isOpen ? "공개" : "비공개"}]로 설정 변경하였습니다.`);
+                          const toggleOpenStatus = async () => {
+                            try {
+                              await api.put(`/admin/competitions/${comp.id}`, {
+                                title: comp.title,
+                                description: comp.description,
+                                startAt: comp.startAt,
+                                endAt: comp.endAt,
+                                isPublic: !comp.isPublic,
+                              });
+                              await fetchAdminCompetitions();
+                              triggerToast(`${comp.title}의 공개상태를 노출 ${!comp.isPublic ? "ON" : "OFF"} 하였습니다.`);
+                              logAdminAction("기타", comp.title, `대회 공개여부를 [${!comp.isPublic ? "공개" : "비공개"}]로 설정 변경하였습니다.`);
+                            } catch (error: any) {
+                              triggerToast(`⚠️ ${error.response?.data?.message ?? "변경에 실패했습니다."}`);
+                            }
                           };
 
-                          const handleDeleteComp = () => {
-                            setCompetitions(prev => prev.filter(c => c.id !== comp.id));
-                            triggerToast(`${comp.title}이 성공적으로 파기/삭제 되었습니다.`);
-                            logAdminAction("기타", comp.title, `대회 파기 및 강제 해산 처리를 수행하였습니다.`);
+                          const handleDeleteComp = async () => {
+                            try {
+                              await api.delete(`/admin/competitions/${comp.id}`);
+                              await fetchAdminCompetitions();
+                              triggerToast(`${comp.title}이 성공적으로 파기/삭제 되었습니다.`);
+                              logAdminAction("기타", comp.title, `대회 파기 및 강제 해산 처리를 수행하였습니다.`);
+                            } catch (error: any) {
+                              triggerToast(`⚠️ ${error.response?.data?.message ?? "삭제에 실패했습니다."}`);
+                            }
                           };
 
                           return (
@@ -1559,20 +1391,20 @@ export function Admin() {
                               <td className="py-2 px-4 text-center font-bold text-[#8E8E93] whitespace-nowrap">{idx + 1}</td>
                               <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{comp.title}</td>
                               <td className="py-2 px-4 text-center font-medium text-[#8E8E93] tabular-nums whitespace-nowrap">
-                                {comp.startDate} ~ {comp.endDate}
+                                {comp.startAt?.slice(0, 10)} ~ {comp.endAt?.slice(0, 10)}
                               </td>
                               <td className="py-2 px-4 text-right font-bold text-[#1C1C1E] tabular-nums whitespace-nowrap">
                                 ₩{comp.seedMoney.toLocaleString()}
                               </td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{(compParticipants[comp.id]?.length ?? comp.participants)}명</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{comp.participantCount ?? 0}명</td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  comp.status === "WAITING" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                  comp.status === "SCHEDULED" && "bg-[#FF9500]/11 text-[#FF9500]",
                                   comp.status === "ONGOING" && "bg-[#34C759]/11 text-[#34C759]",
-                                  comp.status === "FINISHED" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                  comp.status === "ENDED" && "bg-[#8E8E93]/11 text-[#8E8E93]"
                                 )}>
-                                  {comp.status === "WAITING" ? "대기 중" : comp.status === "ONGOING" ? "진행 중" : "종료됨"}
+                                  {comp.status === "SCHEDULED" ? "대기 중" : comp.status === "ONGOING" ? "진행 중" : "종료됨"}
                                 </span>
                               </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
@@ -1581,32 +1413,50 @@ export function Admin() {
                                   onClick={toggleOpenStatus}
                                   className={cn(
                                     "w-11 h-6 rounded-full p-0.5 transition-colors cursor-pointer relative duration-200 inline-block",
-                                    comp.isOpen ? "bg-[#4A5DF9]" : "bg-[#E5E5EA]"
+                                    comp.isPublic ? "bg-[#4A5DF9]" : "bg-[#E5E5EA]"
                                   )}
                                 >
                                   <div className={cn(
                                     "w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
-                                    comp.isOpen ? "translate-x-5" : "translate-x-0"
+                                    comp.isPublic ? "translate-x-5" : "translate-x-0"
                                   )} />
                                 </button>
                               </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
                                 <div className="flex gap-2 justify-center">
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedCompForParticipants(comp);
                                       setParticipantsModalOpen(true);
+                                      try {
+                                        const response = await api.get(`/admin/competitions/${comp.id}/participants`);
+                                        setCompParticipants(prev => ({ ...prev, [comp.id]: response.data }));
+                                      } catch (error) {
+                                        console.error(error);
+                                        setCompParticipants(prev => ({ ...prev, [comp.id]: [] }));
+                                      }
                                     }}
                                     className="px-2.5 py-1.5 border border-[#10B981] text-[#10B981] hover:bg-[#10B981]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
                                   >
                                     참가자
                                   </button>
-                                  <button
-                                    onClick={() => triggerToast("수정 기능은 현재 테스트 단계입니다.")}
-                                    className="px-2.5 py-1.5 border border-[#4A5DF9] text-[#4A5DF9] hover:bg-[#4A5DF9]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
-                                  >
-                                    수정
-                                  </button>
+                                  {comp.status === "SCHEDULED" && (
+                                    <button
+                                      onClick={() => {
+                                        setEditCompModal({ isOpen: true, competition: comp });
+                                        setEditTitle(comp.title);
+                                        setEditDescription(comp.description ?? "");
+                                        setEditStartDate(comp.startAt?.slice(0, 10) ?? "");
+                                        setEditEndDate(comp.endAt?.slice(0, 10) ?? "");
+                                        setEditIsPublic(comp.isPublic);
+                                        setEditMaxParticipants(comp.maxParticipants?.toString() ?? "");
+                                        setEditError("");
+                                      }}
+                                      className="px-2.5 py-1.5 border border-[#4A5DF9] text-[#4A5DF9] hover:bg-[#4A5DF9]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                    >
+                                      수정
+                                    </button>
+                                  )}
                                   <button
                                     onClick={handleDeleteComp}
                                     className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
@@ -1858,6 +1708,78 @@ export function Admin() {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {editCompModal.isOpen && editCompModal.competition && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[24px] max-w-md w-full p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-[#E5E5EA] flex flex-col gap-4 text-[#1C1C1E]">
+            <div className="flex justify-between items-start">
+              <h3 className="text-[18px] font-bold">대회 정보 수정</h3>
+              <button
+                onClick={() => setEditCompModal({ isOpen: false, competition: null })}
+                className="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] flex items-center justify-center transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="대회 이름"
+                className="w-full border border-[#E5E5EA] rounded-[12px] py-2.5 px-3.5 text-sm font-bold outline-none focus:border-[#3182F6]"
+              />
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="대회 설명"
+                className="w-full border border-[#E5E5EA] rounded-[12px] py-2.5 px-3.5 text-sm outline-none focus:border-[#3182F6]"
+                rows={3}
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className="border border-[#E5E5EA] rounded-[12px] py-2.5 px-3 text-sm font-bold outline-none focus:border-[#3182F6]"
+                />
+                <input
+                  type="date"
+                  value={editEndDate}
+                  onChange={(e) => setEditEndDate(e.target.value)}
+                  className="border border-[#E5E5EA] rounded-[12px] py-2.5 px-3 text-sm font-bold outline-none focus:border-[#3182F6]"
+                />
+              </div>
+              <input
+                type="number"
+                value={editMaxParticipants}
+                onChange={(e) => setEditMaxParticipants(e.target.value)}
+                placeholder="최대 참가자 수 (비우면 무제한)"
+                className="w-full border border-[#E5E5EA] rounded-[12px] py-2.5 px-3.5 text-sm font-bold outline-none focus:border-[#3182F6]"
+              />
+              <div className="flex items-center justify-between p-3 bg-[#F2F2F7] rounded-[12px]">
+                <span className="text-sm font-bold">공개 대회</span>
+                <button
+                  type="button"
+                  onClick={() => setEditIsPublic(!editIsPublic)}
+                  className={cn("w-10 h-6 rounded-full p-0.5 transition-colors relative", editIsPublic ? "bg-[#4A5DF9]" : "bg-neutral-300")}
+                >
+                  <div className={cn("w-5 h-5 bg-white rounded-full shadow-sm transition-transform", editIsPublic ? "translate-x-4" : "translate-x-0")} />
+                </button>
+              </div>
+              {editError && <p className="text-[12px] text-[#FF3B30] font-medium">{editError}</p>}
+            </div>
+
+            <button
+              onClick={handleEditSubmit}
+              className="w-full py-3 bg-[#4A5DF9] hover:bg-[#4A5DF9]/90 text-white font-bold text-[14px] rounded-[12px] transition cursor-pointer"
+            >
+              저장
+            </button>
           </div>
         </div>
       )}
@@ -2142,17 +2064,14 @@ export function Admin() {
                 </div>
               ) : (
                 compParticipants[selectedCompForParticipants.id].map((user) => (
-                  <div 
-                    key={user.id} 
+                  <div
+                    key={user.userId}
                     className="flex items-center justify-between p-3 rounded-[12px] bg-[#F2F2F7]/50 border border-[#E5E5EA]/40 hover:bg-[#F2F2F7]/80 transition"
                   >
                     <div className="flex items-center gap-3">
-                      <img 
-                        src={user.avatar} 
-                        alt="avatar" 
-                        className="flex-shrink-0 w-9 h-9 rounded-full object-cover border border-[#E5E5EA] shadow-sm"
-                        referrerPolicy="no-referrer"
-                      />
+                      <div className="flex-shrink-0 w-9 h-9 rounded-full bg-[#E5E5EA] flex items-center justify-center text-[12px] font-bold text-[#8E8E93]">
+                        {user.nickname?.slice(0, 2)}
+                      </div>
                       <div>
                         <div className="text-[13px] font-extrabold text-[#1C1C1E]">{user.nickname}</div>
                         <div className="text-[11px] font-semibold text-[#8E8E93]">{user.email}</div>
@@ -2160,53 +2079,19 @@ export function Admin() {
                     </div>
 
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const hasConfirmed = window.confirm(`${user.nickname}님을 본 대회에서 강제 퇴장(실적 박탈) 시키겠습니까?`);
                         if (!hasConfirmed) return;
-
-                        // 1. Remove from compParticipants map
-                        setCompParticipants(prev => {
-                          const currentList = prev[selectedCompForParticipants.id] || [];
-                          const updatedList = currentList.filter(u => u.id !== user.id);
-                          const nextMap = {
-                            ...prev,
-                            [selectedCompForParticipants.id]: updatedList
-                          };
-                          localStorage.setItem("competition_participants_map", JSON.stringify(nextMap));
-                          return nextMap;
-                        });
-
-                        // 2. Decrement partition count in competitions list
-                        setCompetitions(prev => prev.map(c => {
-                          if (c.id === selectedCompForParticipants.id) {
-                            return {
-                              ...c,
-                              participants: Math.max(0, c.participants - 1)
-                            };
-                          }
-                          return c;
-                        }));
-
-                        // 3. Log user activity log
-                        const expellingLog = {
-                          id: Date.now() + Math.floor(Math.random() * 1000),
-                          userId: user.id,
-                          target: user.nickname,
-                          type: "대회퇴장",
-                          content: `[${selectedCompForParticipants.title}] 대회에서 운영원칙 위배 및 부종교류 사유로 인해 강제 퇴장(참가 자격 박탈) 조치되었습니다.`,
-                          date: new Date().toISOString().replace('T', ' ').substring(0, 19)
-                        };
-                        setUserLogs(prev => {
-                          const nextUserLogs = [expellingLog, ...prev];
-                          localStorage.setItem("user_activity_logs", JSON.stringify(nextUserLogs));
-                          return nextUserLogs;
-                        });
-
-                        // 4. Log admin action log
-                        logAdminAction("기타", user.nickname, `대회 [${selectedCompForParticipants.title}]에서 회원 [${user.nickname}]을(를) 강제 퇴장 조치 하였습니다.`);
-
-                        // 5. Toast notification
-                        triggerToast(`${user.nickname}님이 본 대회에서 성공적으로 퇴장 조치되었습니다.`);
+                        try {
+                          await api.delete(`/admin/competitions/${selectedCompForParticipants.id}/participants/${user.userId}`);
+                          // 목록 다시 조회해서 화면 갱신
+                          const response = await api.get(`/admin/competitions/${selectedCompForParticipants.id}/participants`);
+                          setCompParticipants(prev => ({ ...prev, [selectedCompForParticipants.id]: response.data }));
+                          await fetchAdminCompetitions(); // 대회 목록의 참가자 수도 갱신
+                          triggerToast(`${user.nickname}님이 강제 퇴장 처리되었습니다.`);
+                        } catch (error: any) {
+                          triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                        }
                       }}
                       className="px-3 py-1.5 rounded-[8px] bg-[#FF3B30]/10 text-[#FF3B30] text-[11.5px] font-black hover:bg-[#FF3B30] hover:text-white transition cursor-pointer"
                     >
@@ -2226,482 +2111,6 @@ export function Admin() {
                 className="px-4 py-2 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] text-[12.5px] font-bold rounded-[10px] transition cursor-pointer"
               >
                 닫기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 4. NEW COMPETITION MODAL (새 대회 기획 등록 모달) */}
-      {newCompModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-border-color rounded-[20px] w-full max-w-[500px] p-6 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-6 relative max-h-[90vh] overflow-y-auto">
-            <button 
-              onClick={() => setNewCompModal(false)}
-              className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer z-50"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="space-y-1.5 pb-1">
-              <h2 className="text-[20px] font-bold text-text-primary">새로운 투자제 투어 대회 기획</h2>
-              <p className="text-[13px] text-text-secondary leading-relaxed">상금이 활성화되는 특별 챌린지 또는 대학생 리그를 구성하여 퍼블리싱 합니다</p>
-            </div>
-
-            <div className="space-y-6">
-              {/* 대회 명칭 */}
-              <div className="flex flex-col gap-3">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  대회 이름
-                </label>
-                <input
-                  className="w-full bg-bg-main border border-border-color rounded-[12px] font-bold text-[15px] h-11 px-4 placeholder:text-text-secondary focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand transition"
-                  placeholder="대회 이름을 입력하세요."
-                  value={newCompTitle}
-                  onChange={(e) => setNewCompTitle(e.target.value)}
-                />
-              </div>
-
-              {/* 대회 설명 */}
-              <div className="flex flex-col gap-3">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  대회 설명
-                </label>
-                <textarea
-                  className="w-full min-h-[95px] bg-bg-main border border-border-color rounded-[12px] p-3.5 focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-semibold placeholder:text-text-secondary text-[15px] resize-none leading-relaxed transition"
-                  placeholder="대회에 대한 간략한 설명을 입력하세요."
-                  value={newCompDescription}
-                  onChange={(e) => setNewCompDescription(e.target.value)}
-                />
-              </div>
-
-              {/* 거래 한정 주종 선택 */}
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex flex-col gap-1">
-                    <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                      거래 가능 종목 한정
-                    </label>
-                    <span className="text-xs font-semibold text-text-secondary">
-                      특정 종목 지정 (선택)
-                    </span>
-                  </div>
-                  <div className="relative w-full sm:w-[220px] shrink-0">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636C7D]" />
-                    <input
-                      className="w-full bg-bg-main border border-border-color rounded-[12px] font-bold text-[14px] placeholder:text-text-secondary pl-9 pr-3 h-10 focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand transition"
-                      placeholder="종목명 또는 코드 검색"
-                      value={stockSearch}
-                      onChange={(e) => setStockSearch(e.target.value)}
-                      onFocus={() => setIsSearchFocused(true)}
-                      onBlur={() =>
-                        setTimeout(() => setIsSearchFocused(false), 205)
-                      }
-                    />
-
-                    {isSearchFocused && stockSearch.trim().length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-surface border border-border-color rounded-[12px] shadow-lg max-h-[170px] overflow-y-auto z-50">
-                        {STOCKS_DATA.filter(
-                          (stock) =>
-                            (stock.name.includes(stockSearch) || stock.code.includes(stockSearch)) &&
-                            !allowedStocks.find((s) => s.code === stock.code)
-                        ).length > 0 ? (
-                          <ul className="py-2 animate-in fade-in duration-100">
-                            {STOCKS_DATA.filter(
-                              (stock) =>
-                                (stock.name.includes(stockSearch) || stock.code.includes(stockSearch)) &&
-                                !allowedStocks.find((s) => s.code === stock.code)
-                            ).map((stock) => (
-                              <li
-                                key={stock.code}
-                                className="px-4 py-2.5 hover:bg-bg-main cursor-pointer flex justify-between items-center transition-colors text-sm"
-                                onClick={() => handleStockSelect(stock)}
-                              >
-                                <span className="font-bold text-text-primary">
-                                  {stock.name}
-                                </span>
-                                <span className="text-xs font-semibold text-text-secondary">
-                                  {stock.code}
-                                </span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <div className="px-4 py-3 text-sm text-center text-text-secondary">
-                            검색된 종목이 없습니다.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 칩 영역 */}
-                <div className="flex flex-wrap gap-2 pt-1 min-h-[40px] items-center">
-                  {allowedStocks.length === 0 ? (
-                    <Badge
-                      variant="secondary"
-                      className="h-[34px] px-3.5 flex items-center gap-1.5 rounded-full border border-border-color/40 bg-[#F8F9FA] text-text-primary font-bold text-[13px] shadow-[0_1px_2px_rgba(0,0,0,0.02)] select-none"
-                    >
-                      <span className="leading-none">전체 (모든 종목)</span>
-                    </Badge>
-                  ) : (
-                    allowedStocks.map((stock) => (
-                      <Badge
-                        key={stock.code}
-                        variant="secondary"
-                        className="h-[34px] px-3.5 flex items-center gap-1.5 rounded-full border border-border-color/40 bg-[#F8F9FA] hover:bg-[#E9ECEF] transition-colors text-[13px] text-text-primary font-bold shadow-[0_1px_2px_rgba(0,0,0,0.02)]"
-                      >
-                        <span className="leading-none">{stock.name}</span>
-                        <button
-                          onClick={() => removeStock(stock.code)}
-                          className="text-text-secondary hover:text-red-500 transition-colors flex items-center justify-center p-0.5 rounded-full hover:bg-border-color/20 shrink-0"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </Badge>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* 대회 기간 (시작일 ~ 종료일) 달력 */}
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                    대회 기간 (시작일 ~ 종료일)
-                  </label>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setPreset(7)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-md border border-border-color bg-surface hover:bg-bg-main transition duration-155 text-text-secondary cursor-pointer"
-                    >
-                      1주일
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreset(14)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-md border border-border-color bg-surface hover:bg-bg-main transition duration-155 text-text-secondary cursor-pointer"
-                    >
-                      2주일
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPreset(30)}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-md border border-border-color bg-surface hover:bg-bg-main transition duration-155 text-text-secondary cursor-pointer"
-                    >
-                      1달 (30일)
-                    </button>
-                  </div>
-                </div>
-
-                {/* Premium Calendar Container */}
-                <div className="border border-border-color rounded-[16px] bg-white p-4 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
-                  {newCompStartDate && newCompEndDate && (
-                    <div className="mb-3.5 p-2 rounded-[12px] bg-brand/5 border border-brand/10 text-center animate-in fade-in duration-200">
-                      <span className="text-[13px] font-bold text-brand flex items-center justify-center gap-1.5">
-                        <Calendar className="w-4 h-4 text-brand shrink-0" />
-                        <span>
-                          <span className="font-extrabold underline underline-offset-2 decoration-brand/30">{formatKoreanDate(newCompStartDate)}</span> 부터{" "}
-                          <span className="font-extrabold underline underline-offset-2 decoration-brand/30">{formatKoreanDate(newCompEndDate)}</span> 까지{" "}
-                          <span className="px-1.5 py-0.5 rounded bg-brand text-white text-[11px] font-black">{getDurationDays(newCompStartDate, newCompEndDate)}일간</span>
-                        </span>
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Navigation */}
-                  <div className="flex items-center justify-between mb-3.5 px-1">
-                    <span className="text-[14px] font-bold text-text-primary tracking-tight">
-                      {currentYear}년 {currentMonth + 1}월
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={prevMonth}
-                        className="p-1 rounded-lg border border-border-color hover:bg-bg-main text-text-secondary transition-colors cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={nextMonth}
-                        className="p-1 rounded-lg border border-border-color hover:bg-bg-main text-text-secondary transition-colors cursor-pointer"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Grid header */}
-                  <div className="grid grid-cols-7 text-center text-[11.5px] font-extrabold text-text-secondary/60 mb-1.5">
-                    <div className="text-red-500/70">일</div>
-                    <div>월</div>
-                    <div>화</div>
-                    <div>수</div>
-                    <div>목</div>
-                    <div>금</div>
-                    <div className="text-blue-500/70">토</div>
-                  </div>
-
-                  {/* Days */}
-                  <div className="grid grid-cols-7 gap-y-1 relative cursor-pointer" onMouseLeave={() => setHoveredDate(null)}>
-                    {getCalendarDays().map(({ date, isCurrentMonth }, idx) => {
-                      const dateStr = formatDateStr(date);
-                      const todayStr = formatDateStr(new Date());
-                      const isPast = dateStr < todayStr;
-                      
-                      const isStart = dateStr === newCompStartDate;
-                      const isEnd = dateStr === newCompEndDate;
-                      const hasEnd = !!newCompEndDate;
-                      
-                      let isRange = false;
-                      let isHoverEnd = false;
-
-                      if (hasEnd) {
-                        isRange = dateStr > newCompStartDate && dateStr < newCompEndDate;
-                      } else if (newCompStartDate && hoveredDate && hoveredDate > newCompStartDate) {
-                        isRange = dateStr > newCompStartDate && dateStr < hoveredDate;
-                        isHoverEnd = dateStr === hoveredDate;
-                      }
-
-                      const isAlone = !newCompEndDate && (!hoveredDate || hoveredDate <= newCompStartDate);
-
-                      return (
-                        <button
-                          key={`${dateStr}-${idx}`}
-                          type="button"
-                          disabled={isPast}
-                          onClick={() => handleDayClick(dateStr)}
-                          onMouseEnter={() => handleDayMouseEnter(dateStr)}
-                          className={cn(
-                            "h-8 w-full flex items-center justify-center relative text-[12.5px] font-bold transition-all duration-155 rounded-md",
-                            isPast ? "text-text-secondary/15 cursor-not-allowed" : "cursor-pointer",
-                            !isPast && !isCurrentMonth ? "text-text-secondary/25" : "",
-                            !isPast && isCurrentMonth ? "text-text-primary" : ""
-                          )}
-                        >
-                          {isRange && (
-                            <div className="absolute inset-y-1 left-0 right-0 bg-brand/10" />
-                          )}
-                          {isStart && (
-                            <>
-                              {!isAlone && (
-                                <div className="absolute inset-y-1 left-1/2 right-0 bg-brand/10" />
-                              )}
-                              <div className="absolute w-7 h-7 rounded-full bg-brand shadow-sm animate-in zoom-in-75 duration-200" />
-                            </>
-                          )}
-                          {isEnd && (
-                            <>
-                              <div className="absolute inset-y-1 left-0 right-1/2 bg-brand/10" />
-                              <div className="absolute w-7 h-7 rounded-full bg-brand shadow-sm animate-in zoom-in-75 duration-200" />
-                            </>
-                          )}
-                          {isHoverEnd && (
-                            <>
-                              <div className="absolute inset-y-1 left-0 right-1/2 bg-brand/10" />
-                              <div className="absolute w-7 h-7 rounded-full bg-brand/70 shadow-sm" />
-                            </>
-                          )}
-
-                          <span className={cn(
-                            "relative z-10",
-                            (isStart || isEnd || isHoverEnd) ? "text-white" : "",
-                            isRange ? "text-brand font-extrabold" : ""
-                          )}>
-                            {date.getDate()}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* 초기 투자금 및 최대 참가자 수 제한 */}
-              <div className="grid grid-cols-2 gap-5">
-                <div className="flex flex-col gap-3">
-                  <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                    참가자 초기 투자금
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[14.5px] text-text-primary cursor-pointer appearance-none transition"
-                      value={newCompInitialAmount}
-                      onChange={(e) => setNewCompInitialAmount(e.target.value)}
-                    >
-                      <option value="100">100 만원</option>
-                      <option value="500">500 만원</option>
-                      <option value="1000">1,000 만원</option>
-                      <option value="5000">5,000 만원</option>
-                      <option value="10000">1 억원</option>
-                      <option value="50000">5 억원</option>
-                      <option value="100000">10 억원</option>
-                    </select>
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-3">
-                  <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                    최대 참가자 수 제한
-                  </label>
-                  <div className="relative">
-                    <select
-                      className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[14.5px] text-text-primary cursor-pointer appearance-none transition"
-                      value={newCompMaxParticipants}
-                      onChange={(e) => setNewCompMaxParticipants(e.target.value)}
-                    >
-                      <option value="10">10 명</option>
-                      <option value="30">30 명</option>
-                      <option value="50">50 명</option>
-                      <option value="100">100 명</option>
-                      <option value="500">500 명</option>
-                      <option value="1000">1,000 명</option>
-                      <option value="">무제한</option>
-                    </select>
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
-                      <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
-                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 공개/비밀 설정 */}
-              <div className="flex flex-col gap-3">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  공개 설정
-                </label>
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNewCompIsSecret(false)}
-                    className={cn(
-                      "flex-1 py-3 px-4 rounded-[12px] border-2 flex items-center justify-center gap-2 transition-colors cursor-pointer",
-                      !newCompIsSecret
-                        ? "border-brand bg-brand/5 text-brand"
-                        : "border-border-color bg-surface text-text-secondary"
-                    )}
-                  >
-                    <Globe className="w-4 h-4" />
-                    <span className="text-[14.5px] font-extrabold">공개 대회</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewCompIsSecret(true)}
-                    className={cn(
-                      "flex-1 py-3 px-4 rounded-[12px] border-2 flex items-center justify-center gap-2 transition-colors cursor-pointer",
-                      newCompIsSecret
-                        ? "border-brand bg-brand/5 text-brand"
-                        : "border-border-color bg-surface text-text-secondary"
-                    )}
-                  >
-                    <Lock className="w-4 h-4" />
-                    <span className="text-[14.5px] font-extrabold">비밀 대회</span>
-                  </button>
-                </div>
-                {newCompIsSecret && (
-                  <div className="animate-in fade-in slide-in-from-top-1 duration-200 mt-1 relative">
-                    <Lock className="w-4 h-4 text-text-secondary absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="password"
-                      placeholder="입장 비밀번호를 입력해주세요"
-                      value={newCompPassword}
-                      maxLength={6}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === "" || /^[0-9]+$/.test(val)) {
-                          setNewCompPassword(val.slice(0, 6));
-                        }
-                      }}
-                      className="w-full bg-bg-main border border-border-color rounded-[12px] py-2.5 pl-10 pr-4 text-[14px] font-bold outline-none focus:bg-white focus:border-brand focus:ring-1.5 focus:ring-brand"
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* 공식 대회 지정하기 */}
-              <div className="flex items-center justify-between p-3.5 bg-bg-main border border-border-color rounded-[12px]">
-                <div>
-                  <h4 className="text-[13.5px] font-extrabold text-text-primary">공식 대회 지정하기</h4>
-                  <p className="text-[11px] text-text-secondary font-medium">활성화 시 대회카드 옆에 브랜드 컬러의 공식 인증 마크가 표시됩니다.</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setNewCompIsOfficial(!newCompIsOfficial)}
-                  className={cn(
-                    "w-10 h-6 rounded-full p-0.5 transition-colors cursor-pointer relative duration-200",
-                    newCompIsOfficial ? "bg-[#4A5DF9]" : "bg-neutral-300"
-                  )}
-                >
-                  <div className={cn(
-                    "w-5 h-5 bg-white rounded-full shadow-sm transition-transform duration-200",
-                    newCompIsOfficial ? "translate-x-4" : "translate-x-0"
-                  )} />
-                </button>
-              </div>
-            </div>
-
-            {/* Buttons control footer */}
-            <div className="flex gap-2.5 pt-3.5 border-t border-[#E5E5EA]">
-              <button
-                type="button"
-                onClick={() => setNewCompModal(false)}
-                className="flex-1 py-3 border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] text-[14px] font-bold rounded-[12px] cursor-pointer"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newCompTitle.trim() || !newCompStartDate || !newCompEndDate) {
-                    triggerToast("모든 항목을 올바르게 기입해주십시오.");
-                    return;
-                  }
-                  const startTimestamp = new Date(newCompStartDate).getTime();
-                  const endTimestamp = new Date(newCompEndDate).getTime();
-                  const currentTimestamp = new Date().getTime();
-                  
-                  let compStatus: "WAITING" | "ONGOING" | "FINISHED" = "WAITING";
-                  if (currentTimestamp >= startTimestamp && currentTimestamp <= endTimestamp) {
-                    compStatus = "ONGOING";
-                  } else if (currentTimestamp > endTimestamp) {
-                    compStatus = "FINISHED";
-                  }
-
-                  const createdComp: CompetitionItem = {
-                    id: competitions.length + 1,
-                    title: newCompTitle,
-                    startDate: newCompStartDate,
-                    endDate: newCompEndDate,
-                    seedMoney: (parseInt(newCompInitialAmount) || 1000) * 10000,
-                    initialAmount: (parseInt(newCompInitialAmount) || 1000) * 10000,
-                    participants: 0,
-                    maxParticipants: newCompMaxParticipants ? parseInt(newCompMaxParticipants) : "무제한",
-                    status: compStatus,
-                    isOpen: true,
-                    isOfficial: newCompIsOfficial,
-                    target: allowedStocks.length > 0 ? allowedStocks.map(s => s.name).join(", ") : "전체",
-                    hasPassword: newCompIsSecret,
-                    password: newCompPassword,
-                    dday: compStatus === "WAITING" ? "D-Day" : compStatus === "ONGOING" ? "진행중" : "종료"
-                  };
-
-                  setCompetitions([createdComp, ...competitions]);
-                  triggerToast(`새로운 대회 [ ${newCompTitle} ] 가 성공적으로 배포 등록되었습니다.`);
-                  setNewCompModal(false);
-                }}
-                className="flex-1 py-3 bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/90 transition text-[14px] font-bold rounded-[12px] shadow-sm cursor-pointer"
-              >
-                대회 생성 배포
               </button>
             </div>
           </div>
