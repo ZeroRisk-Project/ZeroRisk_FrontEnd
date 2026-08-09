@@ -16,6 +16,7 @@ import {
   Square
 } from "lucide-react";
 import api from "@/src/lib/api";
+import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 
 // Types
 type ActiveSheet =
@@ -29,8 +30,6 @@ type ActiveSheet =
   | "account_delete";
 
 type AccountType = "general" | "social";
-
-const DEFAULT_PROFILE_IMAGE = "/default-profile.png";
 
 export function MypageSettings() {
   const navigate = useNavigate();
