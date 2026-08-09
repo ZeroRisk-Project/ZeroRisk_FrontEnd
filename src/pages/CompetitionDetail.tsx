@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import { Link, useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Users, Trophy, ChevronDown, Settings } from "lucide-react";
+import { ArrowLeft, Users, Trophy, ChevronDown } from "lucide-react";
 import { cn, formatPrice, formatPercent } from "@/src/lib/utils";
+import api from "@/src/lib/api";
 
 export function CompetitionDetail() {
   const { id } = useParams();
@@ -13,7 +14,6 @@ export function CompetitionDetail() {
 
   const [activeTab, setActiveTab] = useState("랭킹");
   const [toastMsg, setToastMsg] = useState("");
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(""), 2000);
@@ -50,58 +50,30 @@ export function CompetitionDetail() {
     dday: "D-15"
   };
 
-  const [joinedIds, setJoinedIds] = useState<number[]>(() => {
-    const saved = localStorage.getItem("joined_competitions");
-    if (saved) {
+  const [isJoined, setIsJoined] = useState(false);
+
+  useEffect(() => {
+    const checkJoinStatus = async () => {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [1];
+        const response = await api.get(`/competitions/${compId}/join-status`);
+        setIsJoined(response.data.joined);
+      } catch {
+        setIsJoined(false);
       }
+    };
+    checkJoinStatus();
+  }, [compId]);
+
+  const handleJoin = async () => {
+    try {
+      await api.post(`/competitions/${compId}/join`);
+      setIsJoined(true);
+      const isOngoing = comp.status === "ONGOING" || comp.status === "진행중";
+      showToast(isOngoing ? "🏆 대회 참가가 완료되었습니다!" : "🏆 대회 참가 신청이 완료되었습니다!");
+    } catch (error: any) {
+      const message = error.response?.data?.message ?? "대회 참가에 실패했습니다.";
+      showToast(`⚠️ ${message}`);
     }
-    return [1]; // 기본값: 1번 대회 참가 중
-  });
-
-  const isJoined = joinedIds.includes(compId);
-
-  const handleJoin = () => {
-    if (isJoined) return;
-    const nextIds = [...joinedIds, compId];
-    setJoinedIds(nextIds);
-    localStorage.setItem("joined_competitions", JSON.stringify(nextIds));
-
-    // Update participants count in competitions list to persist
-    const updated = competitions.map(c => {
-      if (c.id === compId) {
-        return { ...c, participants: (c.participants || 0) + 1 };
-      }
-      return c;
-    });
-    localStorage.setItem("competitions_list", JSON.stringify(updated));
-
-    const isOngoing = comp.status === "ONGOING" || comp.status === "진행중";
-    showToast(isOngoing ? "🏆 대회 참가가 완료되었습니다!" : "🏆 대회 참가 신청이 완료되었습니다!");
-  };
-
-  const handleLeave = () => {
-    if (!isJoined) return;
-    const nextIds = joinedIds.filter(idx => idx !== compId);
-    setJoinedIds(nextIds);
-    localStorage.setItem("joined_competitions", JSON.stringify(nextIds));
-
-    // Descale participants count in competitions list to persist
-    const updated = competitions.map(c => {
-      if (c.id === compId) {
-        return { ...c, participants: Math.max(0, (c.participants || 1) - 1) };
-      }
-      return c;
-    });
-    localStorage.setItem("competitions_list", JSON.stringify(updated));
-
-    showToast("❌ 대회 탈퇴가 처리되었습니다.");
-    setTimeout(() => {
-      navigate("/competitions");
-    }, 850);
   };
 
   const isOngoing = comp.status === "ONGOING" || comp.status === "진행중";
@@ -116,36 +88,7 @@ export function CompetitionDetail() {
         >
           <ArrowLeft className="w-4 h-4 mr-1" /> 목록으로
         </Link>
-        {isJoined ? (
-          <div className="relative">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="text-neutral-500 hover:text-neutral-800 transition-colors cursor-pointer p-1.5 rounded-full"
-              title="설정"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
-            {isMenuOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-30" 
-                  onClick={() => setIsMenuOpen(false)}
-                />
-                <div className="absolute right-0 mt-2 w-32 bg-white border border-[#E5E5EA] rounded-[12px] shadow-lg py-1 z-40 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false);
-                      handleLeave();
-                    }}
-                    className="w-full text-center px-3 py-2 text-[13px] font-bold text-red-500 hover:bg-red-50 transition cursor-pointer"
-                  >
-                    대회 나가기
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        ) : (isOngoing || isScheduled) ? (
+        {isJoined ? null : (isOngoing || isScheduled) ? (
           <Button
             onClick={handleJoin}
             className="bg-brand text-white hover:bg-brand/90 transition cursor-pointer font-bold px-6 rounded-lg"

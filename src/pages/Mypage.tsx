@@ -149,6 +149,20 @@ export function Mypage() {
     checkLinkStatus();
   }, []);
 
+  const [prizeHistory, setPrizeHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPrizeHistory = async () => {
+      try {
+        const response = await api.get("/prizes/me");
+        setPrizeHistory(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchPrizeHistory();
+  }, []);
+
   const [favStockCodes, setFavStockCodes] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem("fav_stocks");
@@ -296,6 +310,29 @@ export function Mypage() {
                 <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(5200000)}원</p>
               </div>
             </div>
+
+            {prizeHistory.length > 0 && (
+              <div className="mt-6 pt-6 border-t border-[#F2F4F6]">
+                <h4 className="font-semibold text-sm text-[#4E5968] mb-3">받은 상금 내역</h4>
+                <div className="space-y-2">
+                  {prizeHistory.map((prize, idx) => (
+                    <div key={idx} className="flex items-center justify-between bg-[#F9FAFB] rounded-xl p-4">
+                      <div>
+                        <span className="text-[11px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-0.5 rounded-md">
+                          {prize.rankPosition}위
+                        </span>
+                        <p className="text-sm font-semibold text-[#191F28] mt-1">
+                          {prize.competitionTitle}
+                        </p>
+                      </div>
+                      <p className="font-bold text-[#191F28]">
+                        +{formatPrice(prize.prizeAmount)}원
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Bottom Filters & Content Row */}
