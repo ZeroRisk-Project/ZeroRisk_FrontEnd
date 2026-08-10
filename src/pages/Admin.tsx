@@ -25,6 +25,7 @@ import {
   Globe
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import api from "@/src/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
@@ -35,11 +36,11 @@ interface UserItem {
   id: number;
   email: string;
   nickname: string;
-  avatar: string;
-  role: "USER" | "ADMIN";
+  profileImageUrl: string | null;
+  userRole: "USER" | "ADMIN";
   status: "ACTIVE" | "SUSPENDED" | "QUIT";
-  accountNo: string;
-  joinedAt: string;
+  createdAt: string;
+  accountNumMasked: string | null;
 }
 
 interface ReportItem {
@@ -104,16 +105,6 @@ interface PostItem {
 }
 
 // Initial Mock Data
-const INITIAL_USERS: UserItem[] = [
-  { id: 1, email: "dog49226@gmail.com", nickname: "강원준", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100", role: "ADMIN", status: "ACTIVE", accountNo: "1002-321-45678", joinedAt: "2026-01-10" },
-  { id: 2, email: "kim_chulsoo@naver.com", nickname: "투자왕김철수", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-452-98124", joinedAt: "2026-02-15" },
-  { id: 3, email: "son_spark@gmail.com", nickname: "단타머신", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-895-32111", joinedAt: "2026-03-01" },
-  { id: 4, email: "lee_younghee@daum.net", nickname: "영희의영익률", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100", role: "USER", status: "SUSPENDED", accountNo: "1002-112-78904", joinedAt: "2026-03-24" },
-  { id: 5, email: "scripter90@gmail.com", nickname: "김코딩", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-541-12543", joinedAt: "2026-04-12" },
-  { id: 6, email: "chart_master@google.com", nickname: "차트의마법사", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100", role: "USER", status: "QUIT", accountNo: "1002-901-77884", joinedAt: "2026-05-02" },
-  { id: 7, email: "bull_market@naver.com", nickname: "불마켓코리아", avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-612-44917", joinedAt: "2026-05-20" },
-];
-
 const INITIAL_REPORTS: ReportItem[] = [
   { id: 1, reporter: "단타머신", targetType: "게시글", content: "삼성전자 상폐된다고 선동하네요", reason: "광고도배", date: "2026-06-15 14:32", status: "미처리" },
   { id: 2, reporter: "투자왕김철수", targetType: "댓글", content: "부모님 안부 묻는 수준의 욕설을 내뱉습니다.", reason: "욕설비방", date: "2026-06-15 16:10", status: "미처리" },
@@ -131,16 +122,6 @@ const INITIAL_INQUIRIES: InquiryItem[] = [
   { id: 6, author: "불마켓코리아", title: "해외주식 업데이트 일정 문의", content: "현재는 국내 주요 top 30여개 종목만 있는 것 같은데 나스닥이나 해외 우량주 거래는 언제 오픈되나요?", date: "2026-06-14 20:05", status: "미답변" },
   { id: 7, author: "강원준", title: "로그인 세션 만료 시간 연장 요청", content: "글을 쓰는 도중 간헐적으로 세션 만료로 로그아웃 되는 불편함이 있습니다. 자동 연장 세션 쿠키를 적용해 주세요.", date: "2026-06-14 09:30", status: "미답변" },
   { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
-];
-
-const INITIAL_LOGS: ActivityLog[] = [
-  { id: 1, date: "2026-06-16 10:42:15", type: "접속" as any, target: "강원준", content: "관리자 대시보드 로그인 성공 및 웹 세션 연장", ip: "112.222.84.95" },
-  { id: 2, date: "2026-06-16 09:30:15", type: "대회" as any, target: "전체", content: "새 투자대회 [제1회 제로리스크 대학생 실전 투자 대회] 개설 등록 완료", ip: "112.222.84.95" },
-  { id: 3, date: "2026-06-15 16:11:02", type: "문의" as any, target: "투자왕김철수", content: "1:1 고객문의 #1 '모의투자 예수금 초기화' 답변 등록 처리 완료", ip: "112.222.84.95" },
-  { id: 4, date: "2026-06-15 14:24:05", type: "회원수정" as any, target: "영희의영익률", content: "회원 상태 변경: ACTIVE -> SUSPENDED (기간제 정지 적용)", ip: "112.222.84.95" },
-  { id: 5, date: "2026-06-15 10:19:33", type: "신고처리" as any, target: "김코딩", content: "접수된 유저 신고건 불량 파일 업로드 제재 적용", ip: "112.222.84.95" },
-  { id: 6, date: "2026-06-14 11:02:44", type: "기타" as any, target: "강원준", content: "시스템 보안 필터 및 차단 IP 목록 정상 동기화", ip: "112.222.84.95" },
-  { id: 7, date: "2026-06-13 10:02:44", type: "대회" as any, target: "전체", content: "비공개 챌린지 대회 노출 상태 변경 (비공개 -> 공개)", ip: "112.222.84.95" },
 ];
 
 const INITIAL_USER_LOGS = [
@@ -169,7 +150,7 @@ export function Admin() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs">("dashboard");
   
   // App States representing mockup database
-  const [users, setUsers] = useState<UserItem[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
   const [inquiries, setInquiries] = useState<InquiryItem[]>(INITIAL_INQUIRIES);
   const [competitions, setCompetitions] = useState<any[]>([]);
@@ -187,17 +168,19 @@ export function Admin() {
     fetchAdminCompetitions();
   }, []);
 
-  const [logs, setLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem("admin_activity_logs");
-    if (saved) {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchActionLogs = async () => {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
+        const response = await api.get("/admin/action-logs", { params: { size: 100 } });
+        setLogs(response.data.content);
+      } catch (error) {
+        console.error(error);
       }
-    }
-    return INITIAL_LOGS;
-  });
+    };
+    fetchActionLogs();
+  }, []);
 
   // User Actions Logs State
   const [userLogs, setUserLogs] = useState<any[]>(() => {
@@ -283,7 +266,34 @@ export function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "SUSPENDED" | "QUIT">("ALL");
   const [filterRole, setFilterRole] = useState<"ALL" | "USER" | "ADMIN">("ALL");
-  const [modifiedUsers, setModifiedUsers] = useState<{ [key: number]: { role: "USER" | "ADMIN", status: "ACTIVE" | "SUSPENDED" | "QUIT" } }>({});
+
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/admin/users", {
+        params: {
+          keyword: debouncedSearchQuery || undefined,
+          status: filterStatus !== "ALL" ? filterStatus : undefined,
+          size: 100,
+        },
+      });
+      setUsers(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [debouncedSearchQuery, filterStatus]);
   
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
@@ -335,9 +345,17 @@ export function Admin() {
   const [answerText, setAnswerText] = useState("");
 
   // 5. Log Monitoring Pagination Filter
-  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "접속" | "대회" | "문의" | "회원수정" | "신고처리" | "기타">("전체");
+  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "CREATE" | "UPDATE" | "DELETE" | "SUSPEND" | "UNSUSPEND">("전체");
   const [logSearchQuery, setLogSearchQuery] = useState("");
   const [logPage, setLogPage] = useState(1);
+
+  const ACTION_TYPE_LABELS: Record<string, string> = {
+    CREATE: "생성",
+    UPDATE: "수정",
+    DELETE: "삭제",
+    SUSPEND: "정지",
+    UNSUSPEND: "정지해제",
+  };
 
   // Simulate Load effect when moving tabs
   useEffect(() => {
@@ -768,13 +786,7 @@ export function Admin() {
 
                     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
                       <div className="text-[13px] text-[#8E8E93] font-bold">
-                        검색 결과: <span className="text-[#1C1C1E] font-black">{users.filter(u => {
-                          const query = searchQuery.toLowerCase();
-                          const matchSearch = u.email.toLowerCase().includes(query) || u.nickname.toLowerCase().includes(query);
-                          const matchStat = filterStatus === "ALL" || u.status === filterStatus;
-                          const matchRl = filterRole === "ALL" || u.role === filterRole;
-                          return matchSearch && matchStat && matchRl;
-                        }).length}</span>명
+                        검색 결과: <span className="text-[#1C1C1E] font-black">{users.length}</span>명
                       </div>
                       <div className="text-[11.5px] text-[#4A5DF9] font-bold animate-pulse">
                         💡 Tip: 회원 칸을 마우스 우클릭하면 개별 활동 로그(매수/매도/게시글/댓글/대회참가 등) 보기 드롭다운이 노출됩니다.
@@ -790,62 +802,31 @@ export function Admin() {
                           <th className="py-3 px-4 w-15 text-center whitespace-nowrap">프로필</th>
                           <th className="py-3 px-4 whitespace-nowrap">이메일</th>
                           <th className="py-3 px-4 whitespace-nowrap">닉네임</th>
-                          <th className="py-3 px-4 w-32 whitespace-nowrap">역할 설정</th>
+                          <th className="py-3 px-4 w-32 whitespace-nowrap">역할</th>
                           <th className="py-3 px-4 w-36 whitespace-nowrap">상태 관리</th>
                           <th className="py-3 px-4 text-center whitespace-nowrap">계좌번호</th>
                           <th className="py-3 px-4 text-center whitespace-nowrap">가입일</th>
-                          <th className="py-3 px-4 w-16 text-center whitespace-nowrap">조치</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {users
-                          .filter((u) => {
-                            const query = searchQuery.toLowerCase();
-                            const matchSearch = u.email.toLowerCase().includes(query) || u.nickname.toLowerCase().includes(query);
-                            const matchStat = filterStatus === "ALL" || u.status === filterStatus;
-                            const matchRl = filterRole === "ALL" || u.role === filterRole;
-                            return matchSearch && matchStat && matchRl;
-                          })
                           .map((user, idx) => {
-                            // Find temporary updates
-                            const tempChange = modifiedUsers[user.id] || { role: user.role, status: user.status };
-                            const hasPendingChanges = tempChange.role !== user.role || tempChange.status !== user.status;
-
-                            const handleRoleChangeLocally = (val: "USER" | "ADMIN") => {
-                              setModifiedUsers(prev => ({
-                                ...prev,
-                                [user.id]: { ...(prev[user.id] || { role: user.role, status: user.status }), role: val }
-                              }));
-                            };
-
-                            const handleStatusChangeLocally = (val: "ACTIVE" | "SUSPENDED" | "QUIT") => {
+                            const handleStatusChangeLocally = async (val: "ACTIVE" | "SUSPENDED" | "QUIT") => {
                               if (val === "SUSPENDED") {
-                                // Open detailed modal
                                 setSuspensionModal({ isOpen: true, userId: user.id });
-                              } else {
-                                setModifiedUsers(prev => ({
-                                  ...prev,
-                                  [user.id]: { ...(prev[user.id] || { role: user.role, status: user.status }), status: val }
-                                }));
+                                return;
                               }
-                            };
 
-                            const applyModifications = () => {
-                              setUsers(prevUsers => prevUsers.map(u => {
-                                if (u.id === user.id) {
-                                  return { ...u, role: tempChange.role, status: tempChange.status };
+                              if (val === "ACTIVE" && user.status === "SUSPENDED") {
+                                try {
+                                  await api.patch(`/admin/users/${user.id}/unsuspend`);
+                                  await fetchUsers();
+                                  triggerToast(`${user.nickname}님의 정지가 해제되었습니다.`);
+                                } catch (error: any) {
+                                  triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
                                 }
-                                return u;
-                              }));
-                              // clear temp status
-                              const nextMods = { ...modifiedUsers };
-                              delete nextMods[user.id];
-                              setModifiedUsers(nextMods);
-                              triggerToast(`${user.nickname}님의 권한/상태가 수정되었습니다!`);
-                              
-                              const roleKor = tempChange.role === "ADMIN" ? "관리자" : "일반 사용자";
-                              const statusKor = tempChange.status === "ACTIVE" ? "활성" : tempChange.status === "SUSPENDED" ? "정지" : "탈퇴";
-                              logAdminAction("기타", user.nickname, `회원 권한을 [${roleKor}]으로, 상태를 [${statusKor}]으로 변경 업데이트 완료하였습니다.`);
+                              }
+                              // QUIT은 회원 탈퇴 API 영역이라 관리자가 여기서 직접 바꾸는 개념이 아니므로 별도 처리 없음
                             };
 
                             return (
@@ -859,69 +840,49 @@ export function Admin() {
                               >
                                 <td className="py-2 px-4 text-center font-bold text-[#8E8E93] tabular-nums whitespace-nowrap">{idx + 1}</td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  <img 
-                                    src={user.avatar} 
-                                    alt="avatar" 
+                                  <img
+                                    src={user.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                                    alt="avatar"
                                     className="flex-shrink-0 w-10 h-10 min-w-[40px] min-h-[40px] rounded-full object-cover border border-[#E5E5EA] mx-auto shadow-inner aspect-square"
                                     referrerPolicy="no-referrer"
                                   />
                                 </td>
                                 <td className="py-2 px-4 font-semibold text-[#1C1C1E] whitespace-nowrap">{user.email}</td>
                                 <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{user.nickname}</td>
-                                
+
                                 <td className="py-2 px-4 whitespace-nowrap">
-                                  <div className="relative inline-block w-full min-w-[110px]">
-                                    <select
-                                      value={tempChange.role}
-                                      onChange={(e) => handleRoleChangeLocally(e.target.value as any)}
-                                      className={cn(
-                                        "appearance-none w-full bg-[#F2F2F7] rounded-[8px] text-xs font-bold pl-2.5 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] border border-transparent cursor-pointer",
-                                        tempChange.role === "ADMIN" ? "text-[#FF3B30] bg-[#FF3B30]/5 font-extrabold" : "text-[#1C1C1E]"
-                                      )}
-                                    >
-                                      <option value="USER">일반 사용자</option>
-                                      <option value="ADMIN">관리자</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
-                                  </div>
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[11px] font-bold",
+                                      user.userRole === "ADMIN" ? "bg-[#FF3B30]/10 text-[#FF3B30]" : "bg-[#F2F2F7] text-[#8E8E93]"
+                                    )}
+                                  >
+                                    {user.userRole === "ADMIN" ? "관리자" : "일반"}
+                                  </span>
                                 </td>
 
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <div className="relative inline-block w-full min-w-[110px]">
                                     <select
-                                      value={tempChange.status}
+                                      value={user.status}
                                       onChange={(e) => handleStatusChangeLocally(e.target.value as any)}
                                       className={cn(
                                         "appearance-none w-full rounded-[8px] text-xs font-extrabold pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] border border-transparent cursor-pointer transition-all",
-                                        tempChange.status === "ACTIVE" && "bg-[#34C759]/10 text-[#34C759]",
-                                        tempChange.status === "SUSPENDED" && "bg-[#FF9500]/10 text-[#FF9500]",
-                                        tempChange.status === "QUIT" && "bg-[#8E8E93]/10 text-[#8E8E93]"
+                                        user.status === "ACTIVE" && "bg-[#34C759]/10 text-[#34C759]",
+                                        user.status === "SUSPENDED" && "bg-[#FF9500]/10 text-[#FF9500]",
+                                        user.status === "QUIT" && "bg-[#8E8E93]/10 text-[#8E8E93]"
                                       )}
                                     >
-                                      <option value="ACTIVE block">활성</option>
+                                      <option value="ACTIVE">활성</option>
                                       <option value="SUSPENDED">정지</option>
                                       <option value="QUIT">탈퇴</option>
                                     </select>
                                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
                                   </div>
                                 </td>
-                                
-                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] font-medium whitespace-nowrap">{user.accountNo}</td>
-                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] whitespace-nowrap">{user.joinedAt}</td>
-                                <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  <button
-                                    disabled={!hasPendingChanges}
-                                    onClick={applyModifications}
-                                    className={cn(
-                                      "px-3 py-1.5 rounded-[8px] text-xs font-extrabold transition-all duration-200",
-                                      hasPendingChanges 
-                                        ? "bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/95 cursor-pointer shadow-sm"
-                                        : "bg-[#F2F2F7] text-[#8E8E93] cursor-not-allowed"
-                                    )}
-                                  >
-                                    적용
-                                  </button>
-                                </td>
+
+                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] font-medium whitespace-nowrap">{user.accountNumMasked ?? "-"}</td>
+                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] whitespace-nowrap">{user.createdAt ? user.createdAt.slice(0, 10) : "-"}</td>
                               </tr>
                             );
                           })}
@@ -1505,9 +1466,13 @@ export function Admin() {
                       <div className="text-[13px] text-[#8E8E93] font-bold hidden sm:inline-block">
                         총 <span className="text-[#1C1C1E] font-black">{
                           logs.filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           }).length
                         }</span>건의 기록
@@ -1526,13 +1491,11 @@ export function Admin() {
                           }}
                           className="appearance-none w-full bg-[#F2F2F7] border border-[#E5E5EA] rounded-[12px] text-xs font-extrabold pl-3.5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] cursor-pointer"
                         >
-                          <option value="전체">전체 활동</option>
-                          <option value="접속">접속/세션 만료</option>
-                          <option value="대회">대회 개설/해산</option>
-                          <option value="문의">문의답변 처리</option>
-                          <option value="회원수정">회원 권한/상태 설정</option>
-                          <option value="신고처리">신고 제재 처리</option>
-                          <option value="기타">기타 활동</option>
+                          {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND"] as const).map((tab) => (
+                            <option key={tab} value={tab}>
+                              {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1553,30 +1516,35 @@ export function Admin() {
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {logs
                           .filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           })
                           .map((log) => (
                             <tr key={log.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E]">
-                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.date}</td>
+                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.createdAt?.slice(0, 19).replace("T", " ")}</td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  log.type === "접속" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
-                                  log.type === "대회" && "bg-[#007AFF]/11 text-[#007AFF]",
-                                  log.type === "문의" && "bg-[#30D158]/11 text-[#30D158]",
-                                  log.type === "회원수정" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                  log.type === "신고처리" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                  log.type === "기타" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                  log.actionType === "CREATE" && "bg-[#30D158]/11 text-[#30D158]",
+                                  log.actionType === "UPDATE" && "bg-[#007AFF]/11 text-[#007AFF]",
+                                  log.actionType === "DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "SUSPEND" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                  log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
                                 )}>
-                                  {log.type}
+                                  {ACTION_TYPE_LABELS[log.actionType] ?? log.actionType}
                                 </span>
                               </td>
-                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{log.target}</td>
-                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.content}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ip}</td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">
+                                {log.adminNickname} → {log.targetType} #{log.targetId}
+                              </td>
+                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.detail}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ipAddress ?? "-"}</td>
                             </tr>
                           ))}
                       </tbody>
@@ -1643,7 +1611,7 @@ export function Admin() {
               const targetUser = users.find(u => u.id === suspensionModal.userId);
               return targetUser ? (
                 <div className="bg-[#F2F2F7] rounded-[12px] p-3 flex items-center gap-3">
-                  <img src={targetUser.avatar} alt="avatar" className="flex-shrink-0 w-9 h-9 rounded-full object-cover" />
+                  <img src={targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="avatar" className="flex-shrink-0 w-9 h-9 rounded-full object-cover" />
                   <div>
                     <p className="text-[13px] font-bold text-[#1C1C1E]">{targetUser.nickname}</p>
                     <p className="text-[11px] text-[#8E8E93]">{targetUser.email}</p>
@@ -1692,14 +1660,35 @@ export function Admin() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  if (suspensionModal.userId) {
-                    setModifiedUsers(prev => ({
-                      ...prev,
-                      [suspensionModal.userId!]: { ...(prev[suspensionModal.userId!] || { role: "USER", status: "ACTIVE" }), status: "SUSPENDED" }
-                    }));
-                    triggerToast("정지 상태가 대기열에 등록되었습니다. [ 적용 ] 버튼을 누르시면 효력이 적용됩니다.");
+                onClick={async () => {
+                  if (!suspensionModal.userId) return;
+
+                  if (!suspensionReason.trim()) {
+                    triggerToast("⚠️ 정지 사유를 입력해주세요.");
+                    return;
                   }
+
+                  const days = parseInt(suspensionTime);
+                  if (isNaN(days)) {
+                    triggerToast("⚠️ 정지 기간을 정확히 입력해주세요.");
+                    return;
+                  }
+
+                  const suspendedUntil = days === -1
+                    ? null
+                    : new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+                  try {
+                    await api.patch(`/admin/users/${suspensionModal.userId}/suspend`, {
+                      suspendedUntil,
+                      reason: suspensionReason,
+                    });
+                    await fetchUsers();
+                    triggerToast("정지 처리가 완료되었습니다.");
+                  } catch (error: any) {
+                    triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                  }
+
                   setSuspensionModal({ isOpen: false, userId: null });
                 }}
                 className="flex-1 py-3 bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
@@ -1803,7 +1792,7 @@ export function Admin() {
             {/* Profile banner */}
             <div className="bg-[#F2F2F7] rounded-[16px] p-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <img src={activityModal.user.avatar} alt="avatar" className="flex-shrink-0 w-11 h-11 rounded-full object-cover" />
+                <img src={activityModal.user.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="avatar" className="flex-shrink-0 w-11 h-11 rounded-full object-cover" />
                 <div>
                   <p className="text-[14px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}</p>
                   <p className="text-[12px] text-[#8E8E93]">{activityModal.user.email}</p>
@@ -1811,7 +1800,7 @@ export function Admin() {
               </div>
               <div className="text-right">
                 <p className="text-[12px] text-[#8E8E93]">가입일</p>
-                <p className="text-[13px] font-bold text-[#1C1C1E] tabular-nums">{activityModal.user.joinedAt}</p>
+                <p className="text-[13px] font-bold text-[#1C1C1E] tabular-nums">{activityModal.user.createdAt ? activityModal.user.createdAt.slice(0, 10) : "-"}</p>
               </div>
             </div>
 
