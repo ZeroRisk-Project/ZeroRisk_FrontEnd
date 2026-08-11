@@ -124,16 +124,6 @@ const INITIAL_INQUIRIES: InquiryItem[] = [
   { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
 ];
 
-const INITIAL_LOGS: ActivityLog[] = [
-  { id: 1, date: "2026-06-16 10:42:15", type: "접속" as any, target: "강원준", content: "관리자 대시보드 로그인 성공 및 웹 세션 연장", ip: "112.222.84.95" },
-  { id: 2, date: "2026-06-16 09:30:15", type: "대회" as any, target: "전체", content: "새 투자대회 [제1회 제로리스크 대학생 실전 투자 대회] 개설 등록 완료", ip: "112.222.84.95" },
-  { id: 3, date: "2026-06-15 16:11:02", type: "문의" as any, target: "투자왕김철수", content: "1:1 고객문의 #1 '모의투자 예수금 초기화' 답변 등록 처리 완료", ip: "112.222.84.95" },
-  { id: 4, date: "2026-06-15 14:24:05", type: "회원수정" as any, target: "영희의영익률", content: "회원 상태 변경: ACTIVE -> SUSPENDED (기간제 정지 적용)", ip: "112.222.84.95" },
-  { id: 5, date: "2026-06-15 10:19:33", type: "신고처리" as any, target: "김코딩", content: "접수된 유저 신고건 불량 파일 업로드 제재 적용", ip: "112.222.84.95" },
-  { id: 6, date: "2026-06-14 11:02:44", type: "기타" as any, target: "강원준", content: "시스템 보안 필터 및 차단 IP 목록 정상 동기화", ip: "112.222.84.95" },
-  { id: 7, date: "2026-06-13 10:02:44", type: "대회" as any, target: "전체", content: "비공개 챌린지 대회 노출 상태 변경 (비공개 -> 공개)", ip: "112.222.84.95" },
-];
-
 const INITIAL_USER_LOGS = [
   { id: 101, date: "2026-06-16 10:39:41", userId: 2, type: "매수", target: "투자왕김철수", content: "삼성전자 100주 매수 체결 (체결가 75,400원)", ip: "211.45.195.42" },
   { id: 102, date: "2026-06-16 10:35:10", userId: 3, type: "매도", target: "단타머신", content: "SK하이닉스 50주 대기 주문 체결 (체결가 188,400원)", ip: "175.210.12.98" },
@@ -178,17 +168,19 @@ export function Admin() {
     fetchAdminCompetitions();
   }, []);
 
-  const [logs, setLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem("admin_activity_logs");
-    if (saved) {
+  const [logs, setLogs] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchActionLogs = async () => {
       try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
+        const response = await api.get("/admin/action-logs", { params: { size: 100 } });
+        setLogs(response.data.content);
+      } catch (error) {
+        console.error(error);
       }
-    }
-    return INITIAL_LOGS;
-  });
+    };
+    fetchActionLogs();
+  }, []);
 
   // User Actions Logs State
   const [userLogs, setUserLogs] = useState<any[]>(() => {
@@ -353,9 +345,17 @@ export function Admin() {
   const [answerText, setAnswerText] = useState("");
 
   // 5. Log Monitoring Pagination Filter
-  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "접속" | "대회" | "문의" | "회원수정" | "신고처리" | "기타">("전체");
+  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "CREATE" | "UPDATE" | "DELETE" | "SUSPEND" | "UNSUSPEND">("전체");
   const [logSearchQuery, setLogSearchQuery] = useState("");
   const [logPage, setLogPage] = useState(1);
+
+  const ACTION_TYPE_LABELS: Record<string, string> = {
+    CREATE: "생성",
+    UPDATE: "수정",
+    DELETE: "삭제",
+    SUSPEND: "정지",
+    UNSUSPEND: "정지해제",
+  };
 
   // Simulate Load effect when moving tabs
   useEffect(() => {
@@ -849,7 +849,7 @@ export function Admin() {
                                 </td>
                                 <td className="py-2 px-4 font-semibold text-[#1C1C1E] whitespace-nowrap">{user.email}</td>
                                 <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{user.nickname}</td>
-                                
+
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <span
                                     className={cn(
@@ -1466,9 +1466,13 @@ export function Admin() {
                       <div className="text-[13px] text-[#8E8E93] font-bold hidden sm:inline-block">
                         총 <span className="text-[#1C1C1E] font-black">{
                           logs.filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           }).length
                         }</span>건의 기록
@@ -1487,13 +1491,11 @@ export function Admin() {
                           }}
                           className="appearance-none w-full bg-[#F2F2F7] border border-[#E5E5EA] rounded-[12px] text-xs font-extrabold pl-3.5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] cursor-pointer"
                         >
-                          <option value="전체">전체 활동</option>
-                          <option value="접속">접속/세션 만료</option>
-                          <option value="대회">대회 개설/해산</option>
-                          <option value="문의">문의답변 처리</option>
-                          <option value="회원수정">회원 권한/상태 설정</option>
-                          <option value="신고처리">신고 제재 처리</option>
-                          <option value="기타">기타 활동</option>
+                          {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND"] as const).map((tab) => (
+                            <option key={tab} value={tab}>
+                              {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1514,30 +1516,35 @@ export function Admin() {
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {logs
                           .filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           })
                           .map((log) => (
                             <tr key={log.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E]">
-                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.date}</td>
+                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.createdAt?.slice(0, 19).replace("T", " ")}</td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  log.type === "접속" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
-                                  log.type === "대회" && "bg-[#007AFF]/11 text-[#007AFF]",
-                                  log.type === "문의" && "bg-[#30D158]/11 text-[#30D158]",
-                                  log.type === "회원수정" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                  log.type === "신고처리" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                  log.type === "기타" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                  log.actionType === "CREATE" && "bg-[#30D158]/11 text-[#30D158]",
+                                  log.actionType === "UPDATE" && "bg-[#007AFF]/11 text-[#007AFF]",
+                                  log.actionType === "DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "SUSPEND" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                  log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
                                 )}>
-                                  {log.type}
+                                  {ACTION_TYPE_LABELS[log.actionType] ?? log.actionType}
                                 </span>
                               </td>
-                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{log.target}</td>
-                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.content}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ip}</td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">
+                                {log.adminNickname} → {log.targetType} #{log.targetId}
+                              </td>
+                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.detail}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ipAddress ?? "-"}</td>
                             </tr>
                           ))}
                       </tbody>
