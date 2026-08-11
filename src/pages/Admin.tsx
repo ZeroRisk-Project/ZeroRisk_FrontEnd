@@ -25,6 +25,7 @@ import {
   Globe
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
+import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import api from "@/src/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
@@ -35,21 +36,22 @@ interface UserItem {
   id: number;
   email: string;
   nickname: string;
-  avatar: string;
-  role: "USER" | "ADMIN";
+  profileImageUrl: string | null;
+  userRole: "USER" | "ADMIN";
   status: "ACTIVE" | "SUSPENDED" | "QUIT";
-  accountNo: string;
-  joinedAt: string;
+  createdAt: string;
+  accountNumMasked: string | null;
 }
 
 interface ReportItem {
   id: number;
-  reporter: string;
-  targetType: "게시글" | "댓글" | "채팅";
-  content: string;
-  reason: "욕설비방" | "광고도배" | "불법촬영" | "기타";
-  date: string;
-  status: "미처리" | "처리완료" | "반려";
+  reporterNickname: string;
+  targetType: "POST" | "COMMENT" | "CHAT" | "USER";
+  targetId: number;
+  targetPostId: number | null;
+  reason: string;
+  createdAt: string;
+  status: "PENDING" | "PROCESSED" | "REJECTED";
 }
 
 interface InquiryItem {
@@ -103,25 +105,6 @@ interface PostItem {
   status: "ACTIVE" | "DELETED";
 }
 
-// Initial Mock Data
-const INITIAL_USERS: UserItem[] = [
-  { id: 1, email: "dog49226@gmail.com", nickname: "강원준", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100", role: "ADMIN", status: "ACTIVE", accountNo: "1002-321-45678", joinedAt: "2026-01-10" },
-  { id: 2, email: "kim_chulsoo@naver.com", nickname: "투자왕김철수", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-452-98124", joinedAt: "2026-02-15" },
-  { id: 3, email: "son_spark@gmail.com", nickname: "단타머신", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-895-32111", joinedAt: "2026-03-01" },
-  { id: 4, email: "lee_younghee@daum.net", nickname: "영희의영익률", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100", role: "USER", status: "SUSPENDED", accountNo: "1002-112-78904", joinedAt: "2026-03-24" },
-  { id: 5, email: "scripter90@gmail.com", nickname: "김코딩", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-541-12543", joinedAt: "2026-04-12" },
-  { id: 6, email: "chart_master@google.com", nickname: "차트의마법사", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100", role: "USER", status: "QUIT", accountNo: "1002-901-77884", joinedAt: "2026-05-02" },
-  { id: 7, email: "bull_market@naver.com", nickname: "불마켓코리아", avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100", role: "USER", status: "ACTIVE", accountNo: "1002-612-44917", joinedAt: "2026-05-20" },
-];
-
-const INITIAL_REPORTS: ReportItem[] = [
-  { id: 1, reporter: "단타머신", targetType: "게시글", content: "삼성전자 상폐된다고 선동하네요", reason: "광고도배", date: "2026-06-15 14:32", status: "미처리" },
-  { id: 2, reporter: "투자왕김철수", targetType: "댓글", content: "부모님 안부 묻는 수준의 욕설을 내뱉습니다.", reason: "욕설비방", date: "2026-06-15 16:10", status: "미처리" },
-  { id: 3, reporter: "김코딩", targetType: "채팅", content: "이상한 리딩방 링크 계속 올림", reason: "광고도배", date: "2026-06-16 09:12", status: "미처리" },
-  { id: 4, reporter: "영희의영익률", targetType: "게시글", content: "불건전한 파일 업로드 의심", reason: "불법촬영", date: "2026-06-14 11:20", status: "처리완료" },
-  { id: 5, reporter: "강원준", targetType: "댓글", content: "정치 게시글 유도 비난", reason: "기타", date: "2026-06-13 18:45", status: "반려" },
-];
-
 const INITIAL_INQUIRIES: InquiryItem[] = [
   { id: 1, author: "투자왕김철수", title: "모의투자 예수금 초기화는 어떻게 하나요?", content: "수익률이 너무 안좋아서 마이너스 오천만원인데 초기화하고 새로 시작할 수 있는 방법이 없는지 문의 오천만원 드립니다.", date: "2026-06-16 01:20", status: "미답변" },
   { id: 2, author: "단타머신", title: "주말 거래 기능 만들어주세요", content: "주말에는 주식 시장이 닫혀서 너무 심심합니다. 주말 모의투자나 가상 거래 기능을 구현해주실 순 없나요?", date: "2026-06-15 22:15", status: "미답변" },
@@ -131,16 +114,6 @@ const INITIAL_INQUIRIES: InquiryItem[] = [
   { id: 6, author: "불마켓코리아", title: "해외주식 업데이트 일정 문의", content: "현재는 국내 주요 top 30여개 종목만 있는 것 같은데 나스닥이나 해외 우량주 거래는 언제 오픈되나요?", date: "2026-06-14 20:05", status: "미답변" },
   { id: 7, author: "강원준", title: "로그인 세션 만료 시간 연장 요청", content: "글을 쓰는 도중 간헐적으로 세션 만료로 로그아웃 되는 불편함이 있습니다. 자동 연장 세션 쿠키를 적용해 주세요.", date: "2026-06-14 09:30", status: "미답변" },
   { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
-];
-
-const INITIAL_LOGS: ActivityLog[] = [
-  { id: 1, date: "2026-06-16 10:42:15", type: "접속" as any, target: "강원준", content: "관리자 대시보드 로그인 성공 및 웹 세션 연장", ip: "112.222.84.95" },
-  { id: 2, date: "2026-06-16 09:30:15", type: "대회" as any, target: "전체", content: "새 투자대회 [제1회 제로리스크 대학생 실전 투자 대회] 개설 등록 완료", ip: "112.222.84.95" },
-  { id: 3, date: "2026-06-15 16:11:02", type: "문의" as any, target: "투자왕김철수", content: "1:1 고객문의 #1 '모의투자 예수금 초기화' 답변 등록 처리 완료", ip: "112.222.84.95" },
-  { id: 4, date: "2026-06-15 14:24:05", type: "회원수정" as any, target: "영희의영익률", content: "회원 상태 변경: ACTIVE -> SUSPENDED (기간제 정지 적용)", ip: "112.222.84.95" },
-  { id: 5, date: "2026-06-15 10:19:33", type: "신고처리" as any, target: "김코딩", content: "접수된 유저 신고건 불량 파일 업로드 제재 적용", ip: "112.222.84.95" },
-  { id: 6, date: "2026-06-14 11:02:44", type: "기타" as any, target: "강원준", content: "시스템 보안 필터 및 차단 IP 목록 정상 동기화", ip: "112.222.84.95" },
-  { id: 7, date: "2026-06-13 10:02:44", type: "대회" as any, target: "전체", content: "비공개 챌린지 대회 노출 상태 변경 (비공개 -> 공개)", ip: "112.222.84.95" },
 ];
 
 const INITIAL_USER_LOGS = [
@@ -169,8 +142,21 @@ export function Admin() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs">("dashboard");
   
   // App States representing mockup database
-  const [users, setUsers] = useState<UserItem[]>(INITIAL_USERS);
-  const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
+  const [users, setUsers] = useState<any[]>([]);
+  const [reports, setReports] = useState<any[]>([]);
+
+  const fetchReports = async () => {
+    try {
+      const response = await api.get("/admin/reports", { params: { size: 100 } });
+      setReports(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
   const [inquiries, setInquiries] = useState<InquiryItem[]>(INITIAL_INQUIRIES);
   const [competitions, setCompetitions] = useState<any[]>([]);
 
@@ -187,17 +173,20 @@ export function Admin() {
     fetchAdminCompetitions();
   }, []);
 
-  const [logs, setLogs] = useState<ActivityLog[]>(() => {
-    const saved = localStorage.getItem("admin_activity_logs");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
+  const [logs, setLogs] = useState<any[]>([]);
+
+  const fetchActionLogs = async () => {
+    try {
+      const response = await api.get("/admin/action-logs", { params: { size: 100 } });
+      setLogs(response.data.content);
+    } catch (error) {
+      console.error(error);
     }
-    return INITIAL_LOGS;
-  });
+  };
+
+  useEffect(() => {
+    fetchActionLogs();
+  }, []);
 
   // User Actions Logs State
   const [userLogs, setUserLogs] = useState<any[]>(() => {
@@ -283,7 +272,34 @@ export function Admin() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<"ALL" | "ACTIVE" | "SUSPENDED" | "QUIT">("ALL");
   const [filterRole, setFilterRole] = useState<"ALL" | "USER" | "ADMIN">("ALL");
-  const [modifiedUsers, setModifiedUsers] = useState<{ [key: number]: { role: "USER" | "ADMIN", status: "ACTIVE" | "SUSPENDED" | "QUIT" } }>({});
+
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/admin/users", {
+        params: {
+          keyword: debouncedSearchQuery || undefined,
+          status: filterStatus !== "ALL" ? filterStatus : undefined,
+          size: 100,
+        },
+      });
+      setUsers(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
+  }, [debouncedSearchQuery, filterStatus]);
   
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
@@ -327,7 +343,20 @@ export function Admin() {
   const [logFilter, setLogFilter] = useState<string>("전체");
 
   // 2. Reports State Actions
-  const [reportFilterTab, setReportFilterTab] = useState<"전체" | "미처리" | "처리완료" | "반려">("전체");
+  const [reportFilterTab, setReportFilterTab] = useState<"전체" | "PENDING" | "PROCESSED" | "REJECTED">("전체");
+
+  const REPORT_STATUS_LABELS: Record<string, string> = {
+    PENDING: "미처리",
+    PROCESSED: "처리완료",
+    REJECTED: "반려",
+  };
+
+  const TARGET_TYPE_LABELS: Record<string, string> = {
+    POST: "게시글",
+    COMMENT: "댓글",
+    CHAT: "채팅",
+    USER: "회원",
+  };
 
   // 3. Inquiries State Actions
   const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "미답변" | "답변완료">("전체");
@@ -335,9 +364,20 @@ export function Admin() {
   const [answerText, setAnswerText] = useState("");
 
   // 5. Log Monitoring Pagination Filter
-  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "접속" | "대회" | "문의" | "회원수정" | "신고처리" | "기타">("전체");
+  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "CREATE" | "UPDATE" | "DELETE" | "SUSPEND" | "UNSUSPEND" | "PROCESS" | "REJECT" | "ANSWER">("전체");
   const [logSearchQuery, setLogSearchQuery] = useState("");
   const [logPage, setLogPage] = useState(1);
+
+  const ACTION_TYPE_LABELS: Record<string, string> = {
+    CREATE: "생성",
+    UPDATE: "수정",
+    DELETE: "삭제",
+    SUSPEND: "정지",
+    UNSUSPEND: "정지해제",
+    PROCESS: "신고처리",
+    REJECT: "신고반려",
+    ANSWER: "문의답변",
+  };
 
   // Simulate Load effect when moving tabs
   useEffect(() => {
@@ -768,13 +808,7 @@ export function Admin() {
 
                     <div className="flex flex-wrap items-center justify-between gap-2 w-full">
                       <div className="text-[13px] text-[#8E8E93] font-bold">
-                        검색 결과: <span className="text-[#1C1C1E] font-black">{users.filter(u => {
-                          const query = searchQuery.toLowerCase();
-                          const matchSearch = u.email.toLowerCase().includes(query) || u.nickname.toLowerCase().includes(query);
-                          const matchStat = filterStatus === "ALL" || u.status === filterStatus;
-                          const matchRl = filterRole === "ALL" || u.role === filterRole;
-                          return matchSearch && matchStat && matchRl;
-                        }).length}</span>명
+                        검색 결과: <span className="text-[#1C1C1E] font-black">{users.length}</span>명
                       </div>
                       <div className="text-[11.5px] text-[#4A5DF9] font-bold animate-pulse">
                         💡 Tip: 회원 칸을 마우스 우클릭하면 개별 활동 로그(매수/매도/게시글/댓글/대회참가 등) 보기 드롭다운이 노출됩니다.
@@ -790,67 +824,34 @@ export function Admin() {
                           <th className="py-3 px-4 w-15 text-center whitespace-nowrap">프로필</th>
                           <th className="py-3 px-4 whitespace-nowrap">이메일</th>
                           <th className="py-3 px-4 whitespace-nowrap">닉네임</th>
-                          <th className="py-3 px-4 w-32 whitespace-nowrap">역할 설정</th>
+                          <th className="py-3 px-4 w-32 whitespace-nowrap">역할</th>
                           <th className="py-3 px-4 w-36 whitespace-nowrap">상태 관리</th>
                           <th className="py-3 px-4 text-center whitespace-nowrap">계좌번호</th>
                           <th className="py-3 px-4 text-center whitespace-nowrap">가입일</th>
-                          <th className="py-3 px-4 w-16 text-center whitespace-nowrap">조치</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {users
-                          .filter((u) => {
-                            const query = searchQuery.toLowerCase();
-                            const matchSearch = u.email.toLowerCase().includes(query) || u.nickname.toLowerCase().includes(query);
-                            const matchStat = filterStatus === "ALL" || u.status === filterStatus;
-                            const matchRl = filterRole === "ALL" || u.role === filterRole;
-                            return matchSearch && matchStat && matchRl;
-                          })
                           .map((user, idx) => {
-                            // Find temporary updates
-                            const tempChange = modifiedUsers[user.id] || { role: user.role, status: user.status };
-                            const hasPendingChanges = tempChange.role !== user.role || tempChange.status !== user.status;
-
-                            const handleRoleChangeLocally = (val: "USER" | "ADMIN") => {
-                              setModifiedUsers(prev => ({
-                                ...prev,
-                                [user.id]: { ...(prev[user.id] || { role: user.role, status: user.status }), role: val }
-                              }));
-                            };
-
-                            const handleStatusChangeLocally = (val: "ACTIVE" | "SUSPENDED" | "QUIT") => {
+                            const handleStatusChangeLocally = async (val: "ACTIVE" | "SUSPENDED" | "QUIT") => {
                               if (val === "SUSPENDED") {
-                                // Open detailed modal
                                 setSuspensionModal({ isOpen: true, userId: user.id });
-                              } else {
-                                setModifiedUsers(prev => ({
-                                  ...prev,
-                                  [user.id]: { ...(prev[user.id] || { role: user.role, status: user.status }), status: val }
-                                }));
+                                return;
+                              }
+                              if (val === "ACTIVE" && user.status === "SUSPENDED") {
+                                try {
+                                  await api.patch(`/admin/users/${user.id}/unsuspend`);
+                                  await fetchUsers();
+                                  triggerToast(`${user.nickname}님의 정지가 해제되었습니다.`);
+                                } catch (error: any) {
+                                  triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                                }
                               }
                             };
 
-                            const applyModifications = () => {
-                              setUsers(prevUsers => prevUsers.map(u => {
-                                if (u.id === user.id) {
-                                  return { ...u, role: tempChange.role, status: tempChange.status };
-                                }
-                                return u;
-                              }));
-                              // clear temp status
-                              const nextMods = { ...modifiedUsers };
-                              delete nextMods[user.id];
-                              setModifiedUsers(nextMods);
-                              triggerToast(`${user.nickname}님의 권한/상태가 수정되었습니다!`);
-                              
-                              const roleKor = tempChange.role === "ADMIN" ? "관리자" : "일반 사용자";
-                              const statusKor = tempChange.status === "ACTIVE" ? "활성" : tempChange.status === "SUSPENDED" ? "정지" : "탈퇴";
-                              logAdminAction("기타", user.nickname, `회원 권한을 [${roleKor}]으로, 상태를 [${statusKor}]으로 변경 업데이트 완료하였습니다.`);
-                            };
-
                             return (
-                              <tr 
-                                key={user.id} 
+                              <tr
+                                key={user.id}
                                 onContextMenu={(e) => {
                                   e.preventDefault();
                                   setContextMenu({ isOpen: true, x: e.pageX, y: e.pageY, user });
@@ -859,24 +860,23 @@ export function Admin() {
                               >
                                 <td className="py-2 px-4 text-center font-bold text-[#8E8E93] tabular-nums whitespace-nowrap">{idx + 1}</td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  <img 
-                                    src={user.avatar} 
-                                    alt="avatar" 
+                                  <img
+                                    src={user.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                                    alt="avatar"
                                     className="flex-shrink-0 w-10 h-10 min-w-[40px] min-h-[40px] rounded-full object-cover border border-[#E5E5EA] mx-auto shadow-inner aspect-square"
                                     referrerPolicy="no-referrer"
                                   />
                                 </td>
                                 <td className="py-2 px-4 font-semibold text-[#1C1C1E] whitespace-nowrap">{user.email}</td>
                                 <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{user.nickname}</td>
-                                
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <div className="relative inline-block w-full min-w-[110px]">
                                     <select
-                                      value={tempChange.role}
-                                      onChange={(e) => handleRoleChangeLocally(e.target.value as any)}
+                                      value={user.userRole}
+                                      disabled
                                       className={cn(
-                                        "appearance-none w-full bg-[#F2F2F7] rounded-[8px] text-xs font-bold pl-2.5 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] border border-transparent cursor-pointer",
-                                        tempChange.role === "ADMIN" ? "text-[#FF3B30] bg-[#FF3B30]/5 font-extrabold" : "text-[#1C1C1E]"
+                                        "appearance-none w-full bg-[#F2F2F7] rounded-[8px] text-xs font-bold pl-2.5 pr-8 py-1.5 border border-transparent cursor-not-allowed opacity-60",
+                                        user.userRole === "ADMIN" ? "text-[#FF3B30] bg-[#FF3B30]/5 font-extrabold" : "text-[#1C1C1E]"
                                       )}
                                     >
                                       <option value="USER">일반 사용자</option>
@@ -885,43 +885,27 @@ export function Admin() {
                                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
                                   </div>
                                 </td>
-
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <div className="relative inline-block w-full min-w-[110px]">
                                     <select
-                                      value={tempChange.status}
+                                      value={user.status}
                                       onChange={(e) => handleStatusChangeLocally(e.target.value as any)}
                                       className={cn(
                                         "appearance-none w-full rounded-[8px] text-xs font-extrabold pl-3 pr-8 py-1.5 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] border border-transparent cursor-pointer transition-all",
-                                        tempChange.status === "ACTIVE" && "bg-[#34C759]/10 text-[#34C759]",
-                                        tempChange.status === "SUSPENDED" && "bg-[#FF9500]/10 text-[#FF9500]",
-                                        tempChange.status === "QUIT" && "bg-[#8E8E93]/10 text-[#8E8E93]"
+                                        user.status === "ACTIVE" && "bg-[#34C759]/10 text-[#34C759]",
+                                        user.status === "SUSPENDED" && "bg-[#FF9500]/10 text-[#FF9500]",
+                                        user.status === "QUIT" && "bg-[#8E8E93]/10 text-[#8E8E93]"
                                       )}
                                     >
-                                      <option value="ACTIVE block">활성</option>
+                                      <option value="ACTIVE">활성</option>
                                       <option value="SUSPENDED">정지</option>
                                       <option value="QUIT">탈퇴</option>
                                     </select>
                                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
                                   </div>
                                 </td>
-                                
-                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] font-medium whitespace-nowrap">{user.accountNo}</td>
-                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] whitespace-nowrap">{user.joinedAt}</td>
-                                <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  <button
-                                    disabled={!hasPendingChanges}
-                                    onClick={applyModifications}
-                                    className={cn(
-                                      "px-3 py-1.5 rounded-[8px] text-xs font-extrabold transition-all duration-200",
-                                      hasPendingChanges 
-                                        ? "bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/95 cursor-pointer shadow-sm"
-                                        : "bg-[#F2F2F7] text-[#8E8E93] cursor-not-allowed"
-                                    )}
-                                  >
-                                    적용
-                                  </button>
-                                </td>
+                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] font-medium whitespace-nowrap">{user.accountNumMasked ?? "-"}</td>
+                                <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] whitespace-nowrap">{user.createdAt ? user.createdAt.slice(0, 10) : "-"}</td>
                               </tr>
                             );
                           })}
@@ -1079,25 +1063,25 @@ export function Admin() {
                 <div className="flex gap-1 bg-[#F2F2F7] p-1 rounded-[12px] w-fit">
                   {[
                     { key: "전체", count: reports.length },
-                    { key: "미처리", count: reports.filter(r => r.status === "미처리").length, badge: true },
-                    { key: "처리완료", count: reports.filter(r => r.status === "처리완료").length },
-                    { key: "반려", count: reports.filter(r => r.status === "반려").length },
+                    { key: "PENDING", count: reports.filter(r => r.status === "PENDING").length, badge: true, label: "미처리" },
+                    { key: "PROCESSED", count: reports.filter(r => r.status === "PROCESSED").length, label: "처리완료" },
+                    { key: "REJECTED", count: reports.filter(r => r.status === "REJECTED").length, label: "반려" },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => setReportFilterTab(tab.key as any)}
                       className={cn(
                         "px-4 py-2 text-xs font-bold rounded-[10px] transition-all duration-200 flex items-center gap-1.5",
-                        reportFilterTab === tab.key 
+                        reportFilterTab === tab.key
                           ? "bg-white text-[#1C1C1E] shadow-sm"
                           : "text-[#8E8E93] hover:text-[#1C1C1E]"
                       )}
                     >
-                      <span>{tab.key}</span>
+                      <span>{tab.label ?? tab.key}</span>
                       {tab.count > 0 && (
                         <span className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                          tab.key === "미처리" ? "bg-[#FF3B30] text-white" : "bg-[#8E8E93]/20 text-[#8E8E93]"
+                          tab.key === "PENDING" ? "bg-[#FF3B30] text-white" : "bg-[#8E8E93]/20 text-[#8E8E93]"
                         )}>
                           {tab.count}
                         </span>
@@ -1115,7 +1099,6 @@ export function Admin() {
                           <th className="py-3.5 px-4 w-12 text-center whitespace-nowrap">No.</th>
                           <th className="py-3.5 px-4 whitespace-nowrap">신고자</th>
                           <th className="py-3.5 px-4 w-28 whitespace-nowrap">대상 유형</th>
-                          <th className="py-3.5 px-4 whitespace-nowrap">신고 대상 및 내용</th>
                           <th className="py-3.5 px-4 w-32 whitespace-nowrap">신고 사유</th>
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">신고 일자</th>
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">상태</th>
@@ -1129,62 +1112,60 @@ export function Admin() {
                             return r.status === reportFilterTab;
                           })
                           .map((report, idx) => {
-                            const handleReportStatus = (nextStat: "처리완료" | "반려") => {
-                              setReports(prev => prev.map(item => item.id === report.id ? { ...item, status: nextStat } : item));
-                              triggerToast(`신고 건번호 #${report.id}가 [${nextStat}]로 지정되었습니다.`);
-                              logAdminAction("기타", `신고 #${report.id}`, `신고 대상을 [${nextStat === "처리완료" ? "삭제처리" : "반려"}] 지정하였습니다.`);
+                            const handleReportAction = async (reportId: number, status: "PROCESSED" | "REJECTED") => {
+                              try {
+                                await api.patch(`/admin/reports/${reportId}`, { status });
+                                await fetchReports();
+                                const processedReport = reports.find(r => r.id === reportId);
+                                setReportDetailModal({ isOpen: true, report: { ...processedReport, status } });
+                                triggerToast(`신고 #${reportId}가 처리되었습니다.`);
+                              } catch (error: any) {
+                                triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                              }
                             };
 
                             return (
                               <tr key={report.id} className="h-[60px] hover:bg-[#FAFAFA] transition-colors text-sm">
                                 <td className="py-2 px-4 text-center font-bold text-[#8E8E93] whitespace-nowrap">{idx + 1}</td>
-                                <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{report.reporter}</td>
+                                <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{report.reporterNickname}</td>
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <span className={cn(
                                     "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.targetType === "게시글" && "bg-[#BF5AF2]/11 text-[#BF5AF2]",
-                                    report.targetType === "댓글" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                    report.targetType === "채팅" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
+                                    report.targetType === "POST" && "bg-[#BF5AF2]/11 text-[#BF5AF2]",
+                                    report.targetType === "COMMENT" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                    report.targetType === "CHAT" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
+                                    report.targetType === "USER" && "bg-[#34C759]/11 text-[#34C759]"
                                   )}>
-                                    {report.targetType}
+                                    {TARGET_TYPE_LABELS[report.targetType] ?? report.targetType}
                                   </span>
                                 </td>
-                                <td className="py-2 px-4 font-semibold text-[#1C1C1E] max-w-sm truncate whitespace-nowrap" title={report.content}>
-                                  {report.content}
-                                </td>
                                 <td className="py-2 px-4 whitespace-nowrap">
-                                  <span className={cn(
-                                    "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.reason === "욕설비방" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.reason === "광고도배" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                    report.reason === "불법촬영" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.reason === "기타" && "bg-[#8E8E93]/11 text-[#8E8E93]"
-                                  )}>
+                                  <span className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block bg-[#8E8E93]/11 text-[#8E8E93]">
                                     {report.reason}
                                   </span>
                                 </td>
-                                <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{report.date}</td>
+                                <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{report.createdAt ? report.createdAt.slice(0, 10) : "-"}</td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
                                   <span className={cn(
                                     "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.status === "미처리" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.status === "처리완료" && "bg-[#34C759]/11 text-[#34C759]",
-                                    report.status === "반려" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                    report.status === "PENDING" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                    report.status === "PROCESSED" && "bg-[#34C759]/11 text-[#34C759]",
+                                    report.status === "REJECTED" && "bg-[#8E8E93]/11 text-[#8E8E93]"
                                   )}>
-                                    {report.status}
+                                    {REPORT_STATUS_LABELS[report.status] ?? report.status}
                                   </span>
                                 </td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  {report.status === "미처리" ? (
+                                  {report.status === "PENDING" ? (
                                     <div className="flex gap-2 justify-center">
                                       <button
-                                        onClick={() => handleReportStatus("처리완료")}
+                                        onClick={() => handleReportAction(report.id, "PROCESSED")}
                                         className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
                                       >
                                         삭제 처리
                                       </button>
                                       <button
-                                        onClick={() => handleReportStatus("반려")}
+                                        onClick={() => handleReportAction(report.id, "REJECTED")}
                                         className="px-2.5 py-1.5 bg-[#F2F2F7] text-[#8E8E93] hover:text-[#1C1C1E] text-xs font-bold rounded-[8px] transition cursor-pointer"
                                       >
                                         반려
@@ -1505,9 +1486,9 @@ export function Admin() {
                       <div className="text-[13px] text-[#8E8E93] font-bold hidden sm:inline-block">
                         총 <span className="text-[#1C1C1E] font-black">{
                           logs.filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery = (l.ipAddress ?? "").includes(query) || l.detail.toLowerCase().includes(query) || l.adminNickname.toLowerCase().includes(query);
                             return matchTab && matchQuery;
                           }).length
                         }</span>건의 기록
@@ -1527,12 +1508,14 @@ export function Admin() {
                           className="appearance-none w-full bg-[#F2F2F7] border border-[#E5E5EA] rounded-[12px] text-xs font-extrabold pl-3.5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] cursor-pointer"
                         >
                           <option value="전체">전체 활동</option>
-                          <option value="접속">접속/세션 만료</option>
-                          <option value="대회">대회 개설/해산</option>
-                          <option value="문의">문의답변 처리</option>
-                          <option value="회원수정">회원 권한/상태 설정</option>
-                          <option value="신고처리">신고 제재 처리</option>
-                          <option value="기타">기타 활동</option>
+                          <option value="CREATE">생성 (대회 등)</option>
+                          <option value="UPDATE">수정</option>
+                          <option value="DELETE">삭제</option>
+                          <option value="SUSPEND">회원 정지</option>
+                          <option value="UNSUSPEND">정지 해제</option>
+                          <option value="PROCESS">신고 처리</option>
+                          <option value="REJECT">신고 반려</option>
+                          <option value="ANSWER">문의 답변</option>
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1553,30 +1536,38 @@ export function Admin() {
                       <tbody className="divide-y divide-[#E5E5EA]">
                         {logs
                           .filter((l) => {
-                            const matchTab = logMonitoringTab === "전체" || l.type === logMonitoringTab;
+                            const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = l.ip.includes(query) || l.content.toLowerCase().includes(query) || l.target.toLowerCase().includes(query);
+                            const matchQuery = (l.ipAddress ?? "").includes(query) || l.detail.toLowerCase().includes(query) || l.adminNickname.toLowerCase().includes(query);
                             return matchTab && matchQuery;
                           })
                           .map((log) => (
                             <tr key={log.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E]">
-                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.date}</td>
+                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">
+                                {log.createdAt?.slice(0, 19).replace("T", " ")}
+                              </td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  log.type === "접속" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
-                                  log.type === "대회" && "bg-[#007AFF]/11 text-[#007AFF]",
-                                  log.type === "문의" && "bg-[#30D158]/11 text-[#30D158]",
-                                  log.type === "회원수정" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                  log.type === "신고처리" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                  log.type === "기타" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                  log.actionType === "CREATE" && "bg-[#30D158]/11 text-[#30D158]",
+                                  log.actionType === "UPDATE" && "bg-[#007AFF]/11 text-[#007AFF]",
+                                  log.actionType === "DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "SUSPEND" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                  log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
+                                  log.actionType === "PROCESS" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "REJECT" && "bg-[#8E8E93]/11 text-[#8E8E93]",
+                                  log.actionType === "ANSWER" && "bg-[#30D158]/11 text-[#30D158]"
                                 )}>
-                                  {log.type}
+                                  {ACTION_TYPE_LABELS[log.actionType] ?? log.actionType}
                                 </span>
                               </td>
-                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{log.target}</td>
-                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.content}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ip}</td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">
+                                {log.adminNickname} → {log.targetType} #{log.targetId}
+                              </td>
+                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.detail}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">
+                                {log.ipAddress ?? "-"}
+                              </td>
                             </tr>
                           ))}
                       </tbody>
@@ -1643,7 +1634,7 @@ export function Admin() {
               const targetUser = users.find(u => u.id === suspensionModal.userId);
               return targetUser ? (
                 <div className="bg-[#F2F2F7] rounded-[12px] p-3 flex items-center gap-3">
-                  <img src={targetUser.avatar} alt="avatar" className="flex-shrink-0 w-9 h-9 rounded-full object-cover" />
+                  <img src={targetUser.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="avatar" className="flex-shrink-0 w-9 h-9 rounded-full object-cover" />
                   <div>
                     <p className="text-[13px] font-bold text-[#1C1C1E]">{targetUser.nickname}</p>
                     <p className="text-[11px] text-[#8E8E93]">{targetUser.email}</p>
@@ -1692,14 +1683,35 @@ export function Admin() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  if (suspensionModal.userId) {
-                    setModifiedUsers(prev => ({
-                      ...prev,
-                      [suspensionModal.userId!]: { ...(prev[suspensionModal.userId!] || { role: "USER", status: "ACTIVE" }), status: "SUSPENDED" }
-                    }));
-                    triggerToast("정지 상태가 대기열에 등록되었습니다. [ 적용 ] 버튼을 누르시면 효력이 적용됩니다.");
+                onClick={async () => {
+                  if (!suspensionModal.userId) return;
+
+                  if (!suspensionReason.trim()) {
+                    triggerToast("⚠️ 정지 사유를 입력해주세요.");
+                    return;
                   }
+
+                  const days = parseInt(suspensionTime);
+                  if (isNaN(days)) {
+                    triggerToast("⚠️ 정지 기간을 정확히 입력해주세요.");
+                    return;
+                  }
+
+                  const suspendedUntil = days === -1
+                    ? null
+                    : new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
+
+                  try {
+                    await api.patch(`/admin/users/${suspensionModal.userId}/suspend`, {
+                      suspendedUntil,
+                      reason: suspensionReason,
+                    });
+                    await fetchUsers();
+                    triggerToast("정지 처리가 완료되었습니다.");
+                  } catch (error: any) {
+                    triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                  }
+
                   setSuspensionModal({ isOpen: false, userId: null });
                 }}
                 className="flex-1 py-3 bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
@@ -1803,7 +1815,7 @@ export function Admin() {
             {/* Profile banner */}
             <div className="bg-[#F2F2F7] rounded-[16px] p-4 flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <img src={activityModal.user.avatar} alt="avatar" className="flex-shrink-0 w-11 h-11 rounded-full object-cover" />
+                <img src={activityModal.user.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="avatar" className="flex-shrink-0 w-11 h-11 rounded-full object-cover" />
                 <div>
                   <p className="text-[14px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}</p>
                   <p className="text-[12px] text-[#8E8E93]">{activityModal.user.email}</p>
@@ -1811,7 +1823,7 @@ export function Admin() {
               </div>
               <div className="text-right">
                 <p className="text-[12px] text-[#8E8E93]">가입일</p>
-                <p className="text-[13px] font-bold text-[#1C1C1E] tabular-nums">{activityModal.user.joinedAt}</p>
+                <p className="text-[13px] font-bold text-[#1C1C1E] tabular-nums">{activityModal.user.createdAt ? activityModal.user.createdAt.slice(0, 10) : "-"}</p>
               </div>
             </div>
 
@@ -2140,12 +2152,12 @@ export function Admin() {
             <div className="space-y-3.5 text-sm">
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">신고자</span>
-                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.reporter}</span>
+                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.reporterNickname}</span>
               </div>
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">대상 유형</span>
-                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.targetType}</span>
+                <span className="font-extrabold text-[#1C1C1E]">{TARGET_TYPE_LABELS[reportDetailModal.report.targetType] ?? reportDetailModal.report.targetType}</span>
               </div>
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
@@ -2157,15 +2169,19 @@ export function Admin() {
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">신고 일자</span>
-                <span className="font-semibold text-[#1C1C1E] tabular-nums">{reportDetailModal.report.date}</span>
+                <span className="font-semibold text-[#1C1C1E] tabular-nums">{reportDetailModal.report.createdAt ? reportDetailModal.report.createdAt.slice(0, 10) : "-"}</span>
               </div>
 
-              <div className="flex flex-col gap-1.5 bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
-                <span className="text-[#8E8E93] font-bold">신고 대상 전체 내용</span>
-                <p className="bg-white border border-[#E5E5EA]/60 p-2.5 rounded-[8px] text-[13px] text-[#1C1C1E] font-medium leading-relaxed max-h-[80px] overflow-y-auto">
-                  {reportDetailModal.report.content}
-                </p>
-              </div>
+              {reportDetailModal.report.targetPostId ? (
+                <button
+                  onClick={() => navigate(`/community/${reportDetailModal.report.targetPostId}`)}
+                  className="w-full py-3 bg-[#4A5DF9]/10 text-[#4A5DF9] font-bold rounded-[12px] text-[13px]"
+                >
+                  신고된 {reportDetailModal.report.targetType === "COMMENT" ? "댓글이 달린 게시글" : "게시글"} 확인하러 가기
+                </button>
+              ) : (
+                <p className="text-[12px] text-[#8E8E93] text-center">확인 가능한 페이지가 없습니다</p>
+              )}
 
               {/* Resolved processing content details (처리내용) */}
               <div className="flex flex-col gap-1.5 bg-[#34C759]/5 p-3 rounded-[12px] border border-[#34C759]/20">
@@ -2174,7 +2190,7 @@ export function Admin() {
                   <span className="text-[#34C759] text-[12px] font-bold">최종 처리 결과 및 내용</span>
                 </div>
                 <div className="bg-white border border-[#34C759]/20 p-2.5 rounded-[8px] text-[13px] text-[#1C1C1E] font-medium leading-relaxed">
-                  {reportDetailModal.report.status === "처리완료" ? (
+                  {reportDetailModal.report.status === "PROCESSED" ? (
                     <span>
                       본 신고 항목에 명시된 비규격 활동 및 규정 위반 사실에 대하여 운영원칙에 기반한 정밀 심사를 거쳐 <strong className="text-[#FF3B30]">삭제 처리 및 일시적 조치 제한권고</strong> 처리를 완료하였습니다. 커뮤니티의 쾌적한 질서 유지를 위해 제로리스크의 실시간 규정 가이드라인을 위배 조치하였습니다.
                     </span>
@@ -2187,7 +2203,7 @@ export function Admin() {
               </div>
             </div>
 
-            <Button 
+            <Button
               onClick={() => setReportDetailModal({ isOpen: false, report: null })}
               className="w-full h-11 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] font-bold rounded-[12px] mt-1 text-[13px] transition cursor-pointer shrink-0"
             >
