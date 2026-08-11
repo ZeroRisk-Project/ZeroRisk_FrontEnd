@@ -294,7 +294,7 @@ export function Admin() {
   useEffect(() => {
     fetchUsers();
   }, [debouncedSearchQuery, filterStatus]);
-  
+
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
   const [suspensionTime, setSuspensionTime] = useState("-1");
