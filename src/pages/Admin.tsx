@@ -56,11 +56,11 @@ interface ReportItem {
 
 interface InquiryItem {
   id: number;
-  author: string;
+  authorNickname: string;
   title: string;
   content: string;
-  date: string;
-  status: "미답변" | "답변완료";
+  createdAt: string;
+  status: "PENDING" | "ANSWERED";
   answer?: string;
   answeredAt?: string;
 }
@@ -105,17 +105,6 @@ interface PostItem {
   status: "ACTIVE" | "DELETED";
 }
 
-const INITIAL_INQUIRIES: InquiryItem[] = [
-  { id: 1, author: "투자왕김철수", title: "모의투자 예수금 초기화는 어떻게 하나요?", content: "수익률이 너무 안좋아서 마이너스 오천만원인데 초기화하고 새로 시작할 수 있는 방법이 없는지 문의 오천만원 드립니다.", date: "2026-06-16 01:20", status: "미답변" },
-  { id: 2, author: "단타머신", title: "주말 거래 기능 만들어주세요", content: "주말에는 주식 시장이 닫혀서 너무 심심합니다. 주말 모의투자나 가상 거래 기능을 구현해주실 순 없나요?", date: "2026-06-15 22:15", status: "미답변" },
-  { id: 3, author: "차트의마법사", title: "차트 로딩이 간헐적으로 안됩니다", content: "크롬 최신버전을 쓰고있는데 가끔 종목상세에 차트 선들이 밀리고 로딩 인디케이터가 멈추는데 오류 검토 부탁합니다.", date: "2026-06-15 18:30", status: "미답변" },
-  { id: 4, author: "김코딩", title: "닉네임 변경 횟수 제한 문의", content: "닉네임을 한 달에 한 번만 바꿀 수 있도록 구현하셨는지, 아예 수정 불가능하게 막으신 건지 궁금합니다.", date: "2026-06-15 15:40", status: "미답변" },
-  { id: 5, author: "영희의영익률", title: "회원 탈퇴 처리 취소 요청", content: "어제 회원탈퇴 버튼을 잘못 눌렀는데 바로 처리되었더라구요. 복구가 가능한지 긴급 문의 드립니다.", date: "2026-06-15 11:10", status: "미답변" },
-  { id: 6, author: "불마켓코리아", title: "해외주식 업데이트 일정 문의", content: "현재는 국내 주요 top 30여개 종목만 있는 것 같은데 나스닥이나 해외 우량주 거래는 언제 오픈되나요?", date: "2026-06-14 20:05", status: "미답변" },
-  { id: 7, author: "강원준", title: "로그인 세션 만료 시간 연장 요청", content: "글을 쓰는 도중 간헐적으로 세션 만료로 로그아웃 되는 불편함이 있습니다. 자동 연장 세션 쿠키를 적용해 주세요.", date: "2026-06-14 09:30", status: "미답변" },
-  { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
-];
-
 const INITIAL_USER_LOGS = [
   { id: 101, date: "2026-06-16 10:39:41", userId: 2, type: "매수", target: "투자왕김철수", content: "삼성전자 100주 매수 체결 (체결가 75,400원)", ip: "211.45.195.42" },
   { id: 102, date: "2026-06-16 10:35:10", userId: 3, type: "매도", target: "단타머신", content: "SK하이닉스 50주 대기 주문 체결 (체결가 188,400원)", ip: "175.210.12.98" },
@@ -157,7 +146,20 @@ export function Admin() {
   useEffect(() => {
     fetchReports();
   }, []);
-  const [inquiries, setInquiries] = useState<InquiryItem[]>(INITIAL_INQUIRIES);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+
+  const fetchInquiries = async () => {
+    try {
+      const response = await api.get("/admin/inquiries", { params: { size: 100 } });
+      setInquiries(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInquiries();
+  }, []);
   const [competitions, setCompetitions] = useState<any[]>([]);
 
   const fetchAdminCompetitions = async () => {
@@ -359,7 +361,7 @@ export function Admin() {
   };
 
   // 3. Inquiries State Actions
-  const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "미답변" | "답변완료">("전체");
+  const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "PENDING" | "ANSWERED">("전체");
   const [answerModal, setAnswerModal] = useState<{ isOpen: boolean; inquiry: InquiryItem | null }>({ isOpen: false, inquiry: null });
   const [answerText, setAnswerText] = useState("");
 
@@ -389,7 +391,7 @@ export function Admin() {
   }, [activeTab]);
 
   // Helper selectors
-  const totalInquiriesCount = inquiries.filter(i => i.status === "미답변").length;
+  const totalInquiriesCount = inquiries.filter(i => i.status === "PENDING").length;
   const totalReportsCount = reports.filter(r => r.status === "미처리").length;
 
   return (
@@ -1209,21 +1211,21 @@ export function Admin() {
                 <div className="flex gap-1 bg-[#F2F2F7] p-1 rounded-[12px] w-fit">
                   {[
                     { key: "전체", count: inquiries.length },
-                    { key: "미답변", count: inquiries.filter(i => i.status === "미답변").length },
-                    { key: "답변완료", count: inquiries.filter(i => i.status === "답변완료").length },
+                    { key: "PENDING", count: inquiries.filter(i => i.status === "PENDING").length, label: "미답변" },
+                    { key: "ANSWERED", count: inquiries.filter(i => i.status === "ANSWERED").length, label: "답변완료" },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => setInquiryFilterTab(tab.key as any)}
                       className={cn(
                         "px-4 py-2 text-xs font-bold rounded-[10px] transition-all duration-200 flex items-center gap-1.5",
-                        inquiryFilterTab === tab.key 
+                        inquiryFilterTab === tab.key
                           ? "bg-white text-[#1C1C1E] shadow-sm"
                           : "text-[#8E8E93] hover:text-[#1C1C1E]"
                       )}
                     >
-                      <span>{tab.key}</span>
-                      {tab.key === "미답변" && tab.count > 0 ? (
+                      <span>{tab.label ?? tab.key}</span>
+                      {tab.key === "PENDING" && tab.count > 0 ? (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FF9500] text-white">
                           {tab.count}
                         </span>
@@ -1259,19 +1261,21 @@ export function Admin() {
                           .map((inquiry, idx) => (
                             <tr key={inquiry.id} className="h-[60px] hover:bg-[#FAFAFA] transition-colors text-sm">
                               <td className="py-2 px-4 text-center font-bold text-[#8E8E93] whitespace-nowrap">{idx + 1}</td>
-                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{inquiry.author}</td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{inquiry.authorNickname}</td>
                               <td className="py-2 px-4 font-semibold text-[#1C1C1E] max-w-sm truncate whitespace-nowrap">{inquiry.title}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{inquiry.date}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">
+                                {inquiry.createdAt?.slice(0, 10)}
+                              </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  inquiry.status === "미답변" ? "bg-[#FF9500]/11 text-[#FF9500]" : "bg-[#34C759]/11 text-[#34C759]"
+                                  inquiry.status === "PENDING" ? "bg-[#FF9500]/11 text-[#FF9500]" : "bg-[#34C759]/11 text-[#34C759]"
                                 )}>
-                                  {inquiry.status}
+                                  {inquiry.status === "PENDING" ? "미답변" : "답변완료"}
                                 </span>
                               </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
-                                {inquiry.status === "미답변" ? (
+                                {inquiry.status === "PENDING" ? (
                                   <button
                                     onClick={() => {
                                       setAnswerText("");
@@ -1290,7 +1294,7 @@ export function Admin() {
                                       }}
                                       className="px-3.5 py-1.5 bg-[#34C759]/10 text-[#34C759] hover:bg-[#34C759]/20 text-xs font-bold rounded-[8px] transition cursor-pointer"
                                     >
-                                      답변보기
+                                      답변 수정
                                     </button>
                                   </div>
                                 )}
@@ -1934,17 +1938,17 @@ export function Admin() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="bg-[#4A5DF9]/10 text-[#4A5DF9] text-[10px] font-bold px-1.5 py-0.5 rounded">유저접수본</span>
-                    <span className="text-[12px] text-[#8E8E93] tabular-nums">{answerModal.inquiry.date}</span>
+                    <span className="text-[12px] text-[#8E8E93] tabular-nums">{answerModal.inquiry.createdAt?.slice(0, 10)}</span>
                   </div>
                   <h4 className="text-[15px] font-bold text-[#1C1C1E] leading-snug">{answerModal.inquiry.title}</h4>
-                  
+
                   <div className="h-[200px] overflow-y-auto bg-[#F2F2F7] rounded-[12px] p-4 text-[13px] text-[#333] font-medium leading-relaxed mt-2.5">
                     {answerModal.inquiry.content}
                   </div>
                 </div>
 
                 <div className="text-[12px] text-[#8E8E93] font-semibold">
-                  작성자: <span className="text-[#1C1C1E] font-bold">{answerModal.inquiry.author}</span>
+                  작성자: <span className="text-[#1C1C1E] font-bold">{answerModal.inquiry.authorNickname}</span>
                 </div>
               </div>
 
@@ -1953,7 +1957,7 @@ export function Admin() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-[12px] font-bold text-[#8E8E93] uppercase">처리 답변 기재 창</label>
-                    {answerModal.inquiry.status === "답변완료" && (
+                    {answerModal.inquiry.status === "ANSWERED" && (
                       <span className="bg-[#34C759]/11 text-[#34C759] text-[10px] font-bold px-1.5 py-0.5 rounded">답변 완료본 복수 수정</span>
                     )}
                   </div>
@@ -1968,52 +1972,22 @@ export function Admin() {
 
                 {/* Confirm Action Button */}
                 <div className="flex gap-2">
-                  {answerModal.inquiry.status === "답변완료" && (
-                    <button
-                      onClick={() => {
-                        setInquiries(prev => prev.map(item => {
-                          if (item.id === answerModal.inquiry!.id) {
-                            return {
-                              ...item,
-                              status: "미답변",
-                              answer: undefined,
-                              answeredAt: undefined
-                            };
-                          }
-                          return item;
-                        }));
-                        logAdminAction("기타", `문의 #${answerModal.inquiry!.id}`, `1:1 문의답변 처리를 취소/삭제했습니다.`);
-                        triggerToast(`문의 #${answerModal.inquiry!.id}번 답변이 취소되었습니다.`);
-                        setAnswerModal({ isOpen: false, inquiry: null });
-                      }}
-                      className="flex-1 py-3 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-[13px] font-bold rounded-[12px] transition cursor-pointer text-center"
-                    >
-                      답변 취소
-                    </button>
-                  )}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!answerText.trim()) return;
-                      const isEdit = answerModal.inquiry!.status === "답변완료";
-                      setInquiries(prev => prev.map(item => {
-                        if (item.id === answerModal.inquiry!.id) {
-                          return {
-                            ...item,
-                            status: "답변완료",
-                            answer: answerText,
-                            answeredAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
-                          };
-                        }
-                        return item;
-                      }));
-                      
-                      logAdminAction("기타", `문의 #${answerModal.inquiry!.id}`, `1:1 문의에 답변을 ${isEdit ? "수정하여 제출" : "등록"}했습니다.`);
-                      triggerToast(`문의 #${answerModal.inquiry!.id}번에 대한 답변이 ${isEdit ? "수정" : "등록"}되었습니다.`);
-                      setAnswerModal({ isOpen: false, inquiry: null });
+                      const isEdit = answerModal.inquiry!.status === "ANSWERED";
+                      try {
+                        await api.post(`/admin/inquiries/${answerModal.inquiry!.id}/answer`, { answer: answerText });
+                        await fetchInquiries();
+                        triggerToast(`문의 #${answerModal.inquiry!.id}번에 대한 답변이 ${isEdit ? "수정" : "등록"}되었습니다.`);
+                        setAnswerModal({ isOpen: false, inquiry: null });
+                      } catch (error: any) {
+                        triggerToast(`⚠️ ${error.response?.data?.message ?? "답변 등록에 실패했습니다."}`);
+                      }
                     }}
                     className="flex-1 py-3 bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/95 text-[13px] font-bold rounded-[12px] shadow-sm transition cursor-pointer text-center"
                   >
-                    {answerModal.inquiry.status === "답변완료" ? "답변 수정" : "답변 등록"}
+                    {answerModal.inquiry.status === "ANSWERED" ? "답변 수정" : "답변 등록"}
                   </button>
                 </div>
               </div>
