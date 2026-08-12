@@ -871,21 +871,16 @@ export function Admin() {
                                 </td>
                                 <td className="py-2 px-4 font-semibold text-[#1C1C1E] whitespace-nowrap">{user.email}</td>
                                 <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{user.nickname}</td>
+
                                 <td className="py-2 px-4 whitespace-nowrap">
-                                  <div className="relative inline-block w-full min-w-[110px]">
-                                    <select
-                                      value={user.userRole}
-                                      disabled
-                                      className={cn(
-                                        "appearance-none w-full bg-[#F2F2F7] rounded-[8px] text-xs font-bold pl-2.5 pr-8 py-1.5 border border-transparent cursor-not-allowed opacity-60",
-                                        user.userRole === "ADMIN" ? "text-[#FF3B30] bg-[#FF3B30]/5 font-extrabold" : "text-[#1C1C1E]"
-                                      )}
-                                    >
-                                      <option value="USER">일반 사용자</option>
-                                      <option value="ADMIN">관리자</option>
-                                    </select>
-                                    <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
-                                  </div>
+                                  <span
+                                    className={cn(
+                                      "inline-flex items-center justify-center px-2.5 py-1 rounded-full text-[11px] font-bold",
+                                      user.userRole === "ADMIN" ? "bg-[#FF3B30]/10 text-[#FF3B30]" : "bg-[#F2F2F7] text-[#8E8E93]"
+                                    )}
+                                  >
+                                    {user.userRole === "ADMIN" ? "관리자" : "일반"}
+                                  </span>
                                 </td>
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <div className="relative inline-block w-full min-w-[110px]">
@@ -1492,7 +1487,11 @@ export function Admin() {
                           logs.filter((l) => {
                             const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = (l.ipAddress ?? "").includes(query) || l.detail.toLowerCase().includes(query) || l.adminNickname.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           }).length
                         }</span>건의 기록
@@ -1520,6 +1519,11 @@ export function Admin() {
                           <option value="PROCESS">신고 처리</option>
                           <option value="REJECT">신고 반려</option>
                           <option value="ANSWER">문의 답변</option>
+                          {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND", "PROCESS", "REJECT", "ANSWER"] as const).map((tab) => (
+  <option key={tab} value={tab}>
+    {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
+  </option>
+))}
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1542,7 +1546,11 @@ export function Admin() {
                           .filter((l) => {
                             const matchTab = logMonitoringTab === "전체" || l.actionType === logMonitoringTab;
                             const query = logSearchQuery.toLowerCase();
-                            const matchQuery = (l.ipAddress ?? "").includes(query) || l.detail.toLowerCase().includes(query) || l.adminNickname.toLowerCase().includes(query);
+                            const matchQuery =
+                              (l.ipAddress ?? "").toLowerCase().includes(query) ||
+                              (l.detail ?? "").toLowerCase().includes(query) ||
+                              (l.targetType ?? "").toLowerCase().includes(query) ||
+                              String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           })
                           .map((log) => (
