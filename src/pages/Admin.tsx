@@ -45,21 +45,22 @@ interface UserItem {
 
 interface ReportItem {
   id: number;
-  reporter: string;
-  targetType: "게시글" | "댓글" | "채팅";
-  content: string;
-  reason: "욕설비방" | "광고도배" | "불법촬영" | "기타";
-  date: string;
-  status: "미처리" | "처리완료" | "반려";
+  reporterNickname: string;
+  targetType: "POST" | "COMMENT" | "CHAT" | "USER";
+  targetId: number;
+  targetPostId: number | null;
+  reason: string;
+  createdAt: string;
+  status: "PENDING" | "PROCESSED" | "REJECTED";
 }
 
 interface InquiryItem {
   id: number;
-  author: string;
+  authorNickname: string;
   title: string;
   content: string;
-  date: string;
-  status: "미답변" | "답변완료";
+  createdAt: string;
+  status: "PENDING" | "ANSWERED";
   answer?: string;
   answeredAt?: string;
 }
@@ -104,26 +105,6 @@ interface PostItem {
   status: "ACTIVE" | "DELETED";
 }
 
-// Initial Mock Data
-const INITIAL_REPORTS: ReportItem[] = [
-  { id: 1, reporter: "단타머신", targetType: "게시글", content: "삼성전자 상폐된다고 선동하네요", reason: "광고도배", date: "2026-06-15 14:32", status: "미처리" },
-  { id: 2, reporter: "투자왕김철수", targetType: "댓글", content: "부모님 안부 묻는 수준의 욕설을 내뱉습니다.", reason: "욕설비방", date: "2026-06-15 16:10", status: "미처리" },
-  { id: 3, reporter: "김코딩", targetType: "채팅", content: "이상한 리딩방 링크 계속 올림", reason: "광고도배", date: "2026-06-16 09:12", status: "미처리" },
-  { id: 4, reporter: "영희의영익률", targetType: "게시글", content: "불건전한 파일 업로드 의심", reason: "불법촬영", date: "2026-06-14 11:20", status: "처리완료" },
-  { id: 5, reporter: "강원준", targetType: "댓글", content: "정치 게시글 유도 비난", reason: "기타", date: "2026-06-13 18:45", status: "반려" },
-];
-
-const INITIAL_INQUIRIES: InquiryItem[] = [
-  { id: 1, author: "투자왕김철수", title: "모의투자 예수금 초기화는 어떻게 하나요?", content: "수익률이 너무 안좋아서 마이너스 오천만원인데 초기화하고 새로 시작할 수 있는 방법이 없는지 문의 오천만원 드립니다.", date: "2026-06-16 01:20", status: "미답변" },
-  { id: 2, author: "단타머신", title: "주말 거래 기능 만들어주세요", content: "주말에는 주식 시장이 닫혀서 너무 심심합니다. 주말 모의투자나 가상 거래 기능을 구현해주실 순 없나요?", date: "2026-06-15 22:15", status: "미답변" },
-  { id: 3, author: "차트의마법사", title: "차트 로딩이 간헐적으로 안됩니다", content: "크롬 최신버전을 쓰고있는데 가끔 종목상세에 차트 선들이 밀리고 로딩 인디케이터가 멈추는데 오류 검토 부탁합니다.", date: "2026-06-15 18:30", status: "미답변" },
-  { id: 4, author: "김코딩", title: "닉네임 변경 횟수 제한 문의", content: "닉네임을 한 달에 한 번만 바꿀 수 있도록 구현하셨는지, 아예 수정 불가능하게 막으신 건지 궁금합니다.", date: "2026-06-15 15:40", status: "미답변" },
-  { id: 5, author: "영희의영익률", title: "회원 탈퇴 처리 취소 요청", content: "어제 회원탈퇴 버튼을 잘못 눌렀는데 바로 처리되었더라구요. 복구가 가능한지 긴급 문의 드립니다.", date: "2026-06-15 11:10", status: "미답변" },
-  { id: 6, author: "불마켓코리아", title: "해외주식 업데이트 일정 문의", content: "현재는 국내 주요 top 30여개 종목만 있는 것 같은데 나스닥이나 해외 우량주 거래는 언제 오픈되나요?", date: "2026-06-14 20:05", status: "미답변" },
-  { id: 7, author: "강원준", title: "로그인 세션 만료 시간 연장 요청", content: "글을 쓰는 도중 간헐적으로 세션 만료로 로그아웃 되는 불편함이 있습니다. 자동 연장 세션 쿠키를 적용해 주세요.", date: "2026-06-14 09:30", status: "미답변" },
-  { id: 8, author: "투자왕김철수", title: "비밀번호 분실 찾기 이메일이 안 와요", content: "메일함도 다 확인해보고 임시보관함까지 뒤져봐도 이메일 링크가 오질 않습니다. 수동 변경 부탁합니다.", date: "2026-06-13 14:20", status: "답변완료", answer: "안녕하세요 제로리스크입니다. 당시 메일 전송 연동 라이브러리의 일시적인 장애가 확인되어 조치 완료하였습니다. 다시 한 번 시도해 주시기 바라며 자세한 문의는 추가 연락 바랍니다.", answeredAt: "2026-06-13 16:10" },
-];
-
 const INITIAL_USER_LOGS = [
   { id: 101, date: "2026-06-16 10:39:41", userId: 2, type: "매수", target: "투자왕김철수", content: "삼성전자 100주 매수 체결 (체결가 75,400원)", ip: "211.45.195.42" },
   { id: 102, date: "2026-06-16 10:35:10", userId: 3, type: "매도", target: "단타머신", content: "SK하이닉스 50주 대기 주문 체결 (체결가 188,400원)", ip: "175.210.12.98" },
@@ -151,8 +132,84 @@ export function Admin() {
   
   // App States representing mockup database
   const [users, setUsers] = useState<any[]>([]);
-  const [reports, setReports] = useState<ReportItem[]>(INITIAL_REPORTS);
-  const [inquiries, setInquiries] = useState<InquiryItem[]>(INITIAL_INQUIRIES);
+  const [reports, setReports] = useState<any[]>([]);
+
+  const fetchReports = async () => {
+    try {
+      const response = await api.get("/admin/reports", { params: { size: 100 } });
+      setReports(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const [dashboardSummary, setDashboardSummary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await api.get("/admin/dashboard");
+        setDashboardSummary(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchDashboard();
+  }, []);
+
+  const [serverHealth, setServerHealth] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const response = await api.get("/admin/dashboard/health");
+        setServerHealth(response.data);
+      } catch (error) {
+        setServerHealth({ webServerUp: false, databaseUp: false });
+      }
+    };
+    fetchHealth();
+  }, []);
+
+  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await api.get("/admin/metrics");
+        setMetricsHistory(response.data.points);
+        setDashboardSummary((prev: any) => ({
+          ...prev,
+          latestResponseTimeMs: response.data.latestResponseTimeMs,
+          averageResponseTimeMs: response.data.averageResponseTimeMs,
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const [inquiries, setInquiries] = useState<any[]>([]);
+
+  const fetchInquiries = async () => {
+    try {
+      const response = await api.get("/admin/inquiries", { params: { size: 100 } });
+      setInquiries(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchInquiries();
+  }, []);
   const [competitions, setCompetitions] = useState<any[]>([]);
 
   const fetchAdminCompetitions = async () => {
@@ -170,15 +227,16 @@ export function Admin() {
 
   const [logs, setLogs] = useState<any[]>([]);
 
+  const fetchActionLogs = async () => {
+    try {
+      const response = await api.get("/admin/action-logs", { params: { size: 100 } });
+      setLogs(response.data.content);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
   useEffect(() => {
-    const fetchActionLogs = async () => {
-      try {
-        const response = await api.get("/admin/action-logs", { params: { size: 100 } });
-        setLogs(response.data.content);
-      } catch (error) {
-        console.error(error);
-      }
-    };
     fetchActionLogs();
   }, []);
 
@@ -294,7 +352,7 @@ export function Admin() {
   useEffect(() => {
     fetchUsers();
   }, [debouncedSearchQuery, filterStatus]);
-
+  
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
   const [suspensionTime, setSuspensionTime] = useState("-1");
@@ -337,15 +395,28 @@ export function Admin() {
   const [logFilter, setLogFilter] = useState<string>("전체");
 
   // 2. Reports State Actions
-  const [reportFilterTab, setReportFilterTab] = useState<"전체" | "미처리" | "처리완료" | "반려">("전체");
+  const [reportFilterTab, setReportFilterTab] = useState<"전체" | "PENDING" | "PROCESSED" | "REJECTED">("전체");
+
+  const REPORT_STATUS_LABELS: Record<string, string> = {
+    PENDING: "미처리",
+    PROCESSED: "처리완료",
+    REJECTED: "반려",
+  };
+
+  const TARGET_TYPE_LABELS: Record<string, string> = {
+    POST: "게시글",
+    COMMENT: "댓글",
+    CHAT: "채팅",
+    USER: "회원",
+  };
 
   // 3. Inquiries State Actions
-  const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "미답변" | "답변완료">("전체");
+  const [inquiryFilterTab, setInquiryFilterTab] = useState<"전체" | "PENDING" | "ANSWERED">("전체");
   const [answerModal, setAnswerModal] = useState<{ isOpen: boolean; inquiry: InquiryItem | null }>({ isOpen: false, inquiry: null });
   const [answerText, setAnswerText] = useState("");
 
   // 5. Log Monitoring Pagination Filter
-  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "CREATE" | "UPDATE" | "DELETE" | "SUSPEND" | "UNSUSPEND">("전체");
+  const [logMonitoringTab, setLogMonitoringTab] = useState<"전체" | "CREATE" | "UPDATE" | "DELETE" | "SUSPEND" | "UNSUSPEND" | "PROCESS" | "REJECT" | "ANSWER">("전체");
   const [logSearchQuery, setLogSearchQuery] = useState("");
   const [logPage, setLogPage] = useState(1);
 
@@ -355,6 +426,9 @@ export function Admin() {
     DELETE: "삭제",
     SUSPEND: "정지",
     UNSUSPEND: "정지해제",
+    PROCESS: "신고처리",
+    REJECT: "신고반려",
+    ANSWER: "문의답변",
   };
 
   // Simulate Load effect when moving tabs
@@ -367,8 +441,35 @@ export function Admin() {
   }, [activeTab]);
 
   // Helper selectors
-  const totalInquiriesCount = inquiries.filter(i => i.status === "미답변").length;
-  const totalReportsCount = reports.filter(r => r.status === "미처리").length;
+  const totalInquiriesCount = dashboardSummary?.pendingInquiryCount ?? 0;
+  const totalReportsCount = dashboardSummary?.pendingReportCount ?? 0;
+
+  const formatUptime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours === 0) return `${minutes}분`;
+    return `${hours}시간 ${minutes}분`;
+  };
+
+  const buildSvgPath = (points: any[]) => {
+    if (points.length === 0) return { line: "", area: "" };
+
+    const maxMs = Math.max(...points.map(p => p.responseTimeMs), 200);
+    const width = 500;
+    const height = 150;
+    const stepX = points.length > 1 ? width / (points.length - 1) : 0;
+
+    const coords = points.map((p, i) => {
+      const x = i * stepX;
+      const y = height - (p.responseTimeMs / maxMs) * height;
+      return { x, y };
+    });
+
+    const linePath = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x},${c.y}`).join(" ");
+    const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
+
+    return { line: linePath, area: areaPath };
+  };
 
   return (
     <div className="flex bg-[#FDFDFD] min-h-screen text-[#1C1C1E] font-sans overflow-x-hidden antialiased">
@@ -529,40 +630,26 @@ export function Admin() {
                   </div>
                   <div className="bg-[#34C759]/10 text-[#34C759] font-bold text-[13px] px-3 py-1.5 rounded-[12px] flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#34C759] animate-ping" />
-                    <span>서버 가동중 (Uptime 99.98%)</span>
+                    <span>서버 가동중 ({formatUptime(dashboardSummary?.uptimeSeconds ?? 0)})</span>
                   </div>
                 </div>
 
-                {/* 4 STATS CARDS */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 3 STATS CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Card 1 */}
                   <Card className="rounded-[16px]">
                     <CardContent className="p-5 flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#8E8E93]">전체 회원수</p>
-                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">1,284명</p>
+                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">
+                          {(dashboardSummary?.totalUserCount ?? 0).toLocaleString()}명
+                        </p>
                         <p className="text-[12px] font-bold text-[#34C759] flex items-center gap-1">
-                          <span>+12명 오늘 신규</span>
+                          <span>+{dashboardSummary?.todayNewUserCount ?? 0}명 오늘 신규</span>
                         </p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-[#4A5DF9]/12 text-[#4A5DF9] flex items-center justify-center text-[19px]">
                         👥
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Card 2 */}
-                  <Card className="rounded-[16px]">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-[13px] font-semibold text-[#8E8E93]">오늘 접속자</p>
-                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">342명</p>
-                        <p className="text-[12px] font-bold text-[#4A5DF9] flex items-center gap-1">
-                          <span>현재 실시간: 47명</span>
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-[#34C759]/12 text-[#34C759] flex items-center justify-center text-[19px]">
-                        🟢
                       </div>
                     </CardContent>
                   </Card>
@@ -589,9 +676,6 @@ export function Admin() {
                       <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#8E8E93]">미답변 문의</p>
                         <p className="text-[28px] font-bold text-[#FF9500] tabular-nums">{totalInquiriesCount}건</p>
-                        <p className="text-[12px] font-semibold text-[#8E8E93] flex items-center gap-1">
-                          <span>평균 대기 2.3시간</span>
-                        </p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-[#FF1493]/12 text-[#FF9500] flex items-center justify-center text-[19px]">
                         💬
@@ -610,7 +694,9 @@ export function Admin() {
                         <CardTitle className="text-[15px] font-bold text-[#1C1C1E]">API 응답시간 (ms)</CardTitle>
                         <p className="text-[11px] text-[#8E8E93]">실시간 트래픽 가중 응답 처리 지표</p>
                       </div>
-                      <span className="bg-[#34C759]/11 text-[#34C759] text-[11px] font-bold px-2 py-0.5 rounded-[12px]">현재 87ms</span>
+                      <span className="bg-[#34C759]/11 text-[#34C759] text-[11px] font-bold px-2 py-0.5 rounded-[12px]">
+                        현재 {dashboardSummary?.latestResponseTimeMs ?? 0}ms
+                      </span>
                     </CardHeader>
                     <CardContent className="p-5 flex flex-col justify-end">
                       <div className="relative w-full h-[180px] bg-[#F2F2F7]/40 rounded-[8px] overflow-hidden px-2 pt-4 border border-[#E5E5EA]">
@@ -631,98 +717,59 @@ export function Admin() {
                           {/* Y-axis Labels */}
                           <line x1="0" y1="120" x2="500" y2="120" stroke="#E5E5EA" strokeWidth="1" />
                           <line x1="0" y1="60" x2="500" y2="60" stroke="#E5E5EA" strokeWidth="1" />
-                          
-                          {/* Area under line */}
-                          <path
-                            d="M 0,150 
-                               L 0,120
-                               C 50,110 80,130 120,80
-                               C 160,30 200,90 250,55
-                               C 300,20 340,110 380,95
-                               C 420,80 460,45 500,40
-                               L 500,150 Z"
-                            fill="url(#apiAreaGrad)"
-                          />
 
-                          {/* Line itself */}
-                          <path
-                            d="M 0,120
-                               C 50,110 80,130 120,80
-                               C 160,30 200,90 250,55
-                               C 300,20 340,110 380,95
-                               C 420,80 460,45 500,40"
-                            fill="none"
-                            stroke="#4A5DF9"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                          />
-
-                          {/* Interactive data dots */}
-                          <circle cx="120" cy="80" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="250" cy="55" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="380" cy="95" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="500" cy="40" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
+                          {metricsHistory.length > 0 && (
+                            <>
+                              <path d={buildSvgPath(metricsHistory).area} fill="url(#apiAreaGrad)" />
+                              <path d={buildSvgPath(metricsHistory).line} stroke="#4A5DF9" strokeWidth="2" fill="none" />
+                            </>
+                          )}
                         </svg>
 
                         {/* X-axis custom tags */}
                         <div className="flex justify-between text-[9px] text-[#8E8E93] mt-1 pr-1 font-semibold">
-                          <span>10:10</span>
-                          <span>10:20</span>
-                          <span>10:30</span>
-                          <span>10:40</span>
-                          <span>현재</span>
+                          {metricsHistory.length > 0 ? (
+                            [0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                              const index = Math.floor((metricsHistory.length - 1) * ratio);
+                              const point = metricsHistory[index];
+                              const isLast = idx === 4;
+                              return (
+                                <span key={idx}>
+                                  {isLast ? "현재" : point?.timestamp?.slice(11, 16)}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="w-full text-center">데이터 수집 중...</span>
+                          )}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Right (40%): Active traffic telemetry card */}
-                  <Card className="rounded-[16px] lg:col-span-2 p-5 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-[14px] font-bold text-[#8E8E93]">실시간 접속자수</h4>
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-[48px] font-extrabold text-[#1C1C1E] tracking-tight">47명</span>
-                        <span className="text-[13px] text-[#8E8E93] font-medium">현재 사이트 운영중</span>
-                      </div>
-                    </div>
-
-                    {/* Mini high-fidelity hours bar chart */}
-                    <div className="flex gap-1 items-end h-[60px] my-2 bg-[#F2F2F7]/30 rounded p-1 border border-[#E5E5EA]">
-                      {[15, 22, 10, 8, 30, 48, 55, 34, 40, 28, 47, 47].map((h, idx) => (
-                        <div 
-                          key={idx} 
-                          style={{ height: `${(h / 60) * 100}%` }}
-                          className={cn(
-                            "flex-1 rounded-[2px] transition-all duration-300",
-                            idx === 11 ? "bg-[#4A5DF9]" : "bg-[#4A5DF9]/45"
-                          )}
-                          title={`${h}명 접속`}
-                        />
-                      ))}
-                    </div>
+                  {/* Right (40%): Server health card */}
+                  <Card className="rounded-[16px] lg:col-span-2 p-5 flex flex-col">
+                    <h4 className="text-[14px] font-bold text-[#8E8E93]">서버 상태</h4>
 
                     {/* Status signals with circular color tags */}
-                    <div className="space-y-2 mt-2">
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" stroke="#FFFFFF" strokeWidth="1" />
+                    <div className="flex-1 flex flex-col justify-center gap-4 mt-2">
+                      <div className="flex justify-between items-center text-[15px] bg-[#F2F2F7]/50 rounded-[14px] p-5 border border-[#E5E5EA]">
+                        <span className="flex items-center gap-2.5 font-bold text-[#1C1C1E]">
+                          <span className={cn("w-3 h-3 rounded-full", serverHealth?.webServerUp ? "bg-[#34C759]" : "bg-[#FF3B30]")} />
                           <span>웹서버</span>
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
+                        <span className={cn("font-bold", serverHealth?.webServerUp ? "text-[#34C759]" : "text-[#FF3B30]")}>
+                          {serverHealth?.webServerUp ? "정상운영" : "장애 발생"}
+                        </span>
                       </div>
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+                      <div className="flex justify-between items-center text-[15px] bg-[#F2F2F7]/50 rounded-[14px] p-5 border border-[#E5E5EA]">
+                        <span className="flex items-center gap-2.5 font-bold text-[#1C1C1E]">
+                          <span className={cn("w-3 h-3 rounded-full", serverHealth?.databaseUp ? "bg-[#34C759]" : "bg-[#FF3B30]")} />
                           <span>데이터베이스</span>
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" />
-                          <span>인증/로그인서버</span>
+                        <span className={cn("font-bold", serverHealth?.databaseUp ? "text-[#34C759]" : "text-[#FF3B30]")}>
+                          {serverHealth?.databaseUp ? "정상운영" : "장애 발생"}
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
                       </div>
                     </div>
                   </Card>
@@ -816,7 +863,6 @@ export function Admin() {
                                 setSuspensionModal({ isOpen: true, userId: user.id });
                                 return;
                               }
-
                               if (val === "ACTIVE" && user.status === "SUSPENDED") {
                                 try {
                                   await api.patch(`/admin/users/${user.id}/unsuspend`);
@@ -826,12 +872,11 @@ export function Admin() {
                                   triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
                                 }
                               }
-                              // QUIT은 회원 탈퇴 API 영역이라 관리자가 여기서 직접 바꾸는 개념이 아니므로 별도 처리 없음
                             };
 
                             return (
-                              <tr 
-                                key={user.id} 
+                              <tr
+                                key={user.id}
                                 onContextMenu={(e) => {
                                   e.preventDefault();
                                   setContextMenu({ isOpen: true, x: e.pageX, y: e.pageY, user });
@@ -860,7 +905,6 @@ export function Admin() {
                                     {user.userRole === "ADMIN" ? "관리자" : "일반"}
                                   </span>
                                 </td>
-
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <div className="relative inline-block w-full min-w-[110px]">
                                     <select
@@ -880,7 +924,6 @@ export function Admin() {
                                     <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8E8E93] pointer-events-none" />
                                   </div>
                                 </td>
-
                                 <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] font-medium whitespace-nowrap">{user.accountNumMasked ?? "-"}</td>
                                 <td className="py-2 px-4 text-center tabular-nums text-[#8E8E93] whitespace-nowrap">{user.createdAt ? user.createdAt.slice(0, 10) : "-"}</td>
                               </tr>
@@ -1040,25 +1083,25 @@ export function Admin() {
                 <div className="flex gap-1 bg-[#F2F2F7] p-1 rounded-[12px] w-fit">
                   {[
                     { key: "전체", count: reports.length },
-                    { key: "미처리", count: reports.filter(r => r.status === "미처리").length, badge: true },
-                    { key: "처리완료", count: reports.filter(r => r.status === "처리완료").length },
-                    { key: "반려", count: reports.filter(r => r.status === "반려").length },
+                    { key: "PENDING", count: reports.filter(r => r.status === "PENDING").length, badge: true, label: "미처리" },
+                    { key: "PROCESSED", count: reports.filter(r => r.status === "PROCESSED").length, label: "처리완료" },
+                    { key: "REJECTED", count: reports.filter(r => r.status === "REJECTED").length, label: "반려" },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => setReportFilterTab(tab.key as any)}
                       className={cn(
                         "px-4 py-2 text-xs font-bold rounded-[10px] transition-all duration-200 flex items-center gap-1.5",
-                        reportFilterTab === tab.key 
+                        reportFilterTab === tab.key
                           ? "bg-white text-[#1C1C1E] shadow-sm"
                           : "text-[#8E8E93] hover:text-[#1C1C1E]"
                       )}
                     >
-                      <span>{tab.key}</span>
+                      <span>{tab.label ?? tab.key}</span>
                       {tab.count > 0 && (
                         <span className={cn(
                           "px-1.5 py-0.5 rounded-full text-[10px] font-bold",
-                          tab.key === "미처리" ? "bg-[#FF3B30] text-white" : "bg-[#8E8E93]/20 text-[#8E8E93]"
+                          tab.key === "PENDING" ? "bg-[#FF3B30] text-white" : "bg-[#8E8E93]/20 text-[#8E8E93]"
                         )}>
                           {tab.count}
                         </span>
@@ -1076,7 +1119,6 @@ export function Admin() {
                           <th className="py-3.5 px-4 w-12 text-center whitespace-nowrap">No.</th>
                           <th className="py-3.5 px-4 whitespace-nowrap">신고자</th>
                           <th className="py-3.5 px-4 w-28 whitespace-nowrap">대상 유형</th>
-                          <th className="py-3.5 px-4 whitespace-nowrap">신고 대상 및 내용</th>
                           <th className="py-3.5 px-4 w-32 whitespace-nowrap">신고 사유</th>
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">신고 일자</th>
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">상태</th>
@@ -1090,62 +1132,60 @@ export function Admin() {
                             return r.status === reportFilterTab;
                           })
                           .map((report, idx) => {
-                            const handleReportStatus = (nextStat: "처리완료" | "반려") => {
-                              setReports(prev => prev.map(item => item.id === report.id ? { ...item, status: nextStat } : item));
-                              triggerToast(`신고 건번호 #${report.id}가 [${nextStat}]로 지정되었습니다.`);
-                              logAdminAction("기타", `신고 #${report.id}`, `신고 대상을 [${nextStat === "처리완료" ? "삭제처리" : "반려"}] 지정하였습니다.`);
+                            const handleReportAction = async (reportId: number, status: "PROCESSED" | "REJECTED") => {
+                              try {
+                                await api.patch(`/admin/reports/${reportId}`, { status });
+                                await fetchReports();
+                                const processedReport = reports.find(r => r.id === reportId);
+                                setReportDetailModal({ isOpen: true, report: { ...processedReport, status } });
+                                triggerToast(`신고 #${reportId}가 처리되었습니다.`);
+                              } catch (error: any) {
+                                triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
+                              }
                             };
 
                             return (
                               <tr key={report.id} className="h-[60px] hover:bg-[#FAFAFA] transition-colors text-sm">
                                 <td className="py-2 px-4 text-center font-bold text-[#8E8E93] whitespace-nowrap">{idx + 1}</td>
-                                <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{report.reporter}</td>
+                                <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{report.reporterNickname}</td>
                                 <td className="py-2 px-4 whitespace-nowrap">
                                   <span className={cn(
                                     "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.targetType === "게시글" && "bg-[#BF5AF2]/11 text-[#BF5AF2]",
-                                    report.targetType === "댓글" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                    report.targetType === "채팅" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
+                                    report.targetType === "POST" && "bg-[#BF5AF2]/11 text-[#BF5AF2]",
+                                    report.targetType === "COMMENT" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                    report.targetType === "CHAT" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
+                                    report.targetType === "USER" && "bg-[#34C759]/11 text-[#34C759]"
                                   )}>
-                                    {report.targetType}
+                                    {TARGET_TYPE_LABELS[report.targetType] ?? report.targetType}
                                   </span>
                                 </td>
-                                <td className="py-2 px-4 font-semibold text-[#1C1C1E] max-w-sm truncate whitespace-nowrap" title={report.content}>
-                                  {report.content}
-                                </td>
                                 <td className="py-2 px-4 whitespace-nowrap">
-                                  <span className={cn(
-                                    "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.reason === "욕설비방" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.reason === "광고도배" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                    report.reason === "불법촬영" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.reason === "기타" && "bg-[#8E8E93]/11 text-[#8E8E93]"
-                                  )}>
+                                  <span className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block bg-[#8E8E93]/11 text-[#8E8E93]">
                                     {report.reason}
                                   </span>
                                 </td>
-                                <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{report.date}</td>
+                                <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{report.createdAt ? report.createdAt.slice(0, 10) : "-"}</td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
                                   <span className={cn(
                                     "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                    report.status === "미처리" && "bg-[#FF3B30]/11 text-[#FF3B30]",
-                                    report.status === "처리완료" && "bg-[#34C759]/11 text-[#34C759]",
-                                    report.status === "반려" && "bg-[#8E8E93]/11 text-[#8E8E93]"
+                                    report.status === "PENDING" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                    report.status === "PROCESSED" && "bg-[#34C759]/11 text-[#34C759]",
+                                    report.status === "REJECTED" && "bg-[#8E8E93]/11 text-[#8E8E93]"
                                   )}>
-                                    {report.status}
+                                    {REPORT_STATUS_LABELS[report.status] ?? report.status}
                                   </span>
                                 </td>
                                 <td className="py-2 px-4 text-center whitespace-nowrap">
-                                  {report.status === "미처리" ? (
+                                  {report.status === "PENDING" ? (
                                     <div className="flex gap-2 justify-center">
                                       <button
-                                        onClick={() => handleReportStatus("처리완료")}
+                                        onClick={() => handleReportAction(report.id, "PROCESSED")}
                                         className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
                                       >
                                         삭제 처리
                                       </button>
                                       <button
-                                        onClick={() => handleReportStatus("반려")}
+                                        onClick={() => handleReportAction(report.id, "REJECTED")}
                                         className="px-2.5 py-1.5 bg-[#F2F2F7] text-[#8E8E93] hover:text-[#1C1C1E] text-xs font-bold rounded-[8px] transition cursor-pointer"
                                       >
                                         반려
@@ -1189,21 +1229,21 @@ export function Admin() {
                 <div className="flex gap-1 bg-[#F2F2F7] p-1 rounded-[12px] w-fit">
                   {[
                     { key: "전체", count: inquiries.length },
-                    { key: "미답변", count: inquiries.filter(i => i.status === "미답변").length },
-                    { key: "답변완료", count: inquiries.filter(i => i.status === "답변완료").length },
+                    { key: "PENDING", count: inquiries.filter(i => i.status === "PENDING").length, label: "미답변" },
+                    { key: "ANSWERED", count: inquiries.filter(i => i.status === "ANSWERED").length, label: "답변완료" },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => setInquiryFilterTab(tab.key as any)}
                       className={cn(
                         "px-4 py-2 text-xs font-bold rounded-[10px] transition-all duration-200 flex items-center gap-1.5",
-                        inquiryFilterTab === tab.key 
+                        inquiryFilterTab === tab.key
                           ? "bg-white text-[#1C1C1E] shadow-sm"
                           : "text-[#8E8E93] hover:text-[#1C1C1E]"
                       )}
                     >
-                      <span>{tab.key}</span>
-                      {tab.key === "미답변" && tab.count > 0 ? (
+                      <span>{tab.label ?? tab.key}</span>
+                      {tab.key === "PENDING" && tab.count > 0 ? (
                         <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-[#FF9500] text-white">
                           {tab.count}
                         </span>
@@ -1239,19 +1279,21 @@ export function Admin() {
                           .map((inquiry, idx) => (
                             <tr key={inquiry.id} className="h-[60px] hover:bg-[#FAFAFA] transition-colors text-sm">
                               <td className="py-2 px-4 text-center font-bold text-[#8E8E93] whitespace-nowrap">{idx + 1}</td>
-                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{inquiry.author}</td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">{inquiry.authorNickname}</td>
                               <td className="py-2 px-4 font-semibold text-[#1C1C1E] max-w-sm truncate whitespace-nowrap">{inquiry.title}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">{inquiry.date}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">
+                                {inquiry.createdAt?.slice(0, 10)}
+                              </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
-                                  inquiry.status === "미답변" ? "bg-[#FF9500]/11 text-[#FF9500]" : "bg-[#34C759]/11 text-[#34C759]"
+                                  inquiry.status === "PENDING" ? "bg-[#FF9500]/11 text-[#FF9500]" : "bg-[#34C759]/11 text-[#34C759]"
                                 )}>
-                                  {inquiry.status}
+                                  {inquiry.status === "PENDING" ? "미답변" : "답변완료"}
                                 </span>
                               </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
-                                {inquiry.status === "미답변" ? (
+                                {inquiry.status === "PENDING" ? (
                                   <button
                                     onClick={() => {
                                       setAnswerText("");
@@ -1270,7 +1312,7 @@ export function Admin() {
                                       }}
                                       className="px-3.5 py-1.5 bg-[#34C759]/10 text-[#34C759] hover:bg-[#34C759]/20 text-xs font-bold rounded-[8px] transition cursor-pointer"
                                     >
-                                      답변보기
+                                      답변 수정
                                     </button>
                                   </div>
                                 )}
@@ -1491,11 +1533,20 @@ export function Admin() {
                           }}
                           className="appearance-none w-full bg-[#F2F2F7] border border-[#E5E5EA] rounded-[12px] text-xs font-extrabold pl-3.5 pr-8 py-2 focus:outline-none focus:ring-1 focus:ring-[#4A5DF9] cursor-pointer"
                         >
-                          {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND"] as const).map((tab) => (
-                            <option key={tab} value={tab}>
-                              {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
-                            </option>
-                          ))}
+                          <option value="전체">전체 활동</option>
+                          <option value="CREATE">생성 (대회 등)</option>
+                          <option value="UPDATE">수정</option>
+                          <option value="DELETE">삭제</option>
+                          <option value="SUSPEND">회원 정지</option>
+                          <option value="UNSUSPEND">정지 해제</option>
+                          <option value="PROCESS">신고 처리</option>
+                          <option value="REJECT">신고 반려</option>
+                          <option value="ANSWER">문의 답변</option>
+                          {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND", "PROCESS", "REJECT", "ANSWER"] as const).map((tab) => (
+  <option key={tab} value={tab}>
+    {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
+  </option>
+))}
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1527,7 +1578,9 @@ export function Admin() {
                           })
                           .map((log) => (
                             <tr key={log.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E]">
-                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.createdAt?.slice(0, 19).replace("T", " ")}</td>
+                              <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">
+                                {log.createdAt?.slice(0, 19).replace("T", " ")}
+                              </td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 <span className={cn(
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
@@ -1535,7 +1588,10 @@ export function Admin() {
                                   log.actionType === "UPDATE" && "bg-[#007AFF]/11 text-[#007AFF]",
                                   log.actionType === "DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
                                   log.actionType === "SUSPEND" && "bg-[#FF9500]/11 text-[#FF9500]",
-                                  log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
+                                  log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
+                                  log.actionType === "PROCESS" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "REJECT" && "bg-[#8E8E93]/11 text-[#8E8E93]",
+                                  log.actionType === "ANSWER" && "bg-[#30D158]/11 text-[#30D158]"
                                 )}>
                                   {ACTION_TYPE_LABELS[log.actionType] ?? log.actionType}
                                 </span>
@@ -1544,7 +1600,9 @@ export function Admin() {
                                 {log.adminNickname} → {log.targetType} #{log.targetId}
                               </td>
                               <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.detail}</td>
-                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">{log.ipAddress ?? "-"}</td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">
+                                {log.ipAddress ?? "-"}
+                              </td>
                             </tr>
                           ))}
                       </tbody>
@@ -1911,17 +1969,17 @@ export function Admin() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="bg-[#4A5DF9]/10 text-[#4A5DF9] text-[10px] font-bold px-1.5 py-0.5 rounded">유저접수본</span>
-                    <span className="text-[12px] text-[#8E8E93] tabular-nums">{answerModal.inquiry.date}</span>
+                    <span className="text-[12px] text-[#8E8E93] tabular-nums">{answerModal.inquiry.createdAt?.slice(0, 10)}</span>
                   </div>
                   <h4 className="text-[15px] font-bold text-[#1C1C1E] leading-snug">{answerModal.inquiry.title}</h4>
-                  
+
                   <div className="h-[200px] overflow-y-auto bg-[#F2F2F7] rounded-[12px] p-4 text-[13px] text-[#333] font-medium leading-relaxed mt-2.5">
                     {answerModal.inquiry.content}
                   </div>
                 </div>
 
                 <div className="text-[12px] text-[#8E8E93] font-semibold">
-                  작성자: <span className="text-[#1C1C1E] font-bold">{answerModal.inquiry.author}</span>
+                  작성자: <span className="text-[#1C1C1E] font-bold">{answerModal.inquiry.authorNickname}</span>
                 </div>
               </div>
 
@@ -1930,7 +1988,7 @@ export function Admin() {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="text-[12px] font-bold text-[#8E8E93] uppercase">처리 답변 기재 창</label>
-                    {answerModal.inquiry.status === "답변완료" && (
+                    {answerModal.inquiry.status === "ANSWERED" && (
                       <span className="bg-[#34C759]/11 text-[#34C759] text-[10px] font-bold px-1.5 py-0.5 rounded">답변 완료본 복수 수정</span>
                     )}
                   </div>
@@ -1945,52 +2003,22 @@ export function Admin() {
 
                 {/* Confirm Action Button */}
                 <div className="flex gap-2">
-                  {answerModal.inquiry.status === "답변완료" && (
-                    <button
-                      onClick={() => {
-                        setInquiries(prev => prev.map(item => {
-                          if (item.id === answerModal.inquiry!.id) {
-                            return {
-                              ...item,
-                              status: "미답변",
-                              answer: undefined,
-                              answeredAt: undefined
-                            };
-                          }
-                          return item;
-                        }));
-                        logAdminAction("기타", `문의 #${answerModal.inquiry!.id}`, `1:1 문의답변 처리를 취소/삭제했습니다.`);
-                        triggerToast(`문의 #${answerModal.inquiry!.id}번 답변이 취소되었습니다.`);
-                        setAnswerModal({ isOpen: false, inquiry: null });
-                      }}
-                      className="flex-1 py-3 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-[13px] font-bold rounded-[12px] transition cursor-pointer text-center"
-                    >
-                      답변 취소
-                    </button>
-                  )}
                   <button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!answerText.trim()) return;
-                      const isEdit = answerModal.inquiry!.status === "답변완료";
-                      setInquiries(prev => prev.map(item => {
-                        if (item.id === answerModal.inquiry!.id) {
-                          return {
-                            ...item,
-                            status: "답변완료",
-                            answer: answerText,
-                            answeredAt: new Date().toISOString().replace('T', ' ').substring(0, 16)
-                          };
-                        }
-                        return item;
-                      }));
-                      
-                      logAdminAction("기타", `문의 #${answerModal.inquiry!.id}`, `1:1 문의에 답변을 ${isEdit ? "수정하여 제출" : "등록"}했습니다.`);
-                      triggerToast(`문의 #${answerModal.inquiry!.id}번에 대한 답변이 ${isEdit ? "수정" : "등록"}되었습니다.`);
-                      setAnswerModal({ isOpen: false, inquiry: null });
+                      const isEdit = answerModal.inquiry!.status === "ANSWERED";
+                      try {
+                        await api.post(`/admin/inquiries/${answerModal.inquiry!.id}/answer`, { answer: answerText });
+                        await fetchInquiries();
+                        triggerToast(`문의 #${answerModal.inquiry!.id}번에 대한 답변이 ${isEdit ? "수정" : "등록"}되었습니다.`);
+                        setAnswerModal({ isOpen: false, inquiry: null });
+                      } catch (error: any) {
+                        triggerToast(`⚠️ ${error.response?.data?.message ?? "답변 등록에 실패했습니다."}`);
+                      }
                     }}
                     className="flex-1 py-3 bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/95 text-[13px] font-bold rounded-[12px] shadow-sm transition cursor-pointer text-center"
                   >
-                    {answerModal.inquiry.status === "답변완료" ? "답변 수정" : "답변 등록"}
+                    {answerModal.inquiry.status === "ANSWERED" ? "답변 수정" : "답변 등록"}
                   </button>
                 </div>
               </div>
@@ -2129,12 +2157,12 @@ export function Admin() {
             <div className="space-y-3.5 text-sm">
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">신고자</span>
-                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.reporter}</span>
+                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.reporterNickname}</span>
               </div>
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">대상 유형</span>
-                <span className="font-extrabold text-[#1C1C1E]">{reportDetailModal.report.targetType}</span>
+                <span className="font-extrabold text-[#1C1C1E]">{TARGET_TYPE_LABELS[reportDetailModal.report.targetType] ?? reportDetailModal.report.targetType}</span>
               </div>
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
@@ -2146,15 +2174,19 @@ export function Admin() {
 
               <div className="grid grid-cols-[100px_1fr] bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
                 <span className="text-[#8E8E93] font-bold">신고 일자</span>
-                <span className="font-semibold text-[#1C1C1E] tabular-nums">{reportDetailModal.report.date}</span>
+                <span className="font-semibold text-[#1C1C1E] tabular-nums">{reportDetailModal.report.createdAt ? reportDetailModal.report.createdAt.slice(0, 10) : "-"}</span>
               </div>
 
-              <div className="flex flex-col gap-1.5 bg-[#F2F2F7]/40 p-3 rounded-[12px] border border-[#E5E5EA]/40">
-                <span className="text-[#8E8E93] font-bold">신고 대상 전체 내용</span>
-                <p className="bg-white border border-[#E5E5EA]/60 p-2.5 rounded-[8px] text-[13px] text-[#1C1C1E] font-medium leading-relaxed max-h-[80px] overflow-y-auto">
-                  {reportDetailModal.report.content}
-                </p>
-              </div>
+              {reportDetailModal.report.targetPostId ? (
+                <button
+                  onClick={() => navigate(`/community/${reportDetailModal.report.targetPostId}`)}
+                  className="w-full py-3 bg-[#4A5DF9]/10 text-[#4A5DF9] font-bold rounded-[12px] text-[13px]"
+                >
+                  신고된 {reportDetailModal.report.targetType === "COMMENT" ? "댓글이 달린 게시글" : "게시글"} 확인하러 가기
+                </button>
+              ) : (
+                <p className="text-[12px] text-[#8E8E93] text-center">확인 가능한 페이지가 없습니다</p>
+              )}
 
               {/* Resolved processing content details (처리내용) */}
               <div className="flex flex-col gap-1.5 bg-[#34C759]/5 p-3 rounded-[12px] border border-[#34C759]/20">
@@ -2163,7 +2195,7 @@ export function Admin() {
                   <span className="text-[#34C759] text-[12px] font-bold">최종 처리 결과 및 내용</span>
                 </div>
                 <div className="bg-white border border-[#34C759]/20 p-2.5 rounded-[8px] text-[13px] text-[#1C1C1E] font-medium leading-relaxed">
-                  {reportDetailModal.report.status === "처리완료" ? (
+                  {reportDetailModal.report.status === "PROCESSED" ? (
                     <span>
                       본 신고 항목에 명시된 비규격 활동 및 규정 위반 사실에 대하여 운영원칙에 기반한 정밀 심사를 거쳐 <strong className="text-[#FF3B30]">삭제 처리 및 일시적 조치 제한권고</strong> 처리를 완료하였습니다. 커뮤니티의 쾌적한 질서 유지를 위해 제로리스크의 실시간 규정 가이드라인을 위배 조치하였습니다.
                     </span>
@@ -2176,7 +2208,7 @@ export function Admin() {
               </div>
             </div>
 
-            <Button 
+            <Button
               onClick={() => setReportDetailModal({ isOpen: false, report: null })}
               className="w-full h-11 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#1C1C1E] font-bold rounded-[12px] mt-1 text-[13px] transition cursor-pointer shrink-0"
             >
