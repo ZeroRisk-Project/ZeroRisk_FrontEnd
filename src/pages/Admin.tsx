@@ -146,6 +146,56 @@ export function Admin() {
   useEffect(() => {
     fetchReports();
   }, []);
+
+  const [dashboardSummary, setDashboardSummary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await api.get("/admin/dashboard");
+        setDashboardSummary(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchDashboard();
+  }, []);
+
+  const [serverHealth, setServerHealth] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchHealth = async () => {
+      try {
+        const response = await api.get("/admin/dashboard/health");
+        setServerHealth(response.data);
+      } catch (error) {
+        setServerHealth({ webServerUp: false, databaseUp: false });
+      }
+    };
+    fetchHealth();
+  }, []);
+
+  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const response = await api.get("/admin/metrics");
+        setMetricsHistory(response.data.points);
+        setDashboardSummary((prev: any) => ({
+          ...prev,
+          latestResponseTimeMs: response.data.latestResponseTimeMs,
+          averageResponseTimeMs: response.data.averageResponseTimeMs,
+        }));
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchMetrics();
+    const interval = setInterval(fetchMetrics, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [inquiries, setInquiries] = useState<any[]>([]);
 
   const fetchInquiries = async () => {
@@ -391,8 +441,35 @@ export function Admin() {
   }, [activeTab]);
 
   // Helper selectors
-  const totalInquiriesCount = inquiries.filter(i => i.status === "PENDING").length;
-  const totalReportsCount = reports.filter(r => r.status === "미처리").length;
+  const totalInquiriesCount = dashboardSummary?.pendingInquiryCount ?? 0;
+  const totalReportsCount = dashboardSummary?.pendingReportCount ?? 0;
+
+  const formatUptime = (seconds: number) => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours === 0) return `${minutes}분`;
+    return `${hours}시간 ${minutes}분`;
+  };
+
+  const buildSvgPath = (points: any[]) => {
+    if (points.length === 0) return { line: "", area: "" };
+
+    const maxMs = Math.max(...points.map(p => p.responseTimeMs), 200);
+    const width = 500;
+    const height = 150;
+    const stepX = points.length > 1 ? width / (points.length - 1) : 0;
+
+    const coords = points.map((p, i) => {
+      const x = i * stepX;
+      const y = height - (p.responseTimeMs / maxMs) * height;
+      return { x, y };
+    });
+
+    const linePath = coords.map((c, i) => `${i === 0 ? "M" : "L"} ${c.x},${c.y}`).join(" ");
+    const areaPath = `${linePath} L ${width},${height} L 0,${height} Z`;
+
+    return { line: linePath, area: areaPath };
+  };
 
   return (
     <div className="flex bg-[#FDFDFD] min-h-screen text-[#1C1C1E] font-sans overflow-x-hidden antialiased">
@@ -553,40 +630,26 @@ export function Admin() {
                   </div>
                   <div className="bg-[#34C759]/10 text-[#34C759] font-bold text-[13px] px-3 py-1.5 rounded-[12px] flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-[#34C759] animate-ping" />
-                    <span>서버 가동중 (Uptime 99.98%)</span>
+                    <span>서버 가동중 ({formatUptime(dashboardSummary?.uptimeSeconds ?? 0)})</span>
                   </div>
                 </div>
 
-                {/* 4 STATS CARDS */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 3 STATS CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Card 1 */}
                   <Card className="rounded-[16px]">
                     <CardContent className="p-5 flex items-center justify-between">
                       <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#8E8E93]">전체 회원수</p>
-                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">1,284명</p>
+                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">
+                          {(dashboardSummary?.totalUserCount ?? 0).toLocaleString()}명
+                        </p>
                         <p className="text-[12px] font-bold text-[#34C759] flex items-center gap-1">
-                          <span>+12명 오늘 신규</span>
+                          <span>+{dashboardSummary?.todayNewUserCount ?? 0}명 오늘 신규</span>
                         </p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-[#4A5DF9]/12 text-[#4A5DF9] flex items-center justify-center text-[19px]">
                         👥
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Card 2 */}
-                  <Card className="rounded-[16px]">
-                    <CardContent className="p-5 flex items-center justify-between">
-                      <div className="space-y-1">
-                        <p className="text-[13px] font-semibold text-[#8E8E93]">오늘 접속자</p>
-                        <p className="text-[28px] font-bold text-[#1C1C1E] tabular-nums">342명</p>
-                        <p className="text-[12px] font-bold text-[#4A5DF9] flex items-center gap-1">
-                          <span>현재 실시간: 47명</span>
-                        </p>
-                      </div>
-                      <div className="w-12 h-12 rounded-full bg-[#34C759]/12 text-[#34C759] flex items-center justify-center text-[19px]">
-                        🟢
                       </div>
                     </CardContent>
                   </Card>
@@ -613,9 +676,6 @@ export function Admin() {
                       <div className="space-y-1">
                         <p className="text-[13px] font-semibold text-[#8E8E93]">미답변 문의</p>
                         <p className="text-[28px] font-bold text-[#FF9500] tabular-nums">{totalInquiriesCount}건</p>
-                        <p className="text-[12px] font-semibold text-[#8E8E93] flex items-center gap-1">
-                          <span>평균 대기 2.3시간</span>
-                        </p>
                       </div>
                       <div className="w-12 h-12 rounded-full bg-[#FF1493]/12 text-[#FF9500] flex items-center justify-center text-[19px]">
                         💬
@@ -634,7 +694,9 @@ export function Admin() {
                         <CardTitle className="text-[15px] font-bold text-[#1C1C1E]">API 응답시간 (ms)</CardTitle>
                         <p className="text-[11px] text-[#8E8E93]">실시간 트래픽 가중 응답 처리 지표</p>
                       </div>
-                      <span className="bg-[#34C759]/11 text-[#34C759] text-[11px] font-bold px-2 py-0.5 rounded-[12px]">현재 87ms</span>
+                      <span className="bg-[#34C759]/11 text-[#34C759] text-[11px] font-bold px-2 py-0.5 rounded-[12px]">
+                        현재 {dashboardSummary?.latestResponseTimeMs ?? 0}ms
+                      </span>
                     </CardHeader>
                     <CardContent className="p-5 flex flex-col justify-end">
                       <div className="relative w-full h-[180px] bg-[#F2F2F7]/40 rounded-[8px] overflow-hidden px-2 pt-4 border border-[#E5E5EA]">
@@ -655,98 +717,59 @@ export function Admin() {
                           {/* Y-axis Labels */}
                           <line x1="0" y1="120" x2="500" y2="120" stroke="#E5E5EA" strokeWidth="1" />
                           <line x1="0" y1="60" x2="500" y2="60" stroke="#E5E5EA" strokeWidth="1" />
-                          
-                          {/* Area under line */}
-                          <path
-                            d="M 0,150 
-                               L 0,120
-                               C 50,110 80,130 120,80
-                               C 160,30 200,90 250,55
-                               C 300,20 340,110 380,95
-                               C 420,80 460,45 500,40
-                               L 500,150 Z"
-                            fill="url(#apiAreaGrad)"
-                          />
 
-                          {/* Line itself */}
-                          <path
-                            d="M 0,120
-                               C 50,110 80,130 120,80
-                               C 160,30 200,90 250,55
-                               C 300,20 340,110 380,95
-                               C 420,80 460,45 500,40"
-                            fill="none"
-                            stroke="#4A5DF9"
-                            strokeWidth="2.5"
-                            strokeLinecap="round"
-                          />
-
-                          {/* Interactive data dots */}
-                          <circle cx="120" cy="80" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="250" cy="55" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="380" cy="95" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
-                          <circle cx="500" cy="40" r="4.5" fill="#4A5DF9" stroke="#FFFFFF" strokeWidth="1.5" />
+                          {metricsHistory.length > 0 && (
+                            <>
+                              <path d={buildSvgPath(metricsHistory).area} fill="url(#apiAreaGrad)" />
+                              <path d={buildSvgPath(metricsHistory).line} stroke="#4A5DF9" strokeWidth="2" fill="none" />
+                            </>
+                          )}
                         </svg>
 
                         {/* X-axis custom tags */}
                         <div className="flex justify-between text-[9px] text-[#8E8E93] mt-1 pr-1 font-semibold">
-                          <span>10:10</span>
-                          <span>10:20</span>
-                          <span>10:30</span>
-                          <span>10:40</span>
-                          <span>현재</span>
+                          {metricsHistory.length > 0 ? (
+                            [0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+                              const index = Math.floor((metricsHistory.length - 1) * ratio);
+                              const point = metricsHistory[index];
+                              const isLast = idx === 4;
+                              return (
+                                <span key={idx}>
+                                  {isLast ? "현재" : point?.timestamp?.slice(11, 16)}
+                                </span>
+                              );
+                            })
+                          ) : (
+                            <span className="w-full text-center">데이터 수집 중...</span>
+                          )}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
 
-                  {/* Right (40%): Active traffic telemetry card */}
-                  <Card className="rounded-[16px] lg:col-span-2 p-5 flex flex-col justify-between">
-                    <div>
-                      <h4 className="text-[14px] font-bold text-[#8E8E93]">실시간 접속자수</h4>
-                      <div className="flex items-baseline gap-2 mt-2">
-                        <span className="text-[48px] font-extrabold text-[#1C1C1E] tracking-tight">47명</span>
-                        <span className="text-[13px] text-[#8E8E93] font-medium">현재 사이트 운영중</span>
-                      </div>
-                    </div>
-
-                    {/* Mini high-fidelity hours bar chart */}
-                    <div className="flex gap-1 items-end h-[60px] my-2 bg-[#F2F2F7]/30 rounded p-1 border border-[#E5E5EA]">
-                      {[15, 22, 10, 8, 30, 48, 55, 34, 40, 28, 47, 47].map((h, idx) => (
-                        <div 
-                          key={idx} 
-                          style={{ height: `${(h / 60) * 100}%` }}
-                          className={cn(
-                            "flex-1 rounded-[2px] transition-all duration-300",
-                            idx === 11 ? "bg-[#4A5DF9]" : "bg-[#4A5DF9]/45"
-                          )}
-                          title={`${h}명 접속`}
-                        />
-                      ))}
-                    </div>
+                  {/* Right (40%): Server health card */}
+                  <Card className="rounded-[16px] lg:col-span-2 p-5 flex flex-col">
+                    <h4 className="text-[14px] font-bold text-[#8E8E93]">서버 상태</h4>
 
                     {/* Status signals with circular color tags */}
-                    <div className="space-y-2 mt-2">
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" stroke="#FFFFFF" strokeWidth="1" />
+                    <div className="flex-1 flex flex-col justify-center gap-4 mt-2">
+                      <div className="flex justify-between items-center text-[15px] bg-[#F2F2F7]/50 rounded-[14px] p-5 border border-[#E5E5EA]">
+                        <span className="flex items-center gap-2.5 font-bold text-[#1C1C1E]">
+                          <span className={cn("w-3 h-3 rounded-full", serverHealth?.webServerUp ? "bg-[#34C759]" : "bg-[#FF3B30]")} />
                           <span>웹서버</span>
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
+                        <span className={cn("font-bold", serverHealth?.webServerUp ? "text-[#34C759]" : "text-[#FF3B30]")}>
+                          {serverHealth?.webServerUp ? "정상운영" : "장애 발생"}
+                        </span>
                       </div>
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" />
+                      <div className="flex justify-between items-center text-[15px] bg-[#F2F2F7]/50 rounded-[14px] p-5 border border-[#E5E5EA]">
+                        <span className="flex items-center gap-2.5 font-bold text-[#1C1C1E]">
+                          <span className={cn("w-3 h-3 rounded-full", serverHealth?.databaseUp ? "bg-[#34C759]" : "bg-[#FF3B30]")} />
                           <span>데이터베이스</span>
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
-                      </div>
-                      <div className="flex justify-between items-center text-[12px] bg-[#F2F2F7]/50 rounded-[8px] p-2 border border-[#E5E5EA]">
-                        <span className="flex items-center gap-1.5 font-bold text-[#1C1C1E]">
-                          <span className="w-2 h-2 rounded-full bg-[#34C759]" />
-                          <span>인증/로그인서버</span>
+                        <span className={cn("font-bold", serverHealth?.databaseUp ? "text-[#34C759]" : "text-[#FF3B30]")}>
+                          {serverHealth?.databaseUp ? "정상운영" : "장애 발생"}
                         </span>
-                        <span className="text-[#34C759] font-bold">정상운영</span>
                       </div>
                     </div>
                   </Card>
