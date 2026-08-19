@@ -33,83 +33,14 @@ const MOCK_CALENDAR_DATA: Record<
   24: [{ type: "sell", text: "카카오 20주 매도" }],
 };
 
-const MY_COMPETITIONS = [
-  {
-    title: "제1회 제로리스크 대회",
-    period: "2026-06-01 ~ 2026-06-30",
-    seedMoney: 50000000,
-    returnRate: 24.5,
-    rank: "45위",
-  },
-  {
-    title: "대학생 투자 챔피언십",
-    period: "2026-07-01 ~ 2026-07-31",
-    seedMoney: 5000000,
-    returnRate: 0,
-    rank: "대기중",
-  },
-  {
-    title: "춘계 메이저 실전 크루전",
-    period: "2026-03-10 ~ 2026-04-10",
-    seedMoney: 20000000,
-    returnRate: 12.8,
-    rank: "14위",
-  },
-];
+const COMPETITION_STATUS_LABELS: Record<string, string> = {
+  SCHEDULED: "예정",
+  ONGOING: "진행중",
+  ENDED: "종료",
+};
 
-export function getCompetitionStatus(
-  period: string,
-  explicitStatus?: "진행중" | "종료" | "예정"
-): "진행중" | "종료" | "예정" {
-  if (explicitStatus) return explicitStatus;
-  try {
-    const dates = period.split("~").map((d) => d.trim().replace(/\./g, "-").replace(/\s/g, ""));
-    if (dates.length === 2) {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      const sDateStr = dates[0].includes("-") ? dates[0] : `${dates[0].slice(0, 4)}-${dates[0].slice(4, 6)}-${dates[0].slice(6, 8)}`;
-      const eDateStr = dates[1].includes("-") ? dates[1] : `${dates[1].slice(0, 4)}-${dates[1].slice(4, 6)}-${dates[1].slice(6, 8)}`;
-
-      const sDate = new Date(sDateStr);
-      const eDate = new Date(eDateStr);
-
-      if (isNaN(sDate.getTime()) || isNaN(eDate.getTime())) {
-        return "종료";
-      }
-
-      if (today < sDate) return "예정";
-      if (today > eDate) return "종료";
-      return "진행중";
-    }
-  } catch (e) {
-    console.error(e);
-  }
-  return "종료";
-}
-
-export function formatCompetitionPeriod(period: string): string {
-  try {
-    const parts = period.split("~").map((p) => p.trim());
-    if (parts.length === 2) {
-      const formatDate = (dateStr: string) => {
-        let normalized = dateStr.replace(/-/g, ".");
-        const segments = normalized.split(".");
-        if (segments.length === 3) {
-          let year = segments[0];
-          if (year.length === 4) {
-            year = year.slice(2);
-          }
-          return `${year}.${segments[1]}.${segments[2]}`;
-        }
-        return normalized;
-      };
-      return `${formatDate(parts[0])} ~ ${formatDate(parts[1])}`;
-    }
-  } catch (error) {
-    console.error(error);
-  }
-  return period.replace(/-/g, ".");
+function formatCompetitionPeriod(startAt: string, endAt: string): string {
+  return `${startAt.slice(0, 10).replaceAll("-", ".")} ~ ${endAt.slice(0, 10).replaceAll("-", ".")}`;
 }
 
 export function Mypage() {
@@ -162,6 +93,23 @@ export function Mypage() {
     };
     fetchPrizeHistory();
   }, []);
+
+  const [myProfile, setMyProfile] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchMyProfile = async () => {
+      try {
+        const meResponse = await api.get("/users/me");
+        const profileResponse = await api.get(`/profiles/${meResponse.data.userId}`);
+        setMyProfile(profileResponse.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchMyProfile();
+  }, []);
+
+  const myCompetitions = myProfile?.competitionHistory ?? [];
 
   const [favStockCodes, setFavStockCodes] = useState<string[]>(() => {
     try {
@@ -411,7 +359,7 @@ export function Mypage() {
                         : mainFilter === "보유종목"
                         ? MY_HOLDINGS.length
                         : mainFilter === "대회"
-                        ? MY_COMPETITIONS.length
+                        ? myCompetitions.length
                         : COMMENTS.length}
                     </span>
                   </h3>
@@ -627,29 +575,36 @@ export function Mypage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#F2F4F6]">
-                        {MY_COMPETITIONS.map((item, idx) => {
-                          const status = getCompetitionStatus(item.period);
-                          return (
-                            <tr key={idx} className="hover:bg-[#F9FAFB] cursor-pointer">
-                              <td className="py-4 px-6 text-[#6B7684] text-[13px]">{formatCompetitionPeriod(item.period)}</td>
-                              <td className="py-4 px-4 text-center">
-                                <span className={cn(
-                                  "text-[12px] font-bold px-2 py-1 rounded-md",
-                                  status === "진행중"
-                                    ? "bg-[#E8F3FF] text-[#3182F6]"
-                                    : status === "예정"
-                                    ? "bg-[#F2F4F6] text-[#4E5968]"
-                                    : "text-[#8B95A1] bg-[#F2F4F6]/50"
-                                )}>
-                                  {status}
-                                </span>
-                              </td>
-                              <td className="py-4 px-6 font-bold text-[#191F28]">{item.title}</td>
-                              <td className="py-4 px-4 text-right font-medium text-[#4E5968]">{formatPrice(item.seedMoney)}원</td>
-                              <td className="py-4 px-6 text-center font-bold text-[#191F28]">{status === "예정" ? "-" : item.rank}</td>
-                            </tr>
-                          );
-                        })}
+                        {myCompetitions.map((item: any) => (
+                          <tr key={item.competitionId} className="hover:bg-[#F9FAFB] cursor-pointer">
+                            <td className="py-4 px-6 text-[#6B7684] text-[13px]">
+                              {formatCompetitionPeriod(item.startAt, item.endAt)}
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className={cn(
+                                "text-[12px] font-bold px-2 py-1 rounded-md",
+                                item.status === "ONGOING"
+                                  ? "bg-[#E8F3FF] text-[#3182F6]"
+                                  : item.status === "SCHEDULED"
+                                  ? "bg-[#F2F4F6] text-[#4E5968]"
+                                  : "text-[#8B95A1] bg-[#F2F4F6]/50"
+                              )}>
+                                {COMPETITION_STATUS_LABELS[item.status]}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 font-bold text-[#191F28]">{item.title}</td>
+                            <td className="py-4 px-4 text-right font-medium text-[#4E5968]">{formatPrice(item.seedMoney)}원</td>
+                            <td className="py-4 px-6 text-center font-bold text-[#191F28]">
+                              {item.status === "SCHEDULED"
+                                ? "-"
+                                : item.rankPosition
+                                ? `${item.rankPosition}위`
+                                : item.status === "ONGOING"
+                                ? "집계중"
+                                : "-"}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
