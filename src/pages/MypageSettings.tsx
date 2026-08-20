@@ -6,10 +6,6 @@ import {
   Camera,
   Check,
   X,
-  Smartphone,
-  Lock,
-  Link as LinkIcon,
-  Mail,
   AlertTriangle,
   Info,
   CheckSquare,
@@ -23,9 +19,6 @@ type ActiveSheet =
   | null
   | "profile_edit"
   | "password_change"
-  | "social_link"
-  | "email_change"
-  | "login_history"
   | "reset_confirm"
   | "account_delete";
 
@@ -54,13 +47,7 @@ export function MypageSettings() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
-  // Social Connections
-  const [isGoogleConnected, setIsGoogleConnected] = useState(true);
-  const [isKakaoConnected, setIsKakaoConnected] = useState(false);
-
-  // Email Change State
   const [email, setEmail] = useState("");
-  const [tempEmail, setTempEmail] = useState("");
 
   // Notifications Toggles
   const [notifTrade, setNotifTrade] = useState(true);
@@ -70,23 +57,51 @@ export function MypageSettings() {
   const [notifQna, setNotifQna] = useState(false);
   const [notifMarketing, setNotifMarketing] = useState(false);
 
-  // Investment Settings Toggles
-  const [confirmOrderPopup, setConfirmOrderPopup] = useState(true);
-  const [accountLinked, setAccountLinked] = useState(() => {
-    return localStorage.getItem("mock_account_linked") === "true";
+  const [accountLinked, setAccountLinked] = useState(false);
+
+  useEffect(() => {
+    const checkAccountLink = async () => {
+      try {
+        await api.get("/openbanking/auths");
+        setAccountLinked(true);
+      } catch {
+        setAccountLinked(false);
+      }
+    };
+    checkAccountLink();
+  }, []);
+
+  const [profileSettings, setProfileSettings] = useState({
+    showReturnRate: true,
+    showPortfolio: true,
+    showTrades: true,
+    showStats: true,
+    showCompetitions: true,
   });
 
   useEffect(() => {
-    const checkState = () => {
-      setAccountLinked(localStorage.getItem("mock_account_linked") === "true");
+    const fetchProfileSettings = async () => {
+      try {
+        const response = await api.get("/profiles/me/settings");
+        setProfileSettings(response.data);
+      } catch (error) {
+        console.error(error);
+      }
     };
-    window.addEventListener("mock-account-update", checkState);
-    window.addEventListener("storage", checkState);
-    return () => {
-      window.removeEventListener("mock-account-update", checkState);
-      window.removeEventListener("storage", checkState);
-    };
+    fetchProfileSettings();
   }, []);
+
+  const handleToggleSetting = async (key: keyof typeof profileSettings) => {
+    const previous = profileSettings;
+    const updated = { ...profileSettings, [key]: !profileSettings[key] };
+    setProfileSettings(updated);
+    try {
+      await api.put("/profiles/me/settings", updated);
+    } catch (error) {
+      setProfileSettings(previous);
+      triggerNotification("설정 변경에 실패했습니다.");
+    }
+  };
 
   useEffect(() => {
     const fetchMyInfo = async () => {
@@ -433,198 +448,6 @@ export function MypageSettings() {
               </div>
             )}
 
-            {/* 3. SOCIAL LINK */}
-            {activeSheet === "social_link" && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-neutral-900">소셜 계정 연동</h3>
-                </div>
-
-                <div className="space-y-3">
-                  {/* Google */}
-                  <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-100 rounded-[20px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center font-bold text-neutral-800 shadow-xs border border-neutral-100">G</div>
-                      <div>
-                        <div className="text-[14px] font-bold text-neutral-800">Google 계정</div>
-                        <div className="text-[12px] font-medium text-neutral-400">{isGoogleConnected ? 'dnjswns@gmail.com' : '연동 안 됨'}</div>
-                      </div>
-                    </div>
-                    {isGoogleConnected ? (
-                      <button 
-                        onClick={() => {
-                          setIsGoogleConnected(false);
-                          triggerNotification("Google 연동이 해제되었습니다.");
-                        }}
-                        className="text-[12px] font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
-                      >
-                        연동 해제
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setIsGoogleConnected(true);
-                          triggerNotification("Google 계정이 연동되었습니다.");
-                        }}
-                        className="text-[12px] font-bold text-[#4B80EB] bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
-                      >
-                        연동하기
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Kakao */}
-                  <div className="flex items-center justify-between p-4 bg-neutral-50 border border-neutral-100 rounded-[20px]">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-[#FEE500] flex items-center justify-center font-bold text-neutral-900 shadow-xs">K</div>
-                      <div>
-                        <div className="text-[14px] font-bold text-neutral-800">카카오 계정</div>
-                        <div className="text-[12px] font-medium text-neutral-400">{isKakaoConnected ? 'dnjswns_kakao' : '미연동'}</div>
-                      </div>
-                    </div>
-                    {isKakaoConnected ? (
-                      <button 
-                        onClick={() => {
-                          setIsKakaoConnected(false);
-                          triggerNotification("카카오 연동이 해제되었습니다.");
-                        }}
-                        className="text-[12px] font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition"
-                      >
-                        연동 해제
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setIsKakaoConnected(true);
-                          triggerNotification("카카오 계정이 연동되었습니다.");
-                        }}
-                        className="text-[12px] font-bold text-[#4B80EB] bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition"
-                      >
-                        연동하기
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <button 
-                  onClick={closeSheet}
-                  className="w-full bg-neutral-900 text-white font-bold py-4 rounded-[16px] hover:bg-neutral-800 transition cursor-pointer"
-                >
-                  닫기
-                </button>
-              </div>
-            )}
-
-            {/* 4. EMAIL CHANGE */}
-            {activeSheet === "email_change" && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-neutral-900">이메일 변경</h3>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[13px] font-bold text-neutral-500">현재 이메일</label>
-                    <div className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-100 text-neutral-400 rounded-[16px] text-base font-bold">
-                      {email}
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[13px] font-bold text-neutral-500">새 이메일 주소</label>
-                    <input 
-                      type="email"
-                      value={tempEmail}
-                      onChange={(e) => setTempEmail(e.target.value)}
-                      className="w-full px-4 py-3.5 bg-neutral-50 border border-neutral-200 focus:border-neutral-400 rounded-[16px] text-base font-semibold outline-none transition"
-                      placeholder="example@email.com"
-                    />
-                  </div>
-                </div>
-
-                <button 
-                  onClick={() => {
-                    setEmail(tempEmail);
-                    triggerNotification("이메일 주소가 수정되었습니다.");
-                    closeSheet();
-                  }}
-                  disabled={!tempEmail.includes("@") || tempEmail === email}
-                  className="w-full bg-[#4B80EB] disabled:bg-neutral-200 text-white font-bold py-4 rounded-[16px] hover:bg-blue-600 disabled:text-neutral-400 mt-4 transition-all cursor-pointer"
-                >
-                  확인
-                </button>
-              </div>
-            )}
-
-            {/* 5. LOGIN HISTORY */}
-            {activeSheet === "login_history" && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h3 className="text-lg font-bold text-neutral-900">로그인 기록</h3>
-                </div>
-
-                <div className="space-y-3.5 max-h-[300px] overflow-y-auto pr-1">
-                  {[
-                    {
-                      device: "iPhone 15 Pro",
-                      os: "iOS 17.4",
-                      ip: "125.130.43.201",
-                      location: "서울시 종로구",
-                      date: "2026.06.21 05:32",
-                      isCurrent: true
-                    },
-                    {
-                      device: "MacBook Pro M3",
-                      os: "macOS Sonoma",
-                      ip: "125.130.43.201",
-                      location: "서울시 종로구",
-                      date: "2026.06.20 18:41",
-                      isCurrent: false
-                    },
-                    {
-                      device: "Windows Desktop",
-                      os: "Windows 11",
-                      ip: "211.234.90.3",
-                      location: "경기도 성남시",
-                      date: "2026.06.18 10:15",
-                      isCurrent: false
-                    }
-                  ].map((row, idx) => (
-                    <div 
-                      key={idx}
-                      className="p-4 bg-neutral-50 border border-neutral-100 rounded-[20px] relative"
-                    >
-                      {row.isCurrent && (
-                        <span className="absolute top-4 right-4 bg-blue-50 text-[11px] font-bold text-[#4B80EB] px-2 py-0.5 rounded-full">
-                          현재 기기
-                        </span>
-                      )}
-                      <div className="flex items-center gap-3">
-                        <div className="text-2xl bg-white w-9 h-9 flex items-center justify-center rounded-full shadow-xs border border-neutral-100">
-                          <Smartphone className="w-5 h-5 text-neutral-500" />
-                        </div>
-                        <div>
-                          <p className="text-[14px] font-bold text-neutral-800">{row.device} ({row.os})</p>
-                          <div className="flex items-center gap-1.5 mt-1 text-[12px] text-neutral-400 font-medium">
-                            <span>{row.ip}</span>
-                            <span className="w-1 h-1 bg-neutral-300 rounded-full" />
-                            <span>{row.location}</span>
-                          </div>
-                          <p className="text-[11px] text-neutral-400 font-medium mt-1">{row.date}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <button 
-                  onClick={closeSheet}
-                  className="w-full bg-neutral-900 text-white font-bold py-4 rounded-[16px] hover:bg-neutral-800 transition cursor-pointer"
-                >
-                  닫기
-                </button>
-              </div>
-            )}
 
             {/* 6. ACCOUNT RESET CONFIRMATION */}
             {activeSheet === "reset_confirm" && (
@@ -640,32 +463,29 @@ export function MypageSettings() {
                 </div>
 
                 <div className="bg-red-50/50 border border-red-100 rounded-[20px] p-5 text-left text-neutral-800">
-                  <p className="text-sm font-bold text-red-600 mb-2.5">초기화하면 다음 항목이 삭제됩니다</p>
+                  <p className="text-sm font-bold text-red-600 mb-2.5">초기화하면 다음과 같이 처리됩니다</p>
                   <ul className="space-y-2 text-[13px] font-semibold text-neutral-600 pl-1">
                     <li className="flex items-center gap-2">
-                      <span className="text-red-400">•</span> 보유 중인 모든 주식
+                      <span className="text-red-400">•</span> 기본 계좌 잔액이 0원으로 초기화됩니다
                     </li>
                     <li className="flex items-center gap-2">
-                      <span className="text-red-400">•</span> 예수금 잔액 (기본 시드로 복구)
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <span className="text-red-400">•</span> 미체결 주문 내역
+                      <span className="text-red-400">•</span> 오픈뱅킹 계좌 인증이 해제되어, 시드머니를 다시 받으려면 계좌 인증부터 다시 진행해야 합니다
                     </li>
                   </ul>
                   <p className="text-[12px] text-red-500/80 mt-3 font-bold">⚠️ 이 작업은 결과를 절대 되돌릴 수 없어요.</p>
                 </div>
 
                 <div className="flex flex-col gap-2.5">
-                  <button 
-                    onClick={() => {
-                      localStorage.removeItem("mock_account_linked");
-                      localStorage.removeItem("mock_account_linked_amount");
-                      localStorage.removeItem("mock_account_bank");
-                      localStorage.removeItem("mock_account_number");
-                      localStorage.setItem("mock_account_balance", "42500000");
-                      window.dispatchEvent(new Event("mock-account-update"));
-                      triggerNotification("모의투자 자금이 초기화되었습니다.");
-                      closeSheet();
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.post("/users/me/reset-seed-money");
+                        setAccountLinked(false);
+                        triggerNotification("모의투자 자금이 초기화되었습니다. 계좌 인증을 다시 진행해주세요.");
+                        closeSheet();
+                      } catch (error: any) {
+                        triggerNotification(error.response?.data?.message ?? "초기화에 실패했습니다.");
+                      }
                     }}
                     className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-4 rounded-[16px] transition-all cursor-pointer"
                   >
@@ -957,56 +777,42 @@ export function MypageSettings() {
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            {/* Row 2 — 연동된 소셜 계정 */}
-            <div 
-              onClick={() => setActiveSheet("social_link")}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🔗</span>
-                <span className="text-[15px] font-bold text-neutral-800">연동된 소셜 계정</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {isGoogleConnected && (
-                  <span className="bg-neutral-100 text-[11px] font-bold text-neutral-600 px-2 py-0.5 rounded-full">G Google</span>
-                )}
-                {isKakaoConnected && (
-                  <span className="bg-[#FEE500]/25 text-[11px] font-bold text-neutral-700 px-2 py-0.5 rounded-full">K 카카오</span>
-                )}
-                <ChevronRight className="w-5 h-5 text-neutral-300" />
-              </div>
-            </div>
+          </div>
+        </div>
 
-            {/* Row 3 — 이메일 변경 */}
-            <div 
-              onClick={() => {
-                setTempEmail(email);
-                setActiveSheet("email_change");
-              }}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">✉️</span>
-                <div>
-                  <span className="text-[15px] font-bold text-neutral-800 block">이메일 변경</span>
-                  <span className="text-[11px] font-medium text-neutral-400 mt-0.5">{email}</span>
+        {/* SECTION: 프로필 공개 설정 */}
+        <div className="mb-6">
+          <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">프로필 공개 설정</div>
+          <p className="text-[11px] text-neutral-400 px-1 mb-2">다른 사용자에게 내 프로필의 어떤 정보를 보여줄지 설정할 수 있어요</p>
+          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
+            {[
+              { key: "showReturnRate" as const, icon: "📈", label: "수익률", desc: "내 프로필의 누적 수익률" },
+              { key: "showPortfolio" as const, icon: "🥧", label: "포트폴리오", desc: "보유 종목 구성" },
+              { key: "showTrades" as const, icon: "📋", label: "거래내역", desc: "최근 매수·매도 기록" },
+              { key: "showStats" as const, icon: "📊", label: "투자 통계", desc: "승률 등 투자 지표" },
+              { key: "showCompetitions" as const, icon: "🏆", label: "대회 이력", desc: "참가한 대회와 순위" },
+            ].map((item) => (
+              <div key={item.key} className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3 text-left">
+                  <span className="text-xl">{item.icon}</span>
+                  <div>
+                    <span className="text-[15px] font-bold text-neutral-800 flex items-center gap-1.5">
+                      {item.label}
+                      {item.key !== "showCompetitions" && (
+                        <span className="text-[9px] font-bold text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full">준비중</span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-medium text-neutral-400 mt-0.5">{item.desc}</span>
+                  </div>
                 </div>
+                <button
+                  onClick={() => handleToggleSetting(item.key)}
+                  className={`w-12 h-7 rounded-full p-1 transition-all duration-300 outline-none flex items-center ${profileSettings[item.key] ? 'bg-[#4B80EB] justify-end' : 'bg-neutral-200 justify-start'}`}
+                >
+                  <div className="w-5 h-5 bg-white rounded-full shadow-md" />
+                </button>
               </div>
-              <ChevronRight className="w-5 h-5 text-neutral-300" />
-            </div>
-
-            {/* Row 4 — 로그인 기록 */}
-            <div 
-              onClick={() => setActiveSheet("login_history")}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📱</span>
-                <span className="text-[15px] font-bold text-neutral-800">로그인 기록</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-neutral-300" />
-            </div>
-
+            ))}
           </div>
         </div>
 
@@ -1124,23 +930,6 @@ export function MypageSettings() {
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">투자 설정</div>
           <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
-            
-            {/* ROW 1 — 주문 확인 팝업 */}
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3 text-left">
-                <span className="text-xl">✅</span>
-                <div>
-                  <span className="text-[15px] font-bold text-neutral-800 block">주문 전 확인 팝업</span>
-                  <span className="text-[11px] font-medium text-neutral-400 mt-0.5">매수·매도 전 확인창 표시</span>
-                </div>
-              </div>
-              <button 
-                onClick={() => setConfirmOrderPopup(!confirmOrderPopup)}
-                className={`w-12 h-7 rounded-full p-1 transition-all duration-300 outline-none flex items-center ${confirmOrderPopup ? 'bg-[#4B80EB] justify-end' : 'bg-neutral-200 justify-start'}`}
-              >
-                <div className="w-5 h-5 bg-white rounded-full shadow-md" />
-              </button>
-            </div>
 
             {/* ROW 2 — 모의투자 자금 초기화 */}
             <div 
@@ -1158,11 +947,8 @@ export function MypageSettings() {
             </div>
 
             {/* ROW 3 — 계좌 연동 관리 */}
-            <div 
-              onClick={() => {
-                const linked = localStorage.getItem("mock_account_linked") === "true";
-                navigate(linked ? "/account-link/recharge/confirm" : "/account-link/intro");
-              }}
+            <div
+              onClick={() => navigate(accountLinked ? "/account-link/recharge/confirm" : "/account-link/intro")}
               className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition text-left"
             >
               <div className="flex items-center gap-3">
@@ -1170,7 +956,7 @@ export function MypageSettings() {
                 <div>
                   <span className="text-[15px] font-bold text-neutral-800 block">계좌 연동 관리</span>
                   <span className="text-[11px] font-bold text-neutral-400 mt-0.5">
-                    {accountLinked ? `연동됨: ${localStorage.getItem("mock_account_bank") || "신한은행"} ${localStorage.getItem("mock_account_number") || "110-***-******"}` : "미연동"}
+                    {accountLinked ? "연동됨" : "미연동"}
                   </span>
                 </div>
               </div>
