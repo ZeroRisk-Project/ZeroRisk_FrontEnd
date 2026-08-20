@@ -105,18 +105,19 @@ interface PostItem {
   status: "ACTIVE" | "DELETED";
 }
 
-const INITIAL_USER_LOGS = [
-  { id: 101, date: "2026-06-16 10:39:41", userId: 2, type: "매수", target: "투자왕김철수", content: "삼성전자 100주 매수 체결 (체결가 75,400원)", ip: "211.45.195.42" },
-  { id: 102, date: "2026-06-16 10:35:10", userId: 3, type: "매도", target: "단타머신", content: "SK하이닉스 50주 대기 주문 체결 (체결가 188,400원)", ip: "175.210.12.98" },
-  { id: 103, date: "2026-06-16 10:24:05", userId: 5, type: "게시글", target: "김코딩", content: "신규 게시글 작성: '오늘 장 흐름 보시나요? 코스피 떡상각..'", ip: "14.32.110.59" },
-  { id: 104, date: "2026-06-16 10:19:33", userId: 7, type: "댓글", target: "불마켓코리아", content: "댓글 등록: '삼전은 역시 줍줍이 진리죠 ㅎㅎ'", ip: "180.66.45.101" },
-  { id: 105, date: "2026-06-16 09:55:12", userId: 2, type: "매도", target: "투자왕김철수", content: "현대차 40주 시장가 매도 체결 (체결가 242,000원)", ip: "211.45.195.42" },
-  { id: 106, date: "2026-06-15 15:30:10", userId: 2, type: "대화참가", target: "투자왕김철수", content: "제1회 제로리스크 대학생 실전 투자 대회 참가 등록", ip: "211.45.195.42" },
-  { id: 107, date: "2026-06-15 20:45:11", userId: 3, type: "게시글", target: "단타머신", content: "게시글 작성: '오늘 단타 타점 공유합시다'", ip: "175.210.12.98" },
-  { id: 108, date: "2026-06-16 11:05:00", userId: 5, type: "댓글", target: "김코딩", content: "댓글 등록: '크.. 드디어 떡상인가요!'", ip: "14.32.110.59" },
-  { id: 109, date: "2026-06-10 09:00:15", userId: 5, type: "대회참가", target: "김코딩", content: "대학생 모의투자 챔피언십 참가 신청 완료", ip: "14.32.110.59" },
-  { id: 110, date: "2026-06-15 14:10:25", userId: 7, type: "매수", target: "불마켓코리아", content: "삼성전자 250주 신규 진입 매수 완료", ip: "180.66.45.101" },
-];
+const ACTIVITY_LABELS: Record<string, { label: string; color: string }> = {
+  LOGIN: { label: "로그인", color: "bg-[#4A5DF9]/11 text-[#4A5DF9]" },
+  SIGNUP: { label: "회원가입", color: "bg-[#34C759]/11 text-[#34C759]" },
+  UPDATE_PROFILE: { label: "프로필 수정", color: "bg-[#FF9500]/11 text-[#FF9500]" },
+  CHANGE_PASSWORD: { label: "비밀번호 변경", color: "bg-[#FF9500]/11 text-[#FF9500]" },
+  WITHDRAW: { label: "회원 탈퇴", color: "bg-[#FF3B30]/11 text-[#FF3B30]" },
+  OPENBANKING_AUTH: { label: "계좌 인증", color: "bg-[#30D158]/11 text-[#30D158]" },
+  CHARGE: { label: "시드머니 충전", color: "bg-[#30D158]/11 text-[#30D158]" },
+  RESET_SEED_MONEY: { label: "자금 초기화", color: "bg-[#8E8E93]/11 text-[#8E8E93]" },
+  JOIN_COMPETITION: { label: "대회 참가", color: "bg-[#007AFF]/11 text-[#007AFF]" },
+  FOLLOW: { label: "팔로우", color: "bg-[#4A5DF9]/11 text-[#4A5DF9]" },
+  UNFOLLOW: { label: "언팔로우", color: "bg-[#8E8E93]/11 text-[#8E8E93]" },
+};
 
 const INITIAL_POSTS: PostItem[] = [
   { id: 1, author: "투자왕김철수", title: "삼성전자 물타도 될까요? 의견좀 주세요", content: "현재 평단가 8만 3천원인데 물타서 평단가 낮추는 시점인지 궁금합니다.", date: "2026-06-16 10:24", views: 142, likes: 23, commentsCount: 15, status: "ACTIVE" },
@@ -240,22 +241,23 @@ export function Admin() {
     fetchActionLogs();
   }, []);
 
-  // User Actions Logs State
-  const [userLogs, setUserLogs] = useState<any[]>(() => {
-    const saved = localStorage.getItem("user_activity_logs");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
-    return INITIAL_USER_LOGS;
-  });
+  // User Activity Logs (activityModal) State
+  const [activityLogs, setActivityLogs] = useState<any[]>([]);
+  const [activityLogsLoading, setActivityLogsLoading] = useState(false);
 
-  useEffect(() => {
-    localStorage.setItem("user_activity_logs", JSON.stringify(userLogs));
-  }, [userLogs]);
+  const openActivityModal = async (user: UserItem | null) => {
+    setActivityModal({ isOpen: true, user });
+    setActivityLogsLoading(true);
+    try {
+      const response = await api.get(`/admin/users/${user?.id}/activity-logs`);
+      setActivityLogs(response.data);
+    } catch (error) {
+      console.error(error);
+      setActivityLogs([]);
+    } finally {
+      setActivityLogsLoading(false);
+    }
+  };
 
   // Competition Participants State
   const [compParticipants, setCompParticipants] = useState<{ [compId: number]: any[] }>({});
@@ -392,7 +394,6 @@ export function Admin() {
 
   // Activity Log Modal
   const [activityModal, setActivityModal] = useState<{ isOpen: boolean; user: UserItem | null }>({ isOpen: false, user: null });
-  const [logFilter, setLogFilter] = useState<string>("전체");
 
   // 2. Reports State Actions
   const [reportFilterTab, setReportFilterTab] = useState<"전체" | "PENDING" | "PROCESSED" | "REJECTED">("전체");
@@ -1843,8 +1844,8 @@ export function Admin() {
             </button>
 
             <div className="space-y-1">
-              <h2 className="text-[19px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}님의 실시간 활동 로그</h2>
-              <p className="text-[#8E8E93] text-[13px]">선택된 회원이 수행한 시스템상 주요 변경 및 매매 전파 내역입니다</p>
+              <h2 className="text-[19px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}님의 활동 로그</h2>
+              <p className="text-[#8E8E93] text-[13px]">선택된 회원이 수행한 로그인·가입·계정 변경 등 주요 활동 내역입니다</p>
             </div>
 
             {/* Profile banner */}
@@ -1862,76 +1863,32 @@ export function Admin() {
               </div>
             </div>
 
-            {/* Filter Tabs in log modal */}
-            <div className="flex gap-1.5 border-b border-[#E5E5EA] pb-1 overflow-x-auto">
-              {["전체", "매수", "매도", "게시글", "댓글", "대회참가", "대회퇴장", "기타"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setLogFilter(tab)}
-                  className={cn(
-                    "pb-1.5 px-2 text-[12.5px] font-bold transition-all relative border-b-2 whitespace-nowrap cursor-pointer",
-                    logFilter === tab
-                      ? "border-[#4A5DF9] text-[#4A5DF9]"
-                      : "border-transparent text-[#8E8E93] hover:text-[#1C1C1E]"
-                  )}
-                >
-                  {tab}
-                </button>
-              ))}
-            </div>
-
-            {/* Scrollable Log table */}
-            <div className="max-h-[300px] overflow-y-auto border border-[#E5E5EA] rounded-[12px] bg-[#F2F2F7]/30">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-[#F2F2F7] text-xs font-bold text-[#8E8E93] border-b border-[#E5E5EA] sticky top-0">
-                    <th className="py-2.5 px-4 w-40 whitespace-nowrap">일시</th>
-                    <th className="py-2.5 px-4 w-24 whitespace-nowrap">활동유형</th>
-                    <th className="py-2.5 px-4 whitespace-nowrap">내용</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E5E5EA]">
-                  {userLogs
-                    .filter((log) => {
-                      const isOwner = log.userId === activityModal.user.id || log.target === activityModal.user.nickname;
-                      if (!isOwner) return false;
-                      if (logFilter === "전체") return true;
-                      return log.type === logFilter;
-                    })
-                    .map((log) => (
-                      <tr key={log.id} className="hover:bg-[#FAFAFA] transition text-xs font-semibold">
-                        <td className="py-3 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">{log.date}</td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-[12px] text-[10.5px] font-black uppercase inline-block",
-                            log.type === "매수" && "bg-[#FF3B30]/10 text-[#FF3B30]",
-                            log.type === "매도" && "bg-[#007AFF]/10 text-[#007AFF]",
-                            log.type === "게시글" && "bg-[#BF5AF2]/10 text-[#BF5AF2]",
-                            log.type === "댓글" && "bg-[#FF9500]/10 text-[#FF9500]",
-                            log.type === "대회참가" && "bg-[#34C759]/10 text-[#34C759]",
-                            log.type === "대회퇴장" && "bg-[#FF2D55]/10 text-[#FF2D55]",
-                            log.type === "기타" && "bg-[#8E8E93]/10 text-[#8E8E93]"
-                          )}>
-                            {log.type}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-[#121212] font-semibold leading-relaxed">{log.content}</td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-
-              {userLogs.filter((log) => {
-                const isOwner = log.userId === activityModal.user.id || log.target === activityModal.user.nickname;
-                if (!isOwner) return false;
-                if (logFilter === "전체") return true;
-                return log.type === logFilter;
-              }).length === 0 && (
-                <div className="py-12 text-center text-[#8E8E93] text-[13px] font-bold">
-                  이 분류의 활동 로그 기록이 비어있습니다.
-                </div>
-              )}
-            </div>
+            {/* Activity log list */}
+            {activityLogsLoading ? (
+              <p className="text-center text-sm text-neutral-400 py-8">불러오는 중...</p>
+            ) : activityLogs.length === 0 ? (
+              <p className="text-center text-sm text-neutral-400 py-8">활동 기록이 없습니다</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {activityLogs.map((log, idx) => {
+                  const meta = ACTIVITY_LABELS[log.actionType] ?? { label: log.actionType, color: "bg-neutral-100 text-neutral-500" };
+                  return (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-neutral-50 rounded-xl">
+                      <div className="flex items-center gap-2">
+                        <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold", meta.color)}>
+                          {meta.label}
+                        </span>
+                        <span className="text-[13px] text-neutral-700">{log.detail}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[11px] text-neutral-400">{log.createdAt?.slice(0, 16).replace("T", " ")}</p>
+                        <p className="text-[10px] text-neutral-300">{log.ipAddress ?? "-"}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <Button
@@ -2041,7 +1998,7 @@ export function Admin() {
         >
           <button
             onClick={() => {
-              setActivityModal({ isOpen: true, user: contextMenu.user });
+              openActivityModal(contextMenu.user);
               setContextMenu({ isOpen: false, x: 0, y: 0, user: null });
             }}
             className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[13.5px] font-bold text-[#4A5DF9] hover:bg-[#4A5DF9]/10 rounded-[8px] transition cursor-pointer"
