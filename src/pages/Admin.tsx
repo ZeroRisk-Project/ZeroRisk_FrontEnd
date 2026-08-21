@@ -129,7 +129,7 @@ const INITIAL_POSTS: PostItem[] = [
 
 export function Admin() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices">("dashboard");
   
   // App States representing mockup database
   const [users, setUsers] = useState<any[]>([]);
@@ -240,6 +240,111 @@ export function Admin() {
   useEffect(() => {
     fetchActionLogs();
   }, []);
+
+  // Announcements State
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const response = await api.get("/announcements");
+      setAnnouncements(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchAnnouncements();
+  }, []);
+
+  const [announcementModal, setAnnouncementModal] = useState<{ isOpen: boolean; announcement: any | null }>({ isOpen: false, announcement: null });
+  const [announcementForm, setAnnouncementForm] = useState({ tag: "GUIDE", title: "", content: "", isImportant: false });
+
+  const openAnnouncementCreate = () => {
+    setAnnouncementForm({ tag: "GUIDE", title: "", content: "", isImportant: false });
+    setAnnouncementModal({ isOpen: true, announcement: null });
+  };
+
+  const openAnnouncementEdit = (announcement: any) => {
+    setAnnouncementForm({
+      tag: announcement.tag,
+      title: announcement.title,
+      content: announcement.content,
+      isImportant: announcement.isImportant,
+    });
+    setAnnouncementModal({ isOpen: true, announcement });
+  };
+
+  const handleAnnouncementSubmit = async () => {
+    try {
+      if (announcementModal.announcement) {
+        await api.put(`/admin/announcements/${announcementModal.announcement.id}`, announcementForm);
+        triggerToast("공지사항이 수정되었습니다.");
+      } else {
+        await api.post("/admin/announcements", announcementForm);
+        triggerToast("공지사항이 등록되었습니다.");
+      }
+      await fetchAnnouncements();
+      setAnnouncementModal({ isOpen: false, announcement: null });
+    } catch (error: any) {
+      triggerToast(`⚠️ ${error.response?.data?.message ?? "저장에 실패했습니다."}`);
+    }
+  };
+
+  const handleAnnouncementDelete = async (id: number) => {
+    try {
+      await api.delete(`/admin/announcements/${id}`);
+      await fetchAnnouncements();
+      triggerToast("공지사항이 삭제되었습니다.");
+    } catch (error: any) {
+      triggerToast(`⚠️ ${error.response?.data?.message ?? "삭제에 실패했습니다."}`);
+    }
+  };
+
+  // System Notices State
+  const [systemNotices, setSystemNotices] = useState<any[]>([]);
+
+  const fetchSystemNotices = async () => {
+    try {
+      const response = await api.get("/admin/system-notices");
+      setSystemNotices(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchSystemNotices();
+  }, []);
+
+  const [systemNoticeModal, setSystemNoticeModal] = useState(false);
+  const [systemNoticeForm, setSystemNoticeForm] = useState({ severity: "MAINTENANCE", title: "", message: "" });
+
+  const openSystemNoticeCreate = () => {
+    setSystemNoticeForm({ severity: "MAINTENANCE", title: "", message: "" });
+    setSystemNoticeModal(true);
+  };
+
+  const handleSystemNoticeSubmit = async () => {
+    try {
+      await api.post("/admin/system-notices", systemNoticeForm);
+      triggerToast("긴급 알림이 활성화되었습니다.");
+      await fetchSystemNotices();
+      setSystemNoticeModal(false);
+    } catch (error: any) {
+      triggerToast(`⚠️ ${error.response?.data?.message ?? "등록에 실패했습니다."}`);
+    }
+  };
+
+  const handleSystemNoticeDeactivate = async (id: number) => {
+    try {
+      await api.patch(`/admin/system-notices/${id}/deactivate`);
+      await fetchSystemNotices();
+      triggerToast("긴급 알림이 종료되었습니다.");
+    } catch (error: any) {
+      triggerToast(`⚠️ ${error.response?.data?.message ?? "종료에 실패했습니다."}`);
+    }
+  };
 
   // User Activity Logs (activityModal) State
   const [activityLogs, setActivityLogs] = useState<any[]>([]);
@@ -432,6 +537,18 @@ export function Admin() {
     ANSWER: "문의답변",
   };
 
+  const ANNOUNCEMENT_TAG_LABELS: Record<string, string> = {
+    EVENT: "이벤트",
+    GUIDE: "안내",
+    MAINTENANCE: "점검",
+  };
+
+  const SYSTEM_NOTICE_SEVERITY_LABELS: Record<string, string> = {
+    MAINTENANCE: "점검",
+    INCIDENT: "장애",
+    NOTICE: "알림",
+  };
+
   // Simulate Load effect when moving tabs
   useEffect(() => {
     setLoading(true);
@@ -515,6 +632,8 @@ export function Admin() {
               { id: "inquiries", label: "문의 관리", icon: "💬", badge: totalInquiriesCount, badgeColor: "bg-[#FF9500]" },
               { id: "competitions", label: "대회 관리", icon: "🏆" },
               { id: "logs", label: "로그 모니터링", icon: "📋" },
+              { id: "announcements", label: "공지사항", icon: "📢" },
+              { id: "system-notices", label: "긴급 알림", icon: "🚨" },
             ].map((item) => {
               const isActive = activeTab === item.id;
               return (
@@ -1641,6 +1760,184 @@ export function Admin() {
               </div>
             )}
 
+            {/* ANNOUNCEMENTS VIEW */}
+            {activeTab === "announcements" && (
+              <div id="admin-announcements-panel" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-[24px] font-bold text-[#1C1C1E]">공지사항</h1>
+                    <p className="text-[#8E8E93] text-[14px]">서비스 공지사항 게시판을 관리합니다</p>
+                  </div>
+                  <Button
+                    onClick={openAnnouncementCreate}
+                    className="bg-[#4A5DF9] hover:bg-[#4A5DF9]/90 text-white rounded-[12px] text-[13px] font-bold px-4"
+                  >
+                    공지사항 등록
+                  </Button>
+                </div>
+
+                <div className="bg-white rounded-[16px] border border-[#E5E5EA] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-[#F2F2F7] text-xs font-bold text-[#8E8E93] border-b border-[#E5E5EA]">
+                          <th className="py-3.5 px-4 w-20 text-center whitespace-nowrap">태그</th>
+                          <th className="py-3.5 px-4 whitespace-nowrap">제목</th>
+                          <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">중요</th>
+                          <th className="py-3.5 px-4 w-32 text-center whitespace-nowrap">등록일</th>
+                          <th className="py-3.5 px-4 w-40 text-center whitespace-nowrap">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#E5E5EA]">
+                        {announcements.map((announcement) => (
+                          <tr key={announcement.id} className="h-[56px] hover:bg-[#FAFAFA] transition-colors text-sm">
+                            <td className="py-2 px-4 text-center whitespace-nowrap">
+                              <span className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block bg-[#4A5DF9]/11 text-[#4A5DF9]">
+                                {ANNOUNCEMENT_TAG_LABELS[announcement.tag] ?? announcement.tag}
+                              </span>
+                            </td>
+                            <td className="py-2 px-4 font-bold text-[#1C1C1E]">{announcement.title}</td>
+                            <td className="py-2 px-4 text-center whitespace-nowrap">
+                              {announcement.isImportant ? (
+                                <span className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block bg-[#FF3B30]/11 text-[#FF3B30]">중요</span>
+                              ) : (
+                                <span className="text-[#8E8E93] text-xs">-</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">
+                              {announcement.createdAt ? announcement.createdAt.slice(0, 10) : "-"}
+                            </td>
+                            <td className="py-2 px-4 text-center whitespace-nowrap">
+                              <div className="flex gap-2 justify-center">
+                                <button
+                                  onClick={() => openAnnouncementEdit(announcement)}
+                                  className="px-2.5 py-1.5 bg-[#F2F2F7] text-[#8E8E93] hover:text-[#1C1C1E] text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => handleAnnouncementDelete(announcement.id)}
+                                  className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                >
+                                  삭제
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {announcements.length === 0 && (
+                          <tr>
+                            <td colSpan={5} className="py-12 text-center text-[#8E8E93] text-[13px] font-bold">
+                              등록된 공지사항이 없습니다.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SYSTEM NOTICES VIEW */}
+            {activeTab === "system-notices" && (
+              <div id="admin-system-notices-panel" className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h1 className="text-[24px] font-bold text-[#1C1C1E]">긴급 알림</h1>
+                    <p className="text-[#8E8E93] text-[14px]">점검·장애 등 긴급 알림 팝업을 전체 페이지에 노출합니다</p>
+                  </div>
+                  <Button
+                    onClick={openSystemNoticeCreate}
+                    className="bg-[#FF3B30] hover:bg-[#FF3B30]/90 text-white rounded-[12px] text-[13px] font-bold px-4"
+                  >
+                    긴급 알림 등록
+                  </Button>
+                </div>
+
+                {/* 현재 활성화된 알림 */}
+                <div className="space-y-2">
+                  <h2 className="text-[15px] font-bold text-[#1C1C1E]">현재 활성화된 알림</h2>
+                  {systemNotices.filter((n) => n.isActive).length === 0 ? (
+                    <div className="bg-white rounded-[16px] border border-[#E5E5EA] py-8 text-center text-[#8E8E93] text-[13px] font-bold">
+                      현재 활성화된 알림이 없습니다.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {systemNotices.filter((n) => n.isActive).map((notice) => (
+                        <div key={notice.id} className="bg-white rounded-[16px] border border-[#E5E5EA] p-4 flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block shrink-0",
+                              notice.severity === "MAINTENANCE" && "bg-[#3182F6]/11 text-[#3182F6]",
+                              notice.severity === "INCIDENT" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                              notice.severity === "NOTICE" && "bg-[#4A5DF9]/11 text-[#4A5DF9]"
+                            )}>
+                              {SYSTEM_NOTICE_SEVERITY_LABELS[notice.severity] ?? notice.severity}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="font-bold text-[#1C1C1E] text-sm truncate">{notice.title}</p>
+                              <p className="text-[#8E8E93] text-xs truncate">{notice.message}</p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleSystemNoticeDeactivate(notice.id)}
+                            className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer shrink-0"
+                          >
+                            종료
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 과거 알림 이력 */}
+                <div className="space-y-2">
+                  <h2 className="text-[15px] font-bold text-[#1C1C1E]">과거 알림 이력</h2>
+                  <div className="bg-white rounded-[16px] border border-[#E5E5EA] overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="bg-[#F2F2F7] text-xs font-bold text-[#8E8E93] border-b border-[#E5E5EA]">
+                            <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">심각도</th>
+                            <th className="py-3.5 px-4 whitespace-nowrap">제목</th>
+                            <th className="py-3.5 px-4 w-24 text-center whitespace-nowrap">상태</th>
+                            <th className="py-3.5 px-4 w-32 text-center whitespace-nowrap">등록일</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E5E5EA]">
+                          {systemNotices.filter((n) => !n.isActive).map((notice) => (
+                            <tr key={notice.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm">
+                              <td className="py-2 px-4 text-center whitespace-nowrap">
+                                <span className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block bg-[#8E8E93]/11 text-[#8E8E93]">
+                                  {SYSTEM_NOTICE_SEVERITY_LABELS[notice.severity] ?? notice.severity}
+                                </span>
+                              </td>
+                              <td className="py-2 px-4 font-bold text-[#1C1C1E]">{notice.title}</td>
+                              <td className="py-2 px-4 text-center whitespace-nowrap">
+                                <span className="text-[#8E8E93] text-xs font-bold">종료됨</span>
+                              </td>
+                              <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums whitespace-nowrap">
+                                {notice.createdAt ? notice.createdAt.slice(0, 10) : "-"}
+                              </td>
+                            </tr>
+                          ))}
+                          {systemNotices.filter((n) => !n.isActive).length === 0 && (
+                            <tr>
+                              <td colSpan={4} className="py-12 text-center text-[#8E8E93] text-[13px] font-bold">
+                                과거 알림 이력이 없습니다.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
       </main>
@@ -2242,6 +2539,162 @@ export function Admin() {
                 className="py-3 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] text-[13px] font-bold rounded-[12px] px-5 transition cursor-pointer"
               >
                 닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ANNOUNCEMENT CREATE/EDIT MODAL */}
+      {announcementModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[20px] w-full max-w-[520px] p-8 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-5 relative max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setAnnouncementModal({ isOpen: false, announcement: null })}
+              className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <h2 className="text-[19px] font-bold text-[#1C1C1E]">
+                {announcementModal.announcement ? "공지사항 수정" : "공지사항 등록"}
+              </h2>
+              <p className="text-[#8E8E93] text-[13px]">서비스 공지사항 게시판에 노출됩니다</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">태그</label>
+                <select
+                  value={announcementForm.tag}
+                  onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, tag: e.target.value }))}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] font-bold outline-none focus:bg-white focus:border-[#4A5DF9] transition-all"
+                >
+                  <option value="EVENT">이벤트</option>
+                  <option value="GUIDE">안내</option>
+                  <option value="MAINTENANCE">점검</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">제목</label>
+                <input
+                  type="text"
+                  value={announcementForm.title}
+                  onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none focus:bg-white focus:border-[#4A5DF9] transition-all"
+                  placeholder="공지 제목을 입력하세요"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">내용</label>
+                <textarea
+                  value={announcementForm.content}
+                  onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, content: e.target.value }))}
+                  rows={6}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none focus:bg-white focus:border-[#4A5DF9] transition-all resize-none"
+                  placeholder="공지 내용을 입력하세요"
+                />
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer w-fit">
+                <input
+                  type="checkbox"
+                  checked={announcementForm.isImportant}
+                  onChange={(e) => setAnnouncementForm((prev) => ({ ...prev, isImportant: e.target.checked }))}
+                  className="w-4 h-4 accent-[#4A5DF9]"
+                />
+                <span className="text-[13px] font-bold text-[#1C1C1E]">중요 공지로 표시</span>
+              </label>
+            </div>
+
+            <div className="flex gap-2.5 mt-1 shrink-0">
+              <Button
+                onClick={handleAnnouncementSubmit}
+                disabled={!announcementForm.title.trim() || !announcementForm.content.trim()}
+                className="flex-1 bg-[#4A5DF9] hover:bg-[#4A5DF9]/90 text-white rounded-[12px] text-[13px] font-bold disabled:opacity-40"
+              >
+                {announcementModal.announcement ? "수정 완료" : "등록"}
+              </Button>
+              <button
+                onClick={() => setAnnouncementModal({ isOpen: false, announcement: null })}
+                className="py-3 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] text-[13px] font-bold rounded-[12px] px-5 transition cursor-pointer"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SYSTEM NOTICE CREATE MODAL */}
+      {systemNoticeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[20px] w-full max-w-[480px] p-8 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-5 relative">
+            <button
+              onClick={() => setSystemNoticeModal(false)}
+              className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <h2 className="text-[19px] font-bold text-[#1C1C1E]">긴급 알림 등록</h2>
+              <p className="text-[#8E8E93] text-[13px]">등록 즉시 모든 페이지에 팝업으로 노출됩니다</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">심각도</label>
+                <select
+                  value={systemNoticeForm.severity}
+                  onChange={(e) => setSystemNoticeForm((prev) => ({ ...prev, severity: e.target.value }))}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] font-bold outline-none focus:bg-white focus:border-[#FF3B30] transition-all"
+                >
+                  <option value="MAINTENANCE">점검</option>
+                  <option value="INCIDENT">장애</option>
+                  <option value="NOTICE">알림</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">제목</label>
+                <input
+                  type="text"
+                  value={systemNoticeForm.title}
+                  onChange={(e) => setSystemNoticeForm((prev) => ({ ...prev, title: e.target.value }))}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none focus:bg-white focus:border-[#FF3B30] transition-all"
+                  placeholder="예: 서버 점검 안내"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[12px] font-bold text-[#8E8E93]">메시지</label>
+                <textarea
+                  value={systemNoticeForm.message}
+                  onChange={(e) => setSystemNoticeForm((prev) => ({ ...prev, message: e.target.value }))}
+                  rows={4}
+                  className="w-full bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[13.5px] outline-none focus:bg-white focus:border-[#FF3B30] transition-all resize-none"
+                  placeholder="사용자에게 보여줄 안내 메시지를 입력하세요"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2.5 mt-1 shrink-0">
+              <Button
+                onClick={handleSystemNoticeSubmit}
+                disabled={!systemNoticeForm.title.trim() || !systemNoticeForm.message.trim()}
+                className="flex-1 bg-[#FF3B30] hover:bg-[#FF3B30]/90 text-white rounded-[12px] text-[13px] font-bold disabled:opacity-40"
+              >
+                등록 및 활성화
+              </Button>
+              <button
+                onClick={() => setSystemNoticeModal(false)}
+                className="py-3 bg-[#F2F2F7] hover:bg-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] text-[13px] font-bold rounded-[12px] px-5 transition cursor-pointer"
+              >
+                취소
               </button>
             </div>
           </div>
