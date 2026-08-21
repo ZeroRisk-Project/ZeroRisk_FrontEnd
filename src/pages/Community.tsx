@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { getPosts, PostResponse } from "@/src/api/posts"; // 실제 경로로 수정
 import { Card, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
@@ -15,11 +16,40 @@ import {
 } from "lucide-react";
 import { cn } from "@/src/lib/utils";
 
+// 수정 후
 export function Community() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("자유게시판");
   const [searchQuery, setSearchQuery] = useState("");
   const [likedProfits, setLikedProfits] = useState<Record<number, boolean>>({});
+  const [freePosts, setFreePosts] = useState<PostResponse[]>([]);
+  const [noticePosts, setNoticePosts] = useState<PostResponse[]>([]);
+
+  useEffect(() => {
+    if (activeTab !== "자유게시판") {
+      return;
+    }
+
+    // 공지(NOTICE)와 일반 자유글(FREE)을 따로 조회해서 공지를 목록 상단에 얹는 구조
+    Promise.all([getPosts("NOTICE", 0, 5), getPosts("FREE", 0, 20)])
+      .then(([noticeRes, freeRes]) => {
+        setNoticePosts(noticeRes.content);
+        setFreePosts(freeRes.content);
+      })
+      .catch((error) => {
+        console.error("게시글 목록 조회 실패", error);
+      });
+  }, [activeTab]);
+
+  // 백엔드가 내려주는 createdAt(ISO 문자열)을 "N분 전"/"N시간 전"/"N일 전"으로 변환
+  const formatRelativeTime = (isoString: string) => {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}시간 전`;
+    return `${Math.floor(diffMinutes / 1440)}일 전`;
+  };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -82,56 +112,33 @@ export function Community() {
                     </div>
                   </div>
                 </div>
+                // 수정 후
                 {[
-                  {
-                    id: 0,
-                    title: "제로리스크 커뮤니티 기본 이용 규칙 안내",
-                    author: "운영자",
+                  ...noticePosts.map((p) => ({
+                    id: p.id,
+                    title: p.title,
+                    author: p.authorNickname,
                     level: "GM",
-                    time: "1일 전",
-                    views: 1420,
-                    likes: 124,
-                    comments: 5,
-                    tag: "공지",
+                    time: formatRelativeTime(p.createdAt),
+                    views: p.viewCount,
+                    likes: p.likeCount,
+                    comments: p.commentCount,
                     isNotice: true,
-                  },
-                  {
-                    id: 1,
-                    title: "삼성전자 오늘 진짜 가냐..?",
-                    author: "수익만보고감",
-                    level: "Lv.4",
-                    time: "10분 전",
-                    views: 245,
-                    likes: 12,
-                    comments: 24,
-                  },
-                  {
-                    id: 2,
-                    title: "포트폴리오 평가좀 해주세요",
-                    author: "주린이임",
-                    level: "Lv.2",
-                    time: "30분 전",
-                    views: 89,
-                    likes: 4,
-                    comments: 8,
-                  },
-                  {
-                    id: 3,
-                    title: "SK하이닉스 수익 인증합니다",
-                    author: "고수등장",
-                    level: "Lv.8",
-                    time: "1시간 전",
-                    views: 412,
-                    likes: 58,
-                    comments: 13,
-                  },
+                  })),
+                  ...freePosts.map((p) => ({
+                    id: p.id,
+                    title: p.title,
+                    author: p.authorNickname,
+                    level: `Lv.${p.authorLevel}`,
+                    time: formatRelativeTime(p.createdAt),
+                    views: p.viewCount,
+                    likes: p.likeCount,
+                    comments: p.commentCount,
+                    isNotice: false,
+                  })),
                 ]
                   .filter((post) =>
-                    searchQuery.trim() === ""
-                      ? true
-                      : post.title
-                          .toLowerCase()
-                          .includes(searchQuery.toLowerCase()),
+                    searchQuery.trim() === "" ? true : post.title.toLowerCase().includes(searchQuery.toLowerCase()),
                   )
                   .map((post, i) => (
                     <div
@@ -274,53 +281,53 @@ export function Community() {
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {[
-                    { name: "삼성전자", code: "005930", change: 1.2 },
-                    { name: "SK하이닉스", code: "000660", change: 3.4 },
-                    { name: "LG에너지솔루션", code: "373220", change: -1.5 },
-                    { name: "현대차", code: "005380", change: 0.8 },
-                    { name: "기아", code: "000270", change: 2.1 },
-                    { name: "NAVER", code: "035420", change: -0.5 },
-                    { name: "카카오", code: "035720", change: -1.2 },
-                    { name: "셀트리온", code: "068270", change: 4.5 },
-                  ]
-                    .filter((stock) =>
-                      searchQuery.trim() === ""
-                        ? true
-                        : stock.name
+                    {[
+                      { name: "삼성전자", code: "005930", change: 1.2 },
+                      { name: "SK하이닉스", code: "000660", change: 3.4 },
+                      { name: "LG에너지솔루션", code: "373220", change: -1.5 },
+                      { name: "현대차", code: "005380", change: 0.8 },
+                      { name: "기아", code: "000270", change: 2.1 },
+                      { name: "NAVER", code: "035420", change: -0.5 },
+                      { name: "카카오", code: "035720", change: -1.2 },
+                      { name: "셀트리온", code: "068270", change: 4.5 },
+                    ]
+                      .filter((stock) =>
+                        searchQuery.trim() === ""
+                          ? true
+                          : stock.name
                             .toLowerCase()
                             .includes(searchQuery.toLowerCase()),
-                    )
-                    .map((stock) => (
-                      <Link
-                        key={stock.code}
-                        to={`/community/stock/${stock.code}`}
-                      >
-                        <div className="bg-bg-main p-4 rounded-[16px] hover:border-text-secondary/50 border border-border-color transition-colors flex justify-between items-center group">
-                          <div>
-                            <div className="font-bold flex items-center gap-2 text-sm">
-                              {stock.name}
-                              <span
-                                className={cn(
-                                  "text-xs",
-                                  stock.change > 0 ? "text-up" : "text-down",
-                                )}
-                              >
-                                {stock.change > 0 ? "▲" : "▼"}{" "}
-                                {Math.abs(stock.change)}%
-                              </span>
+                      )
+                      .map((stock) => (
+                        <Link
+                          key={stock.code}
+                          to={`/community/stock/${stock.code}`}
+                        >
+                          <div className="bg-bg-main p-4 rounded-[16px] hover:border-text-secondary/50 border border-border-color transition-colors flex justify-between items-center group">
+                            <div>
+                              <div className="font-bold flex items-center gap-2 text-sm">
+                                {stock.name}
+                                <span
+                                  className={cn(
+                                    "text-xs",
+                                    stock.change > 0 ? "text-up" : "text-down",
+                                  )}
+                                >
+                                  {stock.change > 0 ? "▲" : "▼"}{" "}
+                                  {Math.abs(stock.change)}%
+                                </span>
+                              </div>
+                              <div className="text-xs text-text-secondary mt-1">
+                                실시간 토론방 참여하기
+                              </div>
                             </div>
-                            <div className="text-xs text-text-secondary mt-1">
-                              실시간 토론방 참여하기
+                            <div className="w-8 h-8 rounded-full bg-surface shrink-0 shadow-sm flex items-center justify-center text-text-secondary group-hover:bg-brand group-hover:text-white transition-colors">
+                              <MessageSquare className="w-4 h-4" />
                             </div>
                           </div>
-                          <div className="w-8 h-8 rounded-full bg-surface shrink-0 shadow-sm flex items-center justify-center text-text-secondary group-hover:bg-brand group-hover:text-white transition-colors">
-                            <MessageSquare className="w-4 h-4" />
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                </div>
+                        </Link>
+                      ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
