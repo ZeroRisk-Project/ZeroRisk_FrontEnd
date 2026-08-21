@@ -6,6 +6,7 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "@/src/components/layout/MainLayout";
+import { GlobalNoticePopup } from "@/src/components/GlobalNoticePopup";
 import { Home } from "@/src/pages/Home";
 import { Stocks } from "@/src/pages/Stocks";
 import { Mypage } from "@/src/pages/Mypage";
@@ -41,6 +42,7 @@ import { Privacy } from "@/src/pages/Privacy";
 export default function App() {
   return (
     <BrowserRouter>
+      <GlobalNoticePopup />
       <Routes>
         <Route path="/" element={<MainLayout />}>
           <Route index element={<Home />} />
