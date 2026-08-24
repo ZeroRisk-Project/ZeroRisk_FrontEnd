@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { 
-  Users, 
-  AlertTriangle, 
-  MessageSquare, 
-  Trophy, 
-  Terminal, 
-  Search, 
-  CheckCircle, 
-  X, 
-  ChevronLeft, 
-  ChevronRight, 
+import {
+  Users,
+  AlertTriangle,
+  MessageSquare,
+  Trophy,
+  Terminal,
+  Search,
+  CheckCircle,
+  X,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
   ArrowLeft,
   Calendar,
@@ -72,7 +72,7 @@ interface CompetitionItem {
   endDate: string;
   seedMoney: number;
   participants: number;
-  status: "SCHEDULED" | "ONGOING" | "ENDED";
+  status: "SCHEDULED" | "ONGOING" | "CALCULATING" | "ENDED";
   isOpen: boolean;
   isOfficial?: boolean;
   initialAmount?: number;
@@ -130,10 +130,24 @@ const INITIAL_POSTS: PostItem[] = [
 export function Admin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices">("dashboard");
-  
+
   // App States representing mockup database
   const [users, setUsers] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+
+  const [adminProfile, setAdminProfile] = useState<{ nickname: string; email: string; profileImageUrl: string | null }>({ nickname: "", email: "", profileImageUrl: null });
+
+  useEffect(() => {
+    const fetchAdminProfile = async () => {
+      try {
+        const response = await api.get("/users/me");
+        setAdminProfile({ nickname: response.data.nickname, email: response.data.email, profileImageUrl: response.data.profileImageUrl });
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchAdminProfile();
+  }, []);
 
   const fetchReports = async () => {
     try {
@@ -459,7 +473,7 @@ export function Admin() {
   useEffect(() => {
     fetchUsers();
   }, [debouncedSearchQuery, filterStatus]);
-  
+
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });
   const [suspensionTime, setSuspensionTime] = useState("-1");
@@ -598,7 +612,7 @@ export function Admin() {
           <div className="px-2 mb-6">
             <div className="flex items-center gap-2">
               <span className="text-[18px] font-bold text-[#4A5DF9]">제로리스크</span>
-              <span className="bg-[#4A5DF9]/10 text-[#4A5DF9] text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded">WEB</span>
+              <span className="bg-[#4A5DF9]/10 text-[#4A5DF9] text-[10px] uppercase tracking-wider font-extrabold px-1.5 py-0.5 rounded">ADMIN</span>
             </div>
             <p className="text-[#8E8E93] text-[12px] font-medium mt-1">관리자 페이지</p>
           </div>
@@ -608,18 +622,17 @@ export function Admin() {
           {/* Admin Profile Card */}
           <div className="bg-[#F2F2F7] rounded-[12px] p-3 flex items-center justify-between mb-6">
             <div className="flex items-center gap-2.5">
-              <img 
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100" 
-                alt="admin" 
+              <img
+                src={adminProfile.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                alt="admin"
                 className="flex-shrink-0 w-9 h-9 rounded-full object-cover border border-[#E5E5EA]"
                 referrerPolicy="no-referrer"
               />
               <div className="min-w-0">
-                <p className="text-[13px] font-semibold text-[#1C1C1E] truncate">관리자</p>
-                <p className="text-[11px] text-[#8E8E93] truncate">dog49226</p>
+                <p className="text-[13px] font-semibold text-[#1C1C1E] truncate">{adminProfile.nickname}</p>
+                <p className="text-[11px] text-[#8E8E93] truncate">{adminProfile.email}</p>
               </div>
             </div>
-            <span className="bg-[#FF3B30] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-[16px]">ADMIN</span>
           </div>
 
           {/* Nav Items */}
@@ -642,7 +655,7 @@ export function Admin() {
                   onClick={() => setActiveTab(item.id as any)}
                   className={cn(
                     "w-full h-11 flex items-center justify-between px-3.5 transition-all text-[14px]",
-                    isActive 
+                    isActive
                       ? "bg-[#4A5DF9]/10 text-[#4A5DF9] !font-bold rounded-[12px]"
                       : "text-[#8E8E93] hover:text-[#1C1C1E] font-medium bg-transparent rounded-[12px]"
                   )}
@@ -664,8 +677,8 @@ export function Admin() {
 
         {/* Bottom */}
         <div className="px-2">
-          <Link 
-            to="/" 
+          <Link
+            to="/"
             className="flex items-center gap-2 text-[13px] font-semibold text-[#8E8E93] hover:text-[#4A5DF9] transition-colors py-1 px-1"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -739,7 +752,7 @@ export function Admin() {
         ) : (
           /* NORMAL STATIC HIGHER FIDELITY STATE */
           <div className="space-y-6">
-            
+
             {/* 1. DASHBOARD VIEW */}
             {activeTab === "dashboard" && (
               <div id="admin-dashboard-panel" className="space-y-6">
@@ -749,7 +762,6 @@ export function Admin() {
                     <p className="text-[#8E8E93] text-[14px]">제로리스크 서비스 현황</p>
                   </div>
                   <div className="bg-[#34C759]/10 text-[#34C759] font-bold text-[13px] px-3 py-1.5 rounded-[12px] flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#34C759] animate-ping" />
                     <span>서버 가동중 ({formatUptime(dashboardSummary?.uptimeSeconds ?? 0)})</span>
                   </div>
                 </div>
@@ -806,7 +818,7 @@ export function Admin() {
 
                 {/* API LATENCY & ACTIVE TRAFFIC */}
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-                  
+
                   {/* Left (60%): Live API latency SVG AREA CHART */}
                   <Card className="rounded-[16px] lg:col-span-3 flex flex-col justify-between">
                     <CardHeader className="p-5 pb-0 flex flex-row items-center justify-between">
@@ -829,11 +841,11 @@ export function Admin() {
                         <svg className="w-full h-full" viewBox="0 0 500 150" preserveAspectRatio="none">
                           <defs>
                             <linearGradient id="apiAreaGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="#4A5DF9" stopOpacity="0.28"/>
-                              <stop offset="100%" stopColor="#4A5DF9" stopOpacity="0.0"/>
+                              <stop offset="0%" stopColor="#4A5DF9" stopOpacity="0.28" />
+                              <stop offset="100%" stopColor="#4A5DF9" stopOpacity="0.0" />
                             </linearGradient>
                           </defs>
-                          
+
                           {/* Y-axis Labels */}
                           <line x1="0" y1="120" x2="500" y2="120" stroke="#E5E5EA" strokeWidth="1" />
                           <line x1="0" y1="60" x2="500" y2="60" stroke="#E5E5EA" strokeWidth="1" />
@@ -914,15 +926,15 @@ export function Admin() {
                     <div className="flex items-center gap-3 flex-1 min-w-[280px]">
                       <div className="relative w-64">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#636C7D] w-4.5 h-4.5" />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="이메일 또는 닉네임 검색"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
                           className="w-full bg-[#F2F2F7] border border-transparent rounded-[16px] pl-10 pr-4 py-2 text-[14px] outline-none focus:bg-white focus:border-[#4A5DF9] transition-all"
                         />
                       </div>
-                      
+
                       <div className="relative">
                         <select
                           value={filterStatus}
@@ -1072,15 +1084,15 @@ export function Admin() {
                     <div className="flex items-center gap-3 flex-1 min-w-[280px]">
                       <div className="relative w-64">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#636C7D] w-4.5 h-4.5" />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="작성자 닉네임 또는 게시글 제목 검색"
                           value={postSearchQuery}
                           onChange={(e) => setPostSearchQuery(e.target.value)}
                           className="w-full bg-[#F2F2F7] border border-transparent rounded-[16px] pl-10 pr-4 py-2 text-[14px] outline-none focus:bg-white focus:border-[#4A5DF9] transition-all"
                         />
                       </div>
-                      
+
                       <div className="relative">
                         <select
                           value={postFilterTab}
@@ -1525,9 +1537,10 @@ export function Admin() {
                                   "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
                                   comp.status === "SCHEDULED" && "bg-[#FF9500]/11 text-[#FF9500]",
                                   comp.status === "ONGOING" && "bg-[#34C759]/11 text-[#34C759]",
+                                  comp.status === "CALCULATING" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
                                   comp.status === "ENDED" && "bg-[#8E8E93]/11 text-[#8E8E93]"
                                 )}>
-                                  {comp.status === "SCHEDULED" ? "대기 중" : comp.status === "ONGOING" ? "진행 중" : "종료됨"}
+                                  {comp.status === "SCHEDULED" ? "대기 중" : comp.status === "ONGOING" ? "진행 중" : comp.status === "CALCULATING" ? "결과 집계중" : "종료됨"}
                                 </span>
                               </td>
                               <td className="py-2 px-4 text-center whitespace-nowrap">
@@ -1614,8 +1627,8 @@ export function Admin() {
                     <div className="flex items-center gap-4 flex-1 min-w-[280px]">
                       <div className="w-72 relative">
                         <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#636C7D] w-4.5 h-4.5" />
-                        <input 
-                          type="text" 
+                        <input
+                          type="text"
                           placeholder="수행 대상 IP 또는 활동 내용 검색"
                           value={logSearchQuery}
                           onChange={(e) => {
@@ -1663,10 +1676,10 @@ export function Admin() {
                           <option value="REJECT">신고 반려</option>
                           <option value="ANSWER">문의 답변</option>
                           {(["전체", "CREATE", "UPDATE", "DELETE", "SUSPEND", "UNSUSPEND", "PROCESS", "REJECT", "ANSWER"] as const).map((tab) => (
-  <option key={tab} value={tab}>
-    {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
-  </option>
-))}
+                            <option key={tab} value={tab}>
+                              {tab === "전체" ? "전체 활동" : ACTION_TYPE_LABELS[tab]}
+                            </option>
+                          ))}
                         </select>
                         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#8E8E93] pointer-events-none" />
                       </div>
@@ -1733,7 +1746,7 @@ export function Admin() {
                 {/* Pagination bar */}
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-[12px] font-bold text-[#8E8E93]">Showing 1-{Math.min(9, logs.length)} of {logs.length} logs</span>
-                  
+
                   <div className="flex items-center gap-1.5">
                     <button className="p-2 bg-white border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] hover:border-[#8E8E93] rounded-[8px] transition cursor-pointer">
                       <ChevronLeft className="w-4 h-4" />
@@ -1744,7 +1757,7 @@ export function Admin() {
                         onClick={() => triggerToast(`페이지 ${page}로 이동했습니다.`)}
                         className={cn(
                           "w-8 h-8 text-[12px] font-bold rounded-[8px] flex items-center justify-center transition cursor-pointer",
-                          page === 1 
+                          page === 1
                             ? "bg-[#4A5DF9] text-white shadow-sm"
                             : "bg-white border border-[#E5E5EA] text-[#8E8E93] hover:text-[#1C1C1E] hover:border-[#8E8E93]"
                         )}
@@ -1950,7 +1963,7 @@ export function Admin() {
       {suspensionModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] w-full max-w-[440px] p-8 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-6 relative max-h-[90vh] overflow-y-auto">
-            <button 
+            <button
               onClick={() => setSuspensionModal({ isOpen: false, userId: null })}
               className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
             >
@@ -1980,8 +1993,8 @@ export function Admin() {
             <div className="space-y-2">
               <label className="text-[12px] font-bold text-[#8E8E93] uppercase">상태정지 기간 설정 (일)</label>
               <div className="flex gap-2">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   value={suspensionTime}
                   onChange={(e) => setSuspensionTime(e.target.value)}
                   className="flex-1 bg-[#F2F2F7] border border-transparent rounded-[12px] px-3.5 py-2.5 text-[14px] font-semibold outline-none focus:bg-white focus:border-[#FF3B30] transition"
@@ -2133,7 +2146,7 @@ export function Admin() {
       {activityModal.isOpen && activityModal.user && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] w-full max-w-[640px] p-8 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-5 relative">
-            <button 
+            <button
               onClick={() => setActivityModal({ isOpen: false, user: null })}
               className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
             >
@@ -2203,7 +2216,7 @@ export function Admin() {
       {answerModal.isOpen && answerModal.inquiry && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] w-full max-w-[680px] p-8 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-5 relative">
-            <button 
+            <button
               onClick={() => setAnswerModal({ isOpen: false, inquiry: null })}
               className="absolute top-5 right-5 text-[#8E8E93] hover:text-[#1C1C1E] transition cursor-pointer"
             >
@@ -2217,7 +2230,7 @@ export function Admin() {
 
             {/* Left and Right Split Panels */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch">
-              
+
               {/* Left Panel: Query content display view only */}
               <div className="space-y-3 flex flex-col justify-between">
                 <div>
@@ -2246,7 +2259,7 @@ export function Admin() {
                       <span className="bg-[#34C759]/11 text-[#34C759] text-[10px] font-bold px-1.5 py-0.5 rounded">답변 완료본 복수 수정</span>
                     )}
                   </div>
-                  
+
                   <textarea
                     value={answerText}
                     onChange={(e) => setAnswerText(e.target.value)}
@@ -2285,11 +2298,11 @@ export function Admin() {
 
       {/* 5. USER ROW RIGHT-CLICK CONTEXT MENU DROPDOWN */}
       {contextMenu.isOpen && contextMenu.user && (
-        <div 
+        <div
           className="fixed z-[100] bg-white border border-[#E5E5EA] rounded-[12px] shadow-[0_10px_25px_rgba(0,0,0,0.12)] p-1.5 min-w-[150px] animate-in fade-in zoom-in-95 duration-100"
-          style={{ 
-            top: contextMenu.y, 
-            left: contextMenu.x 
+          style={{
+            top: contextMenu.y,
+            left: contextMenu.x
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -2310,7 +2323,7 @@ export function Admin() {
       {participantsModalOpen && selectedCompForParticipants && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[20px] w-full max-w-[550px] p-6 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-5 relative text-[#1C1C1E]">
-            <button 
+            <button
               onClick={() => {
                 setParticipantsModalOpen(false);
                 setSelectedCompForParticipants(null);
@@ -2399,7 +2412,7 @@ export function Admin() {
                 </span>
                 <h3 className="text-[18px] font-bold text-[#1C1C1E] mt-2">신고 건번호 #{reportDetailModal.report.id} 상세 처리내역</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setReportDetailModal({ isOpen: false, report: null })}
                 className="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] flex items-center justify-center transition cursor-pointer text-[#8E8E93] hover:text-[#1C1C1E]"
               >
@@ -2486,7 +2499,7 @@ export function Admin() {
                 </span>
                 <h3 className="text-[18px] font-bold text-[#1C1C1E] mt-2 leading-snug">{selectedPostDetail.title}</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setSelectedPostDetail(null)}
                 className="w-8 h-8 rounded-full bg-[#F2F2F7] hover:bg-[#E5E5EA] flex items-center justify-center transition cursor-pointer text-[#8E8E93] hover:text-[#1C1C1E]"
               >

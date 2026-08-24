@@ -77,7 +77,7 @@ export function Competitions() {
   };
 
   const availableCount = competitions.filter(
-    (c) => c.status !== "ENDED" && !joinedIds.includes(c.id)
+    (c) => c.status !== "ENDED" && c.status !== "CALCULATING" && !joinedIds.includes(c.id)
   ).length;
   const joinedCount = joinedIds.length;
   const totalParticipantsCount = competitions
@@ -117,7 +117,7 @@ export function Competitions() {
           <div className="w-12 h-12 bg-green-50 text-green-500 rounded-xl flex items-center justify-center text-xl font-bold">🎖️</div>
           <div>
             <div className="text-[12px] font-bold text-[#8B95A1] uppercase tracking-wider mb-0.5">나의 참여 도전</div>
-            <div className="text-xl font-black text-[#191F28]">{joinedCount}개 참가 중</div>
+            <div className="text-xl font-black text-[#191F28]">총 {joinedCount}회 참여</div>
           </div>
         </div>
         <div className="bg-white rounded-3xl p-6 border border-[#F2F4F6] shadow-sm flex items-center gap-4">
@@ -170,7 +170,7 @@ export function Competitions() {
                   ? c.status === "ONGOING"
                   : activeTab === "예정"
                     ? c.status === "SCHEDULED"
-                    : c.status === "ENDED";
+                    : c.status === "ENDED" || c.status === "CALCULATING";
             const matchesSearch =
               searchQuery.trim() === ""
                 ? true
@@ -190,6 +190,11 @@ export function Competitions() {
                     {comp.status === "SCHEDULED" && (
                       <Badge className="bg-[#000000] text-white border-transparent font-bold shrink-0">
                         예정
+                      </Badge>
+                    )}
+                    {comp.status === "CALCULATING" && (
+                      <Badge className="bg-[#8B95A1] text-white border-transparent font-bold shrink-0">
+                        결과 집계중
                       </Badge>
                     )}
                     {comp.status === "ENDED" && (
@@ -233,7 +238,7 @@ export function Competitions() {
                   </div>
                 </div>
 
-                {comp.status === "ENDED" ? (
+                {comp.status === "ENDED" || comp.status === "CALCULATING" || (comp.status === "ONGOING" && !joinedIds.includes(comp.id)) ? (
                   <Link to={`/competitions/${comp.id}`} className="block w-full">
                     <Button variant="outline" className="w-full relative">
                       상세보기
@@ -264,7 +269,7 @@ export function Competitions() {
                       className="w-full font-bold bg-brand text-white hover:bg-brand/90 transition"
                       onClick={() => handleParticipate(comp)}
                     >
-                      {comp.status === "SCHEDULED" ? "참가 신청" : "참가하기"}
+                      참가 신청
                     </Button>
                   </div>
                 )}

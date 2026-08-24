@@ -16,6 +16,7 @@ import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
   ONGOING: "진행중",
+  CALCULATING: "결과 집계중",
   ENDED: "종료",
 };
 

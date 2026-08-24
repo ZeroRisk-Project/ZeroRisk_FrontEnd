@@ -37,6 +37,7 @@ export function CompetitionCreate() {
 
   const todayStr = formatDateStr(new Date());
 
+  const [recruitStartDate, setRecruitStartDate] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -203,11 +204,20 @@ export function CompetitionCreate() {
       alert("대회 기간(시작일과 종료일)을 지정해주세요.");
       return;
     }
+    if (!recruitStartDate) {
+      alert("모집 시작일을 지정해주세요.");
+      return;
+    }
+    if (recruitStartDate >= startDate) {
+      alert("모집 시작일은 대회 시작일보다 빨라야 합니다.");
+      return;
+    }
 
     try {
       await api.post("/admin/competitions", {
         title,
         description,
+        recruitStartAt: `${recruitStartDate}T00:00:00`,
         startAt: `${startDate}T00:00:00`,
         endAt: `${endDate}T23:59:59`,
         seedMoney: (parseInt(initialAmount) || 1000) * 10000,
@@ -340,6 +350,23 @@ export function CompetitionCreate() {
                   ))
                 )}
               </div>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
+                모집 시작일
+              </label>
+              <input
+                type="date"
+                value={recruitStartDate}
+                min={todayStr}
+                max={startDate || undefined}
+                onChange={(e) => setRecruitStartDate(e.target.value)}
+                className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-11 focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary"
+              />
+              <p className="text-xs font-semibold text-text-secondary">
+                이 날짜부터 참가 신청을 받기 시작합니다. 대회 시작일보다 빨라야 합니다.
+              </p>
             </div>
 
             <div className="flex flex-col gap-4">
