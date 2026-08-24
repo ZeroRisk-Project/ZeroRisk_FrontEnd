@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Bell, User, ChevronDown, Wallet } from "lucide-react";
+import { Bell, ChevronDown, Wallet } from "lucide-react";
 import { cn, formatPrice } from "@/src/lib/utils";
+import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import api from "@/src/lib/api";
 
 const NAV_ITEMS = [
@@ -72,19 +73,8 @@ export function MainLayout() {
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const checkLoginStatus = async () => {
-    try {
-      const response = await api.get("/users/me");
-      console.log("users/me 성공:", response.status, response.data);
-      setIsLoggedIn(true);
-      setIsAdmin(response.data.userRole === "ADMIN");
-    } catch (error) {
-      console.log("users/me 실패:", error);
-      setIsLoggedIn(false);
-      setIsAdmin(false);
-    }
-  };
   const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
+  const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
 
   const fetchMainAccountBalance = async () => {
     try {
@@ -98,13 +88,22 @@ export function MainLayout() {
     }
   };
 
-  useEffect(() => {
-    fetchMainAccountBalance();
-    window.addEventListener("auth-change", fetchMainAccountBalance);
-    return () => {
-      window.removeEventListener("auth-change", fetchMainAccountBalance);
-    };
-  }, []);
+  const checkLoginStatus = async () => {
+    try {
+      const response = await api.get("/users/me");
+      console.log("users/me 성공:", response.status, response.data);
+      setIsLoggedIn(true);
+      setIsAdmin(response.data.userRole === "ADMIN");
+      setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
+      await fetchMainAccountBalance();
+    } catch (error) {
+      console.log("users/me 실패:", error);
+      setIsLoggedIn(false);
+      setIsAdmin(false);
+      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+    }
+  };
+
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -313,10 +312,12 @@ export function MainLayout() {
                   className="flex items-center space-x-2.5 cursor-pointer p-2 pr-4 rounded-[16px] hover:bg-bg-main transition-colors border border-transparent hover:border-border-color"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                 >
-                  <div className="w-9 h-9 rounded-full bg-brand/10 flex items-center justify-center text-brand">
-                    <User className="w-5 h-5" />
-                  </div>
-                  <span className="text-[14.5px] font-bold">유저닉네임</span>
+                  <img
+                    src={userProfile.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                    alt="profile"
+                    className="w-9 h-9 rounded-full object-cover border border-border-color"
+                  />
+                  <span className="text-[14.5px] font-bold">{userProfile.nickname}</span>
                   <ChevronDown className="w-4 h-4 text-text-secondary" />
                 </div>
 

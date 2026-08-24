@@ -3,7 +3,6 @@ import { Card, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import {
-  User,
   Medal,
   Calendar as CalendarIcon,
   X,
@@ -15,6 +14,7 @@ import {
   Settings,
 } from "lucide-react";
 import { formatPrice, cn } from "@/src/lib/utils";
+import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "./Stocks";
 import api from "@/src/lib/api";
@@ -36,6 +36,7 @@ const MOCK_CALENDAR_DATA: Record<
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
   ONGOING: "진행중",
+  CALCULATING: "결과 집계중",
   ENDED: "종료",
 };
 
@@ -95,11 +96,13 @@ export function Mypage() {
   }, []);
 
   const [myProfile, setMyProfile] = useState<any>(null);
+  const [myEmail, setMyEmail] = useState("");
 
   useEffect(() => {
     const fetchMyProfile = async () => {
       try {
         const meResponse = await api.get("/users/me");
+        setMyEmail(meResponse.data.email);
         const profileResponse = await api.get(`/profiles/${meResponse.data.userId}`);
         setMyProfile(profileResponse.data);
       } catch (error) {
@@ -204,18 +207,20 @@ export function Mypage() {
           {/* Profile Card */}
           <div className="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-[#F2F4F6] w-full relative">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6 relative">
-              <div className="w-20 h-20 rounded-full bg-[#F2F4F6] flex items-center justify-center shrink-0">
-                <User className="w-10 h-10 text-[#8B95A1]" />
-              </div>
+              <img
+                src={myProfile?.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                alt="profile"
+                className="w-20 h-20 rounded-full object-cover shrink-0 border border-[#F2F4F6]"
+              />
               <div className="flex-1 text-center md:text-left mt-2">
                 <div className="flex items-center justify-center md:justify-start gap-2">
-                  <h2 className="text-2xl font-bold text-[#191F28]">제로주린이</h2>
-                  <span className="inline-flex items-center justify-center text-center leading-none bg-[#F2F4F6] text-[#4E5968] py-1 px-2.5 rounded-lg text-xs font-bold">Lv.2</span>
+                  <h2 className="text-2xl font-bold text-[#191F28]">{myProfile?.nickname}</h2>
+                  <span className="inline-flex items-center justify-center text-center leading-none bg-[#F2F4F6] text-[#4E5968] py-1 px-2.5 rounded-lg text-xs font-bold">Lv.{myProfile?.userLevel}</span>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-2 mt-2 text-sm font-medium text-[#6B7684]">
-                  <span>zerorisk@invest.com</span>
+                  <span>{myEmail}</span>
                   <span className="w-1 h-1 rounded-full bg-[#D1D6DB]"></span>
-                  <span>가입일 2024.10.15</span>
+                  <span>가입일 {myProfile?.createdAt?.slice(0, 10).replaceAll("-", ".")}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0 absolute top-0 right-0 md:relative">
@@ -713,7 +718,9 @@ export function Mypage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-[#191F28]">대회 수상 내역</h4>
-                    <p className="text-xs font-medium text-[#6B7684] mt-0.5">금메달 1 · 은메달 0 · 동메달 0</p>
+                    <p className="text-xs font-medium text-[#6B7684] mt-0.5">
+                      금메달 {prizeHistory.filter((p) => p.rankPosition === 1).length} · 은메달 {prizeHistory.filter((p) => p.rankPosition === 2).length} · 동메달 {prizeHistory.filter((p) => p.rankPosition === 3).length}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-4 items-center bg-[#F9FAFB] p-4 rounded-2xl">
@@ -722,7 +729,7 @@ export function Mypage() {
                   </div>
                   <div>
                     <h4 className="font-bold text-sm text-[#191F28]">커뮤니티 활동</h4>
-                    <p className="text-xs font-medium text-[#6B7684] mt-0.5">게시글 3개 · 댓글 5개</p>
+                    <p className="text-xs font-medium text-[#6B7684] mt-0.5">게시글 {myProfile?.postCount ?? 0}개 · 댓글 {myProfile?.commentCount ?? 0}개</p>
                   </div>
                 </div>
               </div>
