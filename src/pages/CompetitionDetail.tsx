@@ -19,36 +19,19 @@ export function CompetitionDetail() {
     setTimeout(() => setToastMsg(""), 2000);
   };
 
-  const [competitions] = useState<any[]>(() => {
-    const saved = localStorage.getItem("competitions_list");
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {}
-    }
-    return [
-      { id: 1, title: "제1회 제로리스크 대학생 실전 투자 대회", startDate: "2026-07-01", endDate: "2026-07-31", seedMoney: 50000000, initialAmount: 50000000, participants: 1542, maxParticipants: 3000, status: "ONGOING", isOpen: true, isOfficial: true, target: "전체", dday: "D-15" },
-      { id: 2, title: "대학생 모의투자 챔피언십", startDate: "2026-12-01", endDate: "2026-12-31", seedMoney: 5000000, initialAmount: 5000000, participants: 850, maxParticipants: 1000, status: "WAITING", isOpen: true, isOfficial: false, target: "전체", hasPassword: true, password: "123456", dday: "D-5" },
-      { id: 3, title: "제1회 우주항공 테마 단타대회", startDate: "2026-10-01", endDate: "2026-10-15", seedMoney: 10000000, initialAmount: 10000000, participants: 3200, maxParticipants: 5000, status: "FINISHED", isOpen: true, isOfficial: true, target: "우주항공 테마주", dday: "종료" },
-      { id: 4, title: "삼성전자 수익률 대결", startDate: "2026-11-10", endDate: "2026-11-20", seedMoney: 5000000, initialAmount: 5000000, participants: 500, maxParticipants: 500, status: "ONGOING", isOpen: true, isOfficial: false, target: "삼성전자", dday: "D-3" }
-    ];
-  });
+  const [comp, setComp] = useState<any>(null);
 
-  const comp = competitions.find(c => c.id === compId) || {
-    id: 1,
-    title: "제1회 제로리스크 대학생 실전 투자 대회",
-    startDate: "2026-07-01",
-    endDate: "2026-07-31",
-    seedMoney: 50000000,
-    initialAmount: 50000000,
-    participants: 1542,
-    maxParticipants: 3000,
-    status: "ONGOING",
-    isOpen: true,
-    isOfficial: true,
-    target: "전체",
-    dday: "D-15"
-  };
+  useEffect(() => {
+    const fetchCompetition = async () => {
+      try {
+        const response = await api.get(`/competitions/${compId}`);
+        setComp(response.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchCompetition();
+  }, [compId]);
 
   const [isJoined, setIsJoined] = useState(false);
 
@@ -64,20 +47,57 @@ export function CompetitionDetail() {
     checkJoinStatus();
   }, [compId]);
 
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const [rankings, setRankings] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchMyUserId = async () => {
+      try {
+        const response = await api.get("/users/me");
+        setMyUserId(response.data.userId);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchMyUserId();
+  }, []);
+
+  const fetchRankings = async () => {
+    try {
+      const response = await api.get(`/competitions/${compId}/rankings`);
+      setRankings(response.data);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  useEffect(() => {
+    fetchRankings();
+  }, [compId]);
+
+  const myRanking = rankings.find((r) => r.userId === myUserId);
+
   const handleJoin = async () => {
     try {
       await api.post(`/competitions/${compId}/join`);
       setIsJoined(true);
-      const isOngoing = comp.status === "ONGOING" || comp.status === "진행중";
-      showToast(isOngoing ? "🏆 대회 참가가 완료되었습니다!" : "🏆 대회 참가 신청이 완료되었습니다!");
+      await fetchRankings();
+      const isOngoing = comp.status === "ONGOING";
+      showToast(isOngoing ? "대회 참가가 완료되었습니다!" : "대회 참가 신청이 완료되었습니다!");
     } catch (error: any) {
       const message = error.response?.data?.message ?? "대회 참가에 실패했습니다.";
-      showToast(`⚠️ ${message}`);
+      showToast(message);
     }
   };
 
-  const isOngoing = comp.status === "ONGOING" || comp.status === "진행중";
-  const isScheduled = comp.status === "WAITING" || comp.status === "예정";
+  if (!comp) {
+    return <div className="py-20 text-center text-text-secondary text-sm">불러오는 중...</div>;
+  }
+
+  const isOngoing = comp.status === "ONGOING";
+  const isScheduled = comp.status === "SCHEDULED";
+  const isCalculating = comp.status === "CALCULATING";
+  const isEnded = comp.status === "ENDED";
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -88,12 +108,12 @@ export function CompetitionDetail() {
         >
           <ArrowLeft className="w-4 h-4 mr-1" /> 목록으로
         </Link>
-        {isJoined ? null : (isOngoing || isScheduled) ? (
+        {isJoined || isOngoing ? null : isScheduled ? (
           <Button
             onClick={handleJoin}
             className="bg-brand text-white hover:bg-brand/90 transition cursor-pointer font-bold px-6 rounded-lg"
           >
-            {isOngoing ? "대회 참가하기" : "대회 참가 신청"}
+            대회 참가 신청
           </Button>
         ) : null}
       </div>
@@ -101,13 +121,8 @@ export function CompetitionDetail() {
       <div className="bg-surface border border-border-color rounded-[16px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
         <div className="bg-gradient-to-r from-brand to-[#007AFF] p-8 text-white relative">
           <div className="flex gap-2 items-center mb-1.5 flex-wrap">
-            {comp.isOfficial && (
-              <Badge className="bg-white text-brand border-transparent font-black">
-                공식
-              </Badge>
-            )}
             <Badge className="bg-[#FF9500] text-white border-transparent">
-              {comp.status === "ONGOING" || comp.status === "진행중" ? "진행중" : comp.status === "WAITING" || comp.status === "예정" ? "예정" : "종료"}
+              {comp.status === "ONGOING" ? "진행중" : comp.status === "SCHEDULED" ? "예정" : comp.status === "CALCULATING" ? "결과 집계중" : "종료"}
             </Badge>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold mb-2">
@@ -120,19 +135,11 @@ export function CompetitionDetail() {
           <div className="mt-8 flex gap-8 flex-wrap">
             <div>
               <span className="text-xs opacity-80 block mb-1">대회 기간</span>
-              <span className="font-semibold">{comp.startDate} ~ {comp.endDate}</span>
+              <span className="font-semibold">{comp.startAt?.slice(0, 10)} ~ {comp.endAt?.slice(0, 10)}</span>
             </div>
             <div>
               <span className="text-xs opacity-80 block mb-1">초기 투자금</span>
-              <span className="font-semibold">{formatPrice(comp.initialAmount || comp.seedMoney)}원</span>
-            </div>
-            <div>
-              <span className="text-xs opacity-80 block mb-1">
-                대회 종목
-              </span>
-              <span className="font-semibold text-white">
-                {comp.target || "전체"}
-              </span>
+              <span className="font-semibold">{formatPrice(comp.seedMoney)}원</span>
             </div>
           </div>
         </div>
@@ -160,29 +167,35 @@ export function CompetitionDetail() {
             <CardContent className="p-0">
               {activeTab === "랭킹" && (
                 <div>
-                  <div className="px-6 py-4 bg-brand/5 border-l-[3px] border-l-brand flex justify-between items-center border-b border-border-color">
-                    <div className="flex items-center gap-4">
-                      <div className="font-bold w-12 text-brand">45위</div>
-                      <div className="font-bold">나 (제로주린이)</div>
+                  {rankings.length === 0 ? (
+                    <div className="p-10 text-center text-text-secondary text-sm">
+                      아직 순위 정보가 없습니다.
                     </div>
-                    <div className="font-bold text-lg text-down">-12.40%</div>
-                  </div>
-                  {[1, 2, 3, 4, 5].map((rank) => (
-                    <div
-                      key={rank}
-                      className="flex justify-between items-center p-4 px-6 border-b border-border-color hover:bg-bg-main transition-colors last:border-0"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="font-bold w-12 text-text-secondary">
-                          {rank}위
+                  ) : (
+                    rankings.map((r) => {
+                      const isMe = r.userId === myUserId;
+                      const isPositive = Number(r.returnRate) >= 0;
+                      return (
+                        <div
+                          key={r.userId}
+                          className={cn(
+                            "flex justify-between items-center p-4 px-6 border-b border-border-color transition-colors last:border-0",
+                            isMe ? "bg-brand/5 border-l-[3px] border-l-brand" : "hover:bg-bg-main"
+                          )}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className={cn("font-bold w-12", isMe ? "text-brand" : "text-text-secondary")}>
+                              {r.rank}위
+                            </div>
+                            <div className="font-bold">{isMe ? `나 (${r.nickname})` : r.nickname}</div>
+                          </div>
+                          <div className={cn("font-bold text-lg", isPositive ? "text-up" : "text-down")}>
+                            {formatPercent(r.returnRate)}
+                          </div>
                         </div>
-                        <div className="font-bold">투자고수{rank}</div>
-                      </div>
-                      <div className="font-bold text-lg text-up">
-                        +{Math.abs(100 - rank * 15).toFixed(2)}%
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })
+                  )}
                 </div>
               )}
               {activeTab === "채팅" && (
@@ -208,9 +221,9 @@ export function CompetitionDetail() {
                       현재 순위
                     </span>
                     <span className="font-bold text-xl text-brand tracking-tight">
-                      45위{" "}
+                      {myRanking ? `${myRanking.rank}위` : "-"}{" "}
                       <span className="text-sm text-text-secondary">
-                        / 1,542명
+                        / {rankings.length}명
                       </span>
                     </span>
                   </div>
@@ -218,11 +231,33 @@ export function CompetitionDetail() {
                     <span className="text-sm font-semibold text-text-secondary">
                       수익률
                     </span>
-                    <span className="font-bold text-xl text-down">-12.40%</span>
+                    <span className={cn("font-bold text-xl", myRanking && Number(myRanking.returnRate) >= 0 ? "text-up" : "text-down")}>
+                      {myRanking ? formatPercent(myRanking.returnRate) : "-"}
+                    </span>
                   </div>
-                  <Link to="/stocks">
-                    <Button className="w-full mt-2">대회 계좌로 거래하기</Button>
-                  </Link>
+                  {!isEnded && !isCalculating && (
+                    <Link to="/stocks">
+                      <Button className="w-full mt-2">대회 계좌로 거래하기</Button>
+                    </Link>
+                  )}
+                </div>
+              ) : isOngoing ? (
+                <div className="text-center py-6 space-y-4">
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    이미 시작된 대회는 참가할 수 없습니다.
+                  </p>
+                </div>
+              ) : isCalculating ? (
+                <div className="text-center py-6 space-y-4">
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    결과를 집계하고 있습니다.
+                  </p>
+                </div>
+              ) : isEnded ? (
+                <div className="text-center py-6 space-y-4">
+                  <p className="text-sm text-text-secondary leading-relaxed">
+                    종료된 대회입니다.
+                  </p>
                 </div>
               ) : (
                 <div className="text-center py-6 space-y-4">
@@ -241,7 +276,7 @@ export function CompetitionDetail() {
       </div>
 
       {toastMsg && (
-        <div className="fixed bottom-6 right-6 bg-[#1C1C1E] text-white py-2.5 px-4 rounded-[12px] shadow-lg text-sm font-semibold z-[9999] animate-in fade-in slide-in-from-bottom-2 duration-300">
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#1C1C1E] text-white py-2.5 px-4 rounded-[12px] shadow-lg text-sm font-semibold z-[9999] animate-in fade-in slide-in-from-top-2 duration-300">
           {toastMsg}
         </div>
       )}

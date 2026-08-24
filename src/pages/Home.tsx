@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { formatPrice, formatPercent } from "@/src/lib/utils";
 import { Badge } from "@/src/components/ui/Badge";
+import api from "@/src/lib/api";
 
 const POPULAR_STOCKS = [
   { code: "005930", name: "삼성전자", price: 68400, change: -1.2 },
@@ -63,6 +64,30 @@ export function Home() {
       });
     }, 4000);
     return () => clearInterval(interval);
+  }, []);
+
+  const [upcomingCompetitions, setUpcomingCompetitions] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchUpcomingCompetitions = async () => {
+      try {
+        const response = await api.get("/competitions", { params: { page: 0, size: 100 } });
+        const scheduled = response.data.content
+          .filter((c: any) => c.status === "SCHEDULED")
+          .slice(0, 2)
+          .map((c: any) => ({
+            id: c.id,
+            title: c.title,
+            period: `${c.startAt?.slice(0, 10)} ~ ${c.endAt?.slice(0, 10)}`,
+            initialAmount: c.seedMoney,
+            participants: c.participantCount,
+          }));
+        setUpcomingCompetitions(scheduled);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+    fetchUpcomingCompetitions();
   }, []);
 
   return (
@@ -334,22 +359,12 @@ export function Home() {
                 </Link>
               </div>
               <div className="flex flex-col gap-4 flex-1">
-                {[
-                  {
-                    id: 2,
-                    title: "제2회 단타 마스터 선발전",
-                    period: "2023.12.01 ~ 2023.12.07",
-                    initialAmount: 1000000,
-                    participants: 84,
-                  },
-                  {
-                    id: 4,
-                    title: "루키리그 실전 투자",
-                    period: "2023.12.10 ~ 2023.12.31",
-                    initialAmount: 5000000,
-                    participants: 120,
-                  },
-                ].map((comp, i) => (
+                {upcomingCompetitions.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center py-10 text-sm text-text-secondary">
+                    현재 신청 가능한 대회가 없습니다.
+                  </div>
+                ) : (
+                upcomingCompetitions.map((comp, i) => (
                   <Card
                     key={comp.id}
                     className="hover:border-brand/50 transition-colors h-full"
@@ -389,7 +404,8 @@ export function Home() {
                       </Link>
                     </div>
                   </Card>
-                ))}
+                ))
+                )}
               </div>
             </Card>
           </section>
