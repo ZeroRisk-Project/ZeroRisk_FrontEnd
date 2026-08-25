@@ -58,6 +58,7 @@ export function MypageSettings() {
   const [notifMarketing, setNotifMarketing] = useState(false);
 
   const [accountLinked, setAccountLinked] = useState(false);
+  const [hasPracticeCredit, setHasPracticeCredit] = useState(false);
 
   useEffect(() => {
     const checkAccountLink = async () => {
@@ -111,6 +112,7 @@ export function MypageSettings() {
         setEmail(response.data.email);
         setProfilePic(response.data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
         setAccountType(response.data.oauthProvider ? "social" : "general");
+        setHasPracticeCredit(!!response.data.hasClaimedPracticeCredit);
       } catch (error) {
         console.error(error);
       } finally {
@@ -927,6 +929,22 @@ export function MypageSettings() {
               </div>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
+
+            {/* ROW 4 — 투자 시작 방식 (연습용 -> 실계좌 전환) */}
+            {!accountLinked && (
+              <div
+                onClick={() => navigate(hasPracticeCredit ? "/account-link/intro" : "/start")}
+                className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition text-left"
+              >
+                <div>
+                  <span className="text-[15px] font-bold text-neutral-800 block">투자 시작 방식</span>
+                  <span className="text-[11px] font-bold text-neutral-400 mt-0.5">
+                    {hasPracticeCredit ? "연습용 100만원 사용 중 · 실계좌로 전환하기" : "시작 방식을 아직 선택하지 않았어요"}
+                  </span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-neutral-300" />
+              </div>
+            )}
 
           </div>
         </div>
