@@ -448,7 +448,6 @@ export function MypageSettings() {
               </div>
             )}
 
-
             {/* 6. ACCOUNT RESET CONFIRMATION */}
             {activeSheet === "reset_confirm" && (
               <div className="space-y-6 text-center">
