@@ -93,9 +93,22 @@ export function MainLayout() {
       const response = await api.get("/users/me");
       console.log("users/me 성공:", response.status, response.data);
       setIsLoggedIn(true);
-      setIsAdmin(response.data.userRole === "ADMIN");
+      const admin = response.data.userRole === "ADMIN";
+      setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
       await fetchMainAccountBalance();
+
+      if (!admin && !response.data.hasClaimedPracticeCredit) {
+        let accountLinked = true;
+        try {
+          await api.get("/openbanking/auths");
+        } catch {
+          accountLinked = false;
+        }
+        if (!accountLinked) {
+          navigate("/start", { replace: true });
+        }
+      }
     } catch (error) {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);

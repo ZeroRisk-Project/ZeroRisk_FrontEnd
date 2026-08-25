@@ -27,6 +27,7 @@ import { Admin } from "@/src/pages/Admin";
 import { PublicProfile } from "@/src/pages/PublicProfile";
 import { Login } from "@/src/pages/Login";
 import { Register } from "@/src/pages/Register";
+import { Onboarding } from "@/src/pages/Onboarding";
 import { ForgotPassword } from "@/src/pages/ForgotPassword";
 import { OAuthSuccess } from "./pages/OAuthSuccess";
 
@@ -75,6 +76,7 @@ export default function App() {
         <Route path="register" element={<Register />} />
         <Route path="forgot-password" element={<ForgotPassword />} />
         <Route path="oauth2/success" element={<OAuthSuccess />} />
+        <Route path="start" element={<Onboarding />} />
         <Route path="account-link/*" element={<AccountLinkFlow />} />
       </Routes>
     </BrowserRouter>
