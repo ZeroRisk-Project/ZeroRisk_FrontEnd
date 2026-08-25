@@ -38,6 +38,7 @@ export function CompetitionCreate() {
   const todayStr = formatDateStr(new Date());
 
   const [recruitStartDate, setRecruitStartDate] = useState("");
+  const [recruitEndDate, setRecruitEndDate] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -103,21 +104,53 @@ export function CompetitionCreate() {
 
   const handleDayClick = (dateStr: string) => {
     if (dateStr < todayStr) return;
-    if (!startDate || (startDate && endDate)) {
+
+    // 이전 사이클(모집기간+대회기간)이 이미 완성됐으면 새로 시작
+    const cycleComplete = !!recruitStartDate && !!recruitEndDate && !!startDate && !!endDate;
+    if (cycleComplete) {
+      setRecruitStartDate(dateStr);
+      setRecruitEndDate("");
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+
+    // 1단계: 모집 시작일
+    if (!recruitStartDate) {
+      setRecruitStartDate(dateStr);
+      return;
+    }
+
+    // 2단계: 모집 마감일 (모집 시작일보다 이른 날짜를 누르면 시작일을 다시 잡음)
+    if (!recruitEndDate) {
+      if (dateStr <= recruitStartDate) {
+        setRecruitStartDate(dateStr);
+      } else {
+        setRecruitEndDate(dateStr);
+      }
+      return;
+    }
+
+    // 3/4단계: 대회 기간 — 모집 마감일과 겹치지 않도록(당일 포함) 그 이후 날짜만 선택 가능
+    if (dateStr <= recruitEndDate) return;
+
+    if (!startDate) {
       setStartDate(dateStr);
       setEndDate("");
+    } else if (dateStr >= startDate) {
+      setEndDate(dateStr);
     } else {
-      if (dateStr >= startDate) {
-        setEndDate(dateStr);
-      } else {
-        setStartDate(dateStr);
-        setEndDate("");
-      }
+      setStartDate(dateStr);
+      setEndDate("");
     }
   };
 
   const handleDayMouseEnter = (dateStr: string) => {
     if (dateStr < todayStr) return;
+    if (recruitStartDate && !recruitEndDate && dateStr >= recruitStartDate) {
+      setHoveredDate(dateStr);
+      return;
+    }
     if (startDate && !endDate && dateStr >= startDate) {
       setHoveredDate(dateStr);
     }
@@ -125,10 +158,18 @@ export function CompetitionCreate() {
 
   const setPreset = (days: number) => {
     const today = new Date();
-    const startStr = formatDateStr(today);
+    const recruitStartStr = formatDateStr(today);
+    const recruitEnd = new Date();
+    recruitEnd.setDate(today.getDate() + 2);
+    const recruitEndStr = formatDateStr(recruitEnd);
+    const start = new Date();
+    start.setDate(today.getDate() + 3);
+    const startStr = formatDateStr(start);
     const end = new Date();
-    end.setDate(today.getDate() + days - 1);
+    end.setDate(today.getDate() + 3 + days - 1);
     const endStr = formatDateStr(end);
+    setRecruitStartDate(recruitStartStr);
+    setRecruitEndDate(recruitEndStr);
     setStartDate(startStr);
     setEndDate(endStr);
     setCurrentYear(today.getFullYear());
@@ -136,6 +177,8 @@ export function CompetitionCreate() {
   };
 
   const handleReset = () => {
+    setRecruitStartDate("");
+    setRecruitEndDate("");
     setStartDate("");
     setEndDate("");
     setHoveredDate(null);
@@ -155,7 +198,7 @@ export function CompetitionCreate() {
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
   };
-  const [initialAmount, setInitialAmount] = useState("1000");
+  const [initialAmount, setInitialAmount] = useState("");
   const [maxParticipants, setMaxParticipants] = useState("");
 
   const [stockSearch, setStockSearch] = useState("");
@@ -204,12 +247,20 @@ export function CompetitionCreate() {
       alert("대회 기간(시작일과 종료일)을 지정해주세요.");
       return;
     }
-    if (!recruitStartDate) {
-      alert("모집 시작일을 지정해주세요.");
+    if (!recruitStartDate || !recruitEndDate) {
+      alert("모집 기간(시작일과 마감일)을 지정해주세요.");
       return;
     }
-    if (recruitStartDate >= startDate) {
-      alert("모집 시작일은 대회 시작일보다 빨라야 합니다.");
+    if (recruitStartDate >= recruitEndDate) {
+      alert("모집 시작일은 모집 마감일보다 빨라야 합니다.");
+      return;
+    }
+    if (recruitEndDate >= startDate) {
+      alert("모집 마감일은 대회 시작일과 겹칠 수 없습니다. 대회 시작일 전날까지로 지정해주세요.");
+      return;
+    }
+    if (!initialAmount) {
+      alert("참가자 초기 투자금을 선택해주세요.");
       return;
     }
 
@@ -218,12 +269,13 @@ export function CompetitionCreate() {
         title,
         description,
         recruitStartAt: `${recruitStartDate}T00:00:00`,
+        recruitEndAt: `${recruitEndDate}T00:00:00`,
         startAt: `${startDate}T00:00:00`,
         endAt: `${endDate}T23:59:59`,
-        seedMoney: (parseInt(initialAmount) || 1000) * 10000,
+        seedMoney: parseInt(initialAmount) * 10000,
         isPublic: true,
         allowedStockIds: allowedStocks.map((s) => s.id),
-        maxParticipants: maxParticipants.trim() === "" ? null : parseInt(maxParticipants),
+        maxParticipants: maxParticipants === "" ? null : parseInt(maxParticipants),
       });
 
       sessionStorage.setItem("show_created_toast", `🏆 [ ${title} ] 대회가 성공적으로 개최되었습니다.`);
@@ -353,27 +405,15 @@ export function CompetitionCreate() {
             </div>
 
             <div className="flex flex-col gap-4">
-              <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                모집 시작일
-              </label>
-              <input
-                type="date"
-                value={recruitStartDate}
-                min={todayStr}
-                max={startDate || undefined}
-                onChange={(e) => setRecruitStartDate(e.target.value)}
-                className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-11 focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary"
-              />
-              <p className="text-xs font-semibold text-text-secondary">
-                이 날짜부터 참가 신청을 받기 시작합니다. 대회 시작일보다 빨라야 합니다.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                  대회 기간 (시작일 ~ 종료일)
-                </label>
+                <div className="flex flex-col gap-1">
+                  <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
+                    모집 시작일 · 대회 기간
+                  </label>
+                  <span className="text-xs font-semibold text-text-secondary">
+                    ① 모집 시작일을 먼저 선택하고 ② 대회 시작일 ③ 종료일 순서로 선택하세요
+                  </span>
+                </div>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <button
                     type="button"
@@ -396,12 +436,45 @@ export function CompetitionCreate() {
                   >
                     1달 (30일)
                   </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    className="px-2.5 py-1 text-xs font-semibold rounded-md border border-border-color bg-surface hover:bg-bg-main transition duration-155 text-text-secondary cursor-pointer"
+                  >
+                    초기화
+                  </button>
                 </div>
               </div>
 
               {/* Premium Calendar Container */}
               <div className="border border-border-color rounded-[16px] bg-white p-4.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                {/* 범례 */}
+                <div className="flex items-center gap-4 mb-3 px-1">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" /> 모집 기간
+                  </span>
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-text-secondary">
+                    <span className="w-2.5 h-2.5 rounded-full bg-brand inline-block" /> 대회 기간
+                  </span>
+                </div>
+
                 {/* 달력 안 상단 기간 정보 표시 */}
+                {recruitStartDate && (
+                  <div className="mb-2 p-2.5 rounded-[12px] bg-emerald-50 border border-emerald-100 text-center animate-in fade-in duration-200">
+                    <span className="text-[13px] font-bold text-emerald-600 flex items-center justify-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-emerald-600 shrink-0" />
+                      {recruitEndDate ? (
+                        <span>
+                          모집 <span className="font-extrabold underline underline-offset-2 decoration-emerald-300">{formatKoreanDate(recruitStartDate)}</span> 부터{" "}
+                          <span className="font-extrabold underline underline-offset-2 decoration-emerald-300">{formatKoreanDate(recruitEndDate)}</span> 까지{" "}
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[11.5px] font-black">{getDurationDays(recruitStartDate, recruitEndDate)}일간</span>
+                        </span>
+                      ) : (
+                        <span>모집 시작일: <span className="font-extrabold underline underline-offset-2 decoration-emerald-300">{formatKoreanDate(recruitStartDate)}</span> (마감일을 선택하세요)</span>
+                      )}
+                    </span>
+                  </div>
+                )}
                 {startDate && endDate && (
                   <div className="mb-4 p-3 rounded-[12px] bg-brand/5 border border-brand/10 text-center animate-in fade-in duration-200">
                     <span className="text-[13.5px] font-bold text-brand flex items-center justify-center gap-1.5">
@@ -455,11 +528,26 @@ export function CompetitionCreate() {
                     const dateStr = formatDateStr(date);
                     const isToday = dateStr === todayStr;
                     const isPast = dateStr < todayStr;
-                    
+
+                    // 모집 기간(초록) 마킹
+                    const recruitHasEnd = !!recruitEndDate;
+                    const isRecruitStart = dateStr === recruitStartDate;
+                    const isRecruitEnd = dateStr === recruitEndDate;
+                    let isRecruitRange = false;
+                    let isRecruitHoverEnd = false;
+                    if (recruitHasEnd) {
+                      isRecruitRange = dateStr > recruitStartDate && dateStr < recruitEndDate;
+                    } else if (recruitStartDate && hoveredDate && hoveredDate > recruitStartDate) {
+                      isRecruitRange = dateStr > recruitStartDate && dateStr < hoveredDate;
+                      isRecruitHoverEnd = dateStr === hoveredDate;
+                    }
+                    const isRecruitAlone = !recruitEndDate && (!hoveredDate || hoveredDate <= recruitStartDate);
+
+                    // 대회 기간(파랑) 마킹
                     const isStart = dateStr === startDate;
                     const isEnd = dateStr === endDate;
                     const hasEnd = !!endDate;
-                    
+
                     let isRange = false;
                     let isHoverEnd = false;
 
@@ -472,21 +560,51 @@ export function CompetitionCreate() {
 
                     const isAlone = !endDate && (!hoveredDate || hoveredDate <= startDate);
 
+                    // 겹침 방지: 모집 기간이 아직 다 안 잡혔으면 제약 없음, 다 잡힌 뒤엔 모집 마감일 이전 날짜는 대회 기간으로 선택 불가
+                    const cycleComplete = !!recruitStartDate && !!recruitEndDate && !!startDate && !!endDate;
+                    const isOverlapBlocked = !cycleComplete && !!recruitEndDate && dateStr <= recruitEndDate;
+                    const isDisabled = isPast || isOverlapBlocked;
+
                     return (
                       <button
                         key={`${dateStr}-${idx}`}
                         type="button"
-                        disabled={isPast}
+                        disabled={isDisabled}
                         onClick={() => handleDayClick(dateStr)}
                         onMouseEnter={() => handleDayMouseEnter(dateStr)}
                         className={cn(
                           "h-9.5 w-full flex items-center justify-center relative text-[13px] font-bold transition-all duration-150 select-none rounded-md hover:z-20",
-                          isPast ? "text-text-secondary/15 cursor-not-allowed" : "cursor-pointer",
-                          !isPast && !isCurrentMonth ? "text-text-secondary/25" : "",
-                          !isPast && isCurrentMonth ? "text-text-primary" : ""
+                          isDisabled ? "text-text-secondary/15 cursor-not-allowed" : "cursor-pointer",
+                          !isDisabled && !isCurrentMonth ? "text-text-secondary/25" : "",
+                          !isDisabled && isCurrentMonth ? "text-text-primary" : ""
                         )}
                       >
-                        {/* Range highlights */}
+                        {/* Recruit range highlights */}
+                        {isRecruitRange && (
+                          <div className="absolute inset-y-1 left-0 right-0 bg-emerald-500/10" />
+                        )}
+                        {isRecruitStart && (
+                          <>
+                            {!isRecruitAlone && (
+                              <div className="absolute inset-y-1 left-1/2 right-0 bg-emerald-500/10" />
+                            )}
+                            <div className="absolute w-8 h-8 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/20 animate-in zoom-in-75 duration-200" />
+                          </>
+                        )}
+                        {isRecruitEnd && (
+                          <>
+                            <div className="absolute inset-y-1 left-0 right-1/2 bg-emerald-500/10" />
+                            <div className="absolute w-8 h-8 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/20 animate-in zoom-in-75 duration-200" />
+                          </>
+                        )}
+                        {isRecruitHoverEnd && (
+                          <>
+                            <div className="absolute inset-y-1 left-0 right-1/2 bg-emerald-500/10" />
+                            <div className="absolute w-8 h-8 rounded-full bg-emerald-500/70 shadow-sm shadow-emerald-500/10" />
+                          </>
+                        )}
+
+                        {/* Competition range highlights */}
                         {isRange && (
                           <div className="absolute inset-y-1 left-0 right-0 bg-brand/10" />
                         )}
@@ -513,8 +631,9 @@ export function CompetitionCreate() {
 
                         <span className={cn(
                           "relative z-10",
-                          (isStart || isEnd || isHoverEnd) ? "text-white" : "",
-                          isRange ? "text-brand font-extrabold" : ""
+                          (isStart || isEnd || isHoverEnd || isRecruitStart || isRecruitEnd || isRecruitHoverEnd) ? "text-white" : "",
+                          isRange ? "text-brand font-extrabold" : "",
+                          isRecruitRange ? "text-emerald-600 font-extrabold" : ""
                         )}>
                           {date.getDate()}
                         </span>
@@ -535,6 +654,7 @@ export function CompetitionCreate() {
                   value={initialAmount}
                   onChange={(e) => setInitialAmount(e.target.value)}
                 >
+                  <option value="" disabled>선택</option>
                   <option value="100">100 만원</option>
                   <option value="500">500 만원</option>
                   <option value="1000">1,000 만원</option>
@@ -554,17 +674,30 @@ export function CompetitionCreate() {
               </p>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-4">
               <label className="block text-[15px] font-extrabold text-text-primary tracking-tight">
-                최대 참가자 수 (선택)
+                최대 참가자 수
               </label>
-              <input
-                type="number"
-                value={maxParticipants}
-                onChange={(e) => setMaxParticipants(e.target.value)}
-                placeholder="비워두면 무제한"
-                className="w-full border-b-2 border-neutral-200 py-2 text-lg font-bold outline-none focus:border-[#3182F6]"
-              />
+              <div className="relative">
+                <select
+                  className="w-full bg-bg-main border border-border-color rounded-[12px] px-3.5 h-[44px] focus:outline-none focus:ring-1.5 focus:ring-brand focus:border-brand font-bold text-[15px] text-text-primary cursor-pointer appearance-none"
+                  value={maxParticipants}
+                  onChange={(e) => setMaxParticipants(e.target.value)}
+                >
+                  <option value="">제한 없음</option>
+                  <option value="100">100명</option>
+                  <option value="500">500명</option>
+                  <option value="1000">1,000명</option>
+                  <option value="3000">3,000명</option>
+                  <option value="5000">5,000명</option>
+                  <option value="10000">10,000명</option>
+                </select>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-text-secondary">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                    <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                  </svg>
+                </div>
+              </div>
             </div>
           </div>
 

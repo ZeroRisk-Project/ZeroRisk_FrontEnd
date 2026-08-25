@@ -367,7 +367,7 @@ export function Inquiry() {
                         className={cn(
                           "bg-white border rounded-3xl transition-all overflow-hidden relative shadow-sm",
                           isExpanded
-                            ? "border-brand"
+                            ? "border-brand border-[2px]"
                             : "border-[#F2F4F6] hover:border-[#CBD5E1]"
                         )}
                       >

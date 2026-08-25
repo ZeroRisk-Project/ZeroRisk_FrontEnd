@@ -149,7 +149,7 @@ export function Notice() {
                 </button>
 
                 {isExpanded && (
-                  <div className="px-5 pb-6 pt-1 border-t border-[#E5E8EB] bg-[#F9FAFB] rounded-b-2xl animate-in slide-in-from-top-1 duration-200">
+                  <div className="px-5 pb-6 pt-1 border-t border-[#E5E8EB] bg-[#F9FAFB] rounded-b-3xl animate-in slide-in-from-top-1 duration-200">
                     <p className="text-sm text-[#4E5968] font-medium leading-relaxed whitespace-pre-wrap pt-4">
                       {notice.content}
                     </p>
