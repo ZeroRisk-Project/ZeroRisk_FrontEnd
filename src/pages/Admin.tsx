@@ -30,6 +30,16 @@ import api from "@/src/lib/api";
 import { Card, CardHeader, CardTitle, CardContent } from "@/src/components/ui/Card";
 import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
+import {
+  getAdminPosts,
+  getAdminComments,
+  forceDeletePost,
+  restorePost,
+  forceDeleteComment,
+  restoreComment,
+  AdminPostResponse,
+  AdminCommentResponse,
+} from '@/src/api/moderation';
 
 // Interfaces
 interface UserItem {
@@ -419,7 +429,22 @@ export function Admin() {
     setLogs(prev => [newLog, ...prev]);
   };
 
-  const [posts, setPosts] = useState<PostItem[]>(INITIAL_POSTS);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+
+  const loadAdminPosts = async () => {
+    try {
+      const response = await getAdminPosts();
+      setPosts(response.content);
+    } catch (error) {
+      console.error('관리자 게시글 목록 조회 실패', error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'posts') {
+      loadAdminPosts();
+    }
+  }, [activeTab]);
 
   // General States
   const [loading, setLoading] = useState(false);
@@ -437,6 +462,18 @@ export function Admin() {
   const [postSearchQuery, setPostSearchQuery] = useState("");
   const [postFilterTab, setPostFilterTab] = useState<"ALL" | "ACTIVE" | "DELETED">("ALL");
   const [selectedPostDetail, setSelectedPostDetail] = useState<PostItem | null>(null);
+  const [postComments, setPostComments] = useState<AdminCommentResponse[]>([]);
+
+  useEffect(() => {
+    if (!selectedPostDetail) {
+      setPostComments([]);
+      return;
+    }
+
+    getAdminComments(selectedPostDetail.id)
+      .then(setPostComments)
+      .catch((error) => console.error('댓글 목록 조회 실패', error));
+  }, [selectedPostDetail?.id]);
 
   // Report Detail view Modal
   const [reportDetailModal, setReportDetailModal] = useState<{ isOpen: boolean; report: ReportItem | null }>({ isOpen: false, report: null });
@@ -1141,10 +1178,19 @@ export function Admin() {
                             return matchSearch && matchStat;
                           })
                           .map((post, idx) => {
-                            const handlePostStatus = (nextStat: "ACTIVE" | "DELETED") => {
-                              setPosts(prev => prev.map(item => item.id === post.id ? { ...item, status: nextStat } : item));
-                              triggerToast(`게시글 [${post.title}]이(가) [${nextStat === "ACTIVE" ? "활성" : "삭제"}] 처리되었습니다.`);
-                              logAdminAction("게시글", post.title, `게시글 상태를 [${nextStat === "ACTIVE" ? "활성" : "삭제됨"}]으로 설정 변경하였습니다.`);
+                            const handlePostStatus = async (nextStat: "ACTIVE" | "DELETED") => {
+                              try {
+                                if (nextStat === "DELETED") {
+                                  await forceDeletePost(post.id);
+                                } else {
+                                  await restorePost(post.id);
+                                }
+                                setPosts(prev => prev.map(item => item.id === post.id ? { ...item, status: nextStat } : item));
+                                triggerToast(`게시글 [${post.title}]이(가) [${nextStat === "ACTIVE" ? "활성" : "삭제"}] 처리되었습니다.`);
+                              } catch (error) {
+                                console.error("게시글 상태 변경 실패", error);
+                                triggerToast("⚠️ 처리에 실패했습니다.");
+                              }
                             };
 
                             return (
@@ -2521,15 +2567,73 @@ export function Admin() {
                   {selectedPostDetail.content}
                 </p>
               </div>
+
+              <div className="flex flex-col gap-2 max-h-[220px] overflow-y-auto bg-[#F2F2F7]/20 border border-[#E5E5EA]/60 p-4 rounded-[12px]">
+                <span className="text-[12px] text-[#8E8E93] font-bold">댓글 {postComments.length}개</span>
+                {postComments.length === 0 ? (
+                  <p className="text-[12px] text-[#8E8E93] text-center py-3">댓글이 없습니다.</p>
+                ) : (
+                  postComments.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="flex items-start justify-between gap-2 py-2 border-b border-[#E5E5EA]/60 last:border-0"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12px] font-bold text-[#1C1C1E]">{comment.author}</span>
+                          <span className="text-[10px] text-[#8E8E93]">{comment.createdAt}</span>
+                          {comment.isDeleted && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-[6px] bg-[#FF3B30]/10 text-[#FF3B30]">
+                              삭제됨
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[12.5px] text-[#1C1C1E] mt-0.5 truncate">{comment.content}</p>
+                      </div>
+                      <button
+                        onClick={async () => {
+                          try {
+                            if (comment.isDeleted) {
+                              await restoreComment(comment.id);
+                            } else {
+                              await forceDeleteComment(comment.id);
+                            }
+                            const updated = await getAdminComments(selectedPostDetail.id);
+                            setPostComments(updated);
+                            triggerToast(`댓글이 ${comment.isDeleted ? '복구' : '삭제'}되었습니다.`);
+                          } catch (error) {
+                            console.error('댓글 상태 변경 실패', error);
+                            triggerToast('⚠️ 처리에 실패했습니다.');
+                          }
+                        }}
+                        className={cn(
+                          'shrink-0 px-2 py-1 text-[11px] font-bold rounded-[8px] transition cursor-pointer',
+                          comment.isDeleted
+                            ? 'bg-[#34C759]/10 text-[#34C759] hover:bg-[#34C759]/20'
+                            : 'border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5',
+                        )}
+                      >
+                        {comment.isDeleted ? '복구' : '삭제'}
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
 
             <div className="flex gap-2.5 mt-1 shrink-0">
               {selectedPostDetail.status === "ACTIVE" ? (
                 <button
-                  onClick={() => {
-                    setPosts(prev => prev.map(item => item.id === selectedPostDetail.id ? { ...item, status: "DELETED" } : item));
-                    setSelectedPostDetail(prev => prev ? { ...prev, status: "DELETED" } : null);
-                    triggerToast(`게시글이 비공개(삭제) 처리되었습니다.`);
+                  onClick={async () => {
+                    try {
+                      await forceDeletePost(selectedPostDetail.id);
+                      setPosts(prev => prev.map(item => item.id === selectedPostDetail.id ? { ...item, status: "DELETED" } : item));
+                      setSelectedPostDetail(prev => prev ? { ...prev, status: "DELETED" } : null);
+                      triggerToast(`게시글이 비공개(삭제) 처리되었습니다.`);
+                    } catch (error) {
+                      console.error('게시글 삭제 실패', error);
+                      triggerToast('⚠️ 처리에 실패했습니다.');
+                    }
                   }}
                   className="flex-1 py-3 bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
                 >
@@ -2537,10 +2641,16 @@ export function Admin() {
                 </button>
               ) : (
                 <button
-                  onClick={() => {
-                    setPosts(prev => prev.map(item => item.id === selectedPostDetail.id ? { ...item, status: "ACTIVE" } : item));
-                    setSelectedPostDetail(prev => prev ? { ...prev, status: "ACTIVE" } : null);
-                    triggerToast(`게시글이 성공적으로 복구되었습니다.`);
+                  onClick={async () => {
+                    try {
+                      await restorePost(selectedPostDetail.id);
+                      setPosts(prev => prev.map(item => item.id === selectedPostDetail.id ? { ...item, status: "ACTIVE" } : item));
+                      setSelectedPostDetail(prev => prev ? { ...prev, status: "ACTIVE" } : null);
+                      triggerToast(`게시글이 성공적으로 복구되었습니다.`);
+                    } catch (error) {
+                      console.error('게시글 복구 실패', error);
+                      triggerToast('⚠️ 처리에 실패했습니다.');
+                    }
                   }}
                   className="flex-1 py-3 bg-[#34C759] text-white hover:bg-[#34C759]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
                 >
