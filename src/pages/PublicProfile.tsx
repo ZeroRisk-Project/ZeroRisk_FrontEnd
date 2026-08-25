@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Share2 } from "lucide-react";
+import { ArrowLeft, Share2, X } from "lucide-react";
 import { cn, formatPrice } from "@/src/lib/utils";
 import {
   Card,
@@ -12,6 +12,7 @@ import { Button } from "@/src/components/ui/Button";
 import { Badge } from "@/src/components/ui/Badge";
 import api from "@/src/lib/api";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
+import { getFollowers, getFollowings, FollowUserResponse } from "@/src/api/follows";
 
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
@@ -33,6 +34,11 @@ export function PublicProfile() {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [followLoading, setFollowLoading] = useState(false);
+
+  // 팔로워/팔로잉 목록 모달
+  const [followModalType, setFollowModalType] = useState<"followers" | "followings" | null>(null);
+  const [followModalUsers, setFollowModalUsers] = useState<FollowUserResponse[]>([]);
+  const [followModalLoading, setFollowModalLoading] = useState(false);
 
   useEffect(() => {
     if (!id) {
@@ -73,6 +79,27 @@ export function PublicProfile() {
     } finally {
       setFollowLoading(false);
     }
+  };
+
+  const openFollowModal = async (type: "followers" | "followings") => {
+    if (!id) return;
+
+    setFollowModalType(type);
+    setFollowModalLoading(true);
+    try {
+      const response = type === "followers" ? await getFollowers(Number(id)) : await getFollowings(Number(id));
+      setFollowModalUsers(response.content);
+    } catch (error) {
+      console.error("팔로워/팔로잉 목록 조회 실패", error);
+      setFollowModalUsers([]);
+    } finally {
+      setFollowModalLoading(false);
+    }
+  };
+
+  const closeFollowModal = () => {
+    setFollowModalType(null);
+    setFollowModalUsers([]);
   };
 
   // Share profile link action
@@ -147,7 +174,19 @@ export function PublicProfile() {
                   가입일 {profile.createdAt ? profile.createdAt.slice(0, 10).replaceAll("-", ".") : "-"}
                 </span>
                 <span className="text-sm text-text-secondary font-medium">
-                  팔로워 {profile.followerCount} · 팔로잉 {profile.followingCount}
+                  <button
+                    onClick={() => openFollowModal("followers")}
+                    className="hover:underline hover:text-text-primary transition-colors cursor-pointer"
+                  >
+                    팔로워 {profile.followerCount}
+                  </button>
+                  {" · "}
+                  <button
+                    onClick={() => openFollowModal("followings")}
+                    className="hover:underline hover:text-text-primary transition-colors cursor-pointer"
+                  >
+                    팔로잉 {profile.followingCount}
+                  </button>
                 </span>
               </div>
             </div>
@@ -312,6 +351,58 @@ export function PublicProfile() {
           </div>
         </CardContent>
       </Card>
+
+      {/* =========================================================================
+          FOLLOW LIST MODAL
+          ========================================================================= */}
+      {followModalType && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[24px] max-w-sm w-full p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-border-color flex flex-col gap-4 max-h-[70vh]">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-text-primary">
+                {followModalType === "followers" ? "팔로워" : "팔로잉"}
+              </h3>
+              <button
+                onClick={closeFollowModal}
+                className="w-8 h-8 rounded-full bg-bg-main hover:bg-border-color flex items-center justify-center transition cursor-pointer text-text-secondary hover:text-text-primary"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex flex-col gap-1 -mx-2">
+              {followModalLoading ? (
+                <p className="text-center text-sm text-text-secondary py-8">불러오는 중...</p>
+              ) : followModalUsers.length === 0 ? (
+                <p className="text-center text-sm text-text-secondary py-8">
+                  {followModalType === "followers" ? "팔로워가 없습니다" : "팔로잉이 없습니다"}
+                </p>
+              ) : (
+                followModalUsers.map((user) => (
+                  <button
+                    key={user.userId}
+                    onClick={() => {
+                      closeFollowModal();
+                      navigate(`/users/${user.userId}`);
+                    }}
+                    className="flex items-center gap-3 px-2 py-2 rounded-[12px] hover:bg-bg-main transition-colors text-left cursor-pointer"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-bg-main border border-border-color shrink-0 overflow-hidden">
+                      <img
+                        src={user.profileImageUrl || DEFAULT_PROFILE_IMAGE}
+                        alt={user.nickname}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <span className="font-bold text-sm text-text-primary">{user.nickname}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
