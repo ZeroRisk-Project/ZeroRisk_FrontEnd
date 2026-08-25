@@ -129,9 +129,6 @@ export function MypageSettings() {
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState("");
 
-  // Logout Dialog
-  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-
   // Handle Nickname validation
   const handleNicknameChange = (val: string) => {
     setTempNickname(val);
@@ -730,7 +727,7 @@ export function MypageSettings() {
         {/* SECTION 1: 프로필 */}
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">프로필</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color">
+          <div className="bg-white rounded-[24px] p-2 border border-border-color">
             {/* ROW 1: 프로필 편집 */}
             <div 
               onClick={() => {
@@ -740,16 +737,11 @@ export function MypageSettings() {
               className="flex items-center justify-between p-4 rounded-[18px] hover:bg-neutral-50 cursor-pointer transition"
             >
               <div className="flex items-center gap-3.5">
-                <div className="relative">
-                  <img 
-                    src={profilePic} 
-                    alt="Profile Avatar" 
-                    className="w-12 h-12 rounded-full object-cover border border-neutral-100 shadow-xs"
-                  />
-                  <div className="absolute bottom-0 right-0 p-1 bg-white border border-neutral-100 rounded-full shadow-xs text-neutral-600">
-                    <Camera className="w-2.5 h-2.5" />
-                  </div>
-                </div>
+                <img
+                  src={profilePic}
+                  alt="Profile Avatar"
+                  className="w-12 h-12 rounded-full object-cover border border-neutral-100"
+                />
                 <div>
                   <div className="text-base font-bold text-neutral-800">{nickname}</div>
                   <div className="text-[12px] font-medium text-neutral-400 mt-0.5">{email}</div>
@@ -760,31 +752,11 @@ export function MypageSettings() {
           </div>
         </div>
 
-        {/* SECTION 2: 계정 */}
-        <div className="mb-6">
-          <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">계정</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
-            
-            {/* Row 1 — 비밀번호 변경 */}
-            <div 
-              onClick={() => setActiveSheet("password_change")}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🔒</span>
-                <span className="text-[15px] font-bold text-neutral-800">비밀번호 변경</span>
-              </div>
-              <ChevronRight className="w-5 h-5 text-neutral-300" />
-            </div>
-
-          </div>
-        </div>
-
         {/* SECTION: 프로필 공개 설정 */}
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">프로필 공개 설정</div>
           <p className="text-[11px] text-neutral-400 px-1 mb-2">다른 사용자에게 내 프로필의 어떤 정보를 보여줄지 설정할 수 있어요</p>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
+          <div className="bg-white rounded-[24px] p-2 border border-border-color divide-y divide-[#E5E5EA]/70">
             {[
               { key: "showReturnRate" as const, icon: "📈", label: "수익률", desc: "내 프로필의 누적 수익률" },
               { key: "showPortfolio" as const, icon: "🥧", label: "포트폴리오", desc: "보유 종목 구성" },
@@ -819,7 +791,7 @@ export function MypageSettings() {
         {/* SECTION 3: 알림 설정 */}
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">알림 설정</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
+          <div className="bg-white rounded-[24px] p-2 border border-border-color divide-y divide-[#E5E5EA]/70">
             
             {/* ROW 1 */}
             <div className="flex items-center justify-between p-4">
@@ -929,19 +901,16 @@ export function MypageSettings() {
         {/* SECTION 4: 투자 설정 */}
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">투자 설정</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
+          <div className="bg-white rounded-[24px] p-2 border border-border-color space-y-2">
 
             {/* ROW 2 — 모의투자 자금 초기화 */}
-            <div 
+            <div
               onClick={() => setActiveSheet("reset_confirm")}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition text-left"
+              className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition text-left"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🔄</span>
-                <div>
-                  <span className="text-[15px] font-bold text-neutral-800 block">모의투자 자금 초기화</span>
-                  <span className="text-[11px] font-medium text-red-500 mt-0.5 font-bold">보유 주식·예수금 전체 초기화</span>
-                </div>
+              <div>
+                <span className="text-[15px] font-bold text-neutral-800 block">모의투자 자금 초기화</span>
+                <span className="text-[11px] font-medium text-red-500 mt-0.5 font-bold">보유 주식·예수금 전체 초기화</span>
               </div>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
@@ -949,16 +918,13 @@ export function MypageSettings() {
             {/* ROW 3 — 계좌 연동 관리 */}
             <div
               onClick={() => navigate(accountLinked ? "/account-link/recharge/confirm" : "/account-link/intro")}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition text-left"
+              className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition text-left"
             >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🏦</span>
-                <div>
-                  <span className="text-[15px] font-bold text-neutral-800 block">계좌 연동 관리</span>
-                  <span className="text-[11px] font-bold text-neutral-400 mt-0.5">
-                    {accountLinked ? "연동됨" : "미연동"}
-                  </span>
-                </div>
+              <div>
+                <span className="text-[15px] font-bold text-neutral-800 block">계좌 연동 관리</span>
+                <span className="text-[11px] font-bold text-neutral-400 mt-0.5">
+                  {accountLinked ? "연동됨" : "미연동"}
+                </span>
               </div>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
@@ -969,56 +935,35 @@ export function MypageSettings() {
         {/* SECTION 5: 고객지원 */}
         <div className="mb-6">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">고객지원</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
-            
-            <div className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">💌</span>
-                <span className="text-[15px] font-bold text-neutral-800">1:1 문의</span>
-              </div>
+          <div className="bg-white rounded-[24px] p-2 border border-border-color space-y-2">
+
+            <div onClick={() => navigate("/inquiry")} className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition">
+              <span className="text-[15px] font-bold text-neutral-800">1:1 문의</span>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">❓</span>
-                <span className="text-[15px] font-bold text-neutral-800">자주 묻는 질문</span>
-              </div>
+            <div onClick={() => navigate("/faq")} className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition">
+              <span className="text-[15px] font-bold text-neutral-800">자주 묻는 질문</span>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📢</span>
-                <span className="text-[15px] font-bold text-neutral-800">공지사항</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="bg-red-500 text-[10px] text-white font-bold h-4 w-4 rounded-full flex items-center justify-center animate-pulse">N</span>
-                <ChevronRight className="w-5 h-5 text-neutral-300" />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">📄</span>
-                <span className="text-[15px] font-bold text-neutral-800">서비스 이용약관</span>
-              </div>
+            <div onClick={() => navigate("/notice")} className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition">
+              <span className="text-[15px] font-bold text-neutral-800">공지사항</span>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            <div className="flex items-center justify-between p-4 rounded-[14px] hover:bg-neutral-50 cursor-pointer transition">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">🔐</span>
-                <span className="text-[15px] font-bold text-neutral-800">개인정보 처리방침</span>
-              </div>
+            <div onClick={() => navigate("/terms")} className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition">
+              <span className="text-[15px] font-bold text-neutral-800">서비스 이용약관</span>
               <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center gap-3">
-                <span className="text-xl">ℹ️</span>
-                <span className="text-[15px] font-bold text-neutral-800">버전 정보</span>
-              </div>
+            <div onClick={() => navigate("/privacy")} className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition">
+              <span className="text-[15px] font-bold text-neutral-800">개인정보 처리방침</span>
+              <ChevronRight className="w-5 h-5 text-neutral-300" />
+            </div>
+
+            <div className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color">
+              <span className="text-[15px] font-bold text-neutral-800">버전 정보</span>
               <span className="text-sm font-bold text-neutral-400 font-mono">v1.0.0</span>
             </div>
 
@@ -1028,26 +973,30 @@ export function MypageSettings() {
         {/* SECTION 6: 계정 관리 */}
         <div className="mb-10">
           <div className="text-[13px] font-bold text-neutral-400 mb-2 px-1">계정 관리</div>
-          <div className="bg-white rounded-[24px] p-2 shadow-xs border border-border-color divide-y divide-[#E5E5EA]/70">
-            
-            {/* ROW 1 — 로그아웃 */}
-            <div 
-              onClick={() => setShowLogoutDialog(true)}
-              className="flex items-center justify-between p-4 rounded-[14px] hover:bg-orange-50/40 cursor-pointer transition"
+          <div className="bg-white rounded-[24px] p-2 border border-border-color space-y-2">
+
+            {/* 비밀번호 변경 */}
+            <div
+              onClick={() => setActiveSheet("password_change")}
+              className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition"
             >
-              <span className="text-[15px] font-extrabold text-amber-600">로그아웃</span>
+              <span className="text-[15px] font-bold text-neutral-800">비밀번호 변경</span>
+              <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
-            {/* ROW 2 — 회원 탈퇴 */}
-            <div 
+            {/* 회원 탈퇴 */}
+            <div
               onClick={() => {
                 setDeleteStep(1);
                 setActiveSheet("account_delete");
               }}
-              className="p-4 rounded-[14px] hover:bg-red-50/40 cursor-pointer transition text-left"
+              className="flex items-center justify-between p-4.5 rounded-[18px] border border-border-color hover:bg-neutral-50 cursor-pointer transition"
             >
-              <span className="text-[15px] font-extrabold text-red-500 block">회원 탈퇴</span>
-              <span className="text-[11px] font-medium text-neutral-400 mt-1 block">계정과 모든 데이터가 완전히 삭제됩니다</span>
+              <div>
+                <span className="text-[15px] font-bold text-neutral-800 block">회원 탈퇴</span>
+                <span className="text-[11px] font-medium text-neutral-400 mt-1 block">계정과 모든 데이터가 완전히 삭제됩니다</span>
+              </div>
+              <ChevronRight className="w-5 h-5 text-neutral-300" />
             </div>
 
           </div>
@@ -1057,40 +1006,6 @@ export function MypageSettings() {
 
       {/* Render Sheet Wrapper */}
       {renderBottomSheet()}
-
-      {/* Logout Confirmation Dialog (Modal Overlay) */}
-      {showLogoutDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div 
-            onClick={() => setShowLogoutDialog(false)}
-            className="absolute inset-0 bg-black/40 backdrop-blur-xs animate-in fade-in"
-          />
-          <div className="relative bg-white rounded-[28px] p-6 max-w-sm w-full shadow-xl text-center space-y-5 animate-in zoom-in-95 duration-200 z-50">
-            <div className="text-3xl">🔓</div>
-            <h3 className="text-lg font-bold text-neutral-900">로그아웃 하시겠어요?</h3>
-            <p className="text-xs font-semibold text-neutral-400">모의투자 내역과 랭킹 챌린지 정보는 다음 로그인 시 언제든 다시 불러올 수 있습니다.</p>
-            <div className="flex gap-2.5 pt-1">
-              <button 
-                onClick={() => setShowLogoutDialog(false)}
-                className="flex-1 py-3.5 bg-neutral-150 hover:bg-neutral-200 rounded-[14px] text-[14px] font-bold text-neutral-600 transition"
-              >
-                취소
-              </button>
-              <button 
-                onClick={() => {
-                  setShowLogoutDialog(false);
-                  triggerNotification("로그아웃 되었습니다.");
-                  localStorage.setItem("isLoggedIn", "false");
-                  navigate("/");
-                }}
-                className="flex-1 py-3.5 bg-amber-500 hover:bg-amber-600 text-white rounded-[14px] text-[14px] font-bold transition"
-              >
-                로그아웃
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );

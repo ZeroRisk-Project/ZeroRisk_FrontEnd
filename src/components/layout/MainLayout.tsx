@@ -344,7 +344,7 @@ export function MainLayout() {
                         window.dispatchEvent(new Event("auth-change"));
                         setIsUserMenuOpen(false);
                       }}
-                      className="w-full text-left px-4 py-2 text-sm text-[#FF3B30] hover:bg-bg-main font-medium transition-colors"
+                      className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-bg-main font-medium transition-colors"
                     >
                       로그아웃
                     </button>

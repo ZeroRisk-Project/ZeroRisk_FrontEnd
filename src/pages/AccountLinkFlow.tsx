@@ -611,17 +611,16 @@ function RechargeConfirmPage() {
         <div className="border border-neutral-200/80 rounded-2xl p-4 flex items-center justify-between bg-white text-left my-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-neutral-100 rounded-full flex items-center justify-center text-xl shrink-0">🏦</div>
-            <div>
-              <div className="font-extrabold text-[13px] text-neutral-400">현재 연동 계좌</div>
-              <div className="font-bold text-[15px] text-neutral-800">{currentBank}</div>
-              <div className="text-xs text-neutral-400">{currentNum}</div>
-            </div>
+            <div className="font-extrabold text-[13px] text-neutral-400">현재 연동 계좌</div>
           </div>
-          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md">실시간 연결 중</span>
+          <div className="text-right">
+            <div className="font-bold text-[15px] text-neutral-800">{currentBank}</div>
+            <div className="text-xs text-neutral-400">{currentNum}</div>
+          </div>
         </div>
 
         {/* Amount Input */}
-        <div className="bg-neutral-50 border border-neutral-150 rounded-[28px] p-5 my-5 text-left">
+        <div className="bg-neutral-50 border-2 border-neutral-200 rounded-[28px] p-5 my-5 text-left">
           <p className="text-sm text-text-secondary mb-2">
             {loading ? "한도를 확인하는 중..." : `최대 ₩${formatPrice(availableAmount)}까지 추가로 받을 수 있어요`}
           </p>
