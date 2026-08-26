@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import ReCAPTCHA from "react-google-recaptcha";
 import api from "@/src/lib/api";
 
 export function Login() {
@@ -8,24 +9,45 @@ export function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [captchaRequired, setCaptchaRequired] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setIsError(true);
-      setFailedAttempts((prev) => prev + 1);
+      setErrorMessage("이메일 또는 비밀번호를 확인해주세요");
+      return;
+    }
+    if (captchaRequired && !recaptchaToken) {
+      setErrorMessage("보안 인증을 완료해주세요");
       return;
     }
 
     try {
-      await api.post("/auth/login", { email, password });
+      await api.post("/auth/login", {
+        email,
+        password,
+        recaptchaToken: captchaRequired ? recaptchaToken : undefined,
+      });
+      setCaptchaRequired(false);
+      setRecaptchaToken(null);
+      recaptchaRef.current?.reset();
       window.dispatchEvent(new Event("auth-change"));
       navigate("/");
-    } catch (error) {
-      setIsError(true);
-      setFailedAttempts((prev) => prev + 1);
+    } catch (error: any) {
+      const errorCode = error.response?.data?.errorCode;
+      if (errorCode === "AUTH_009") {
+        setCaptchaRequired(true);
+        setRecaptchaToken(null);
+        recaptchaRef.current?.reset();
+        setErrorMessage("로그인 시도가 많아 보안 인증이 필요해요");
+      } else if (errorCode === "AUTH_010") {
+        setErrorMessage(error.response?.data?.message ?? "잠시 후 다시 시도해주세요");
+      } else {
+        setErrorMessage("이메일 또는 비밀번호를 확인해주세요");
+      }
     }
   };
   return (
@@ -53,7 +75,7 @@ export function Login() {
                 type="text"
                 id="email"
                 value={email}
-                onChange={(e) => { setEmail(e.target.value); setIsError(false); }}
+                onChange={(e) => { setEmail(e.target.value); setErrorMessage(""); }}
                 className="peer w-full border-b border-[#E5E5EA] py-3 text-[17px] text-[#191F28] bg-transparent outline-none focus:border-brand transition-colors placeholder-transparent"
                 placeholder="이메일"
               />
@@ -72,7 +94,7 @@ export function Login() {
                 type={showPassword ? "text" : "password"}
                 id="password"
                 value={password}
-                onChange={(e) => { setPassword(e.target.value); setIsError(false); }}
+                onChange={(e) => { setPassword(e.target.value); setErrorMessage(""); }}
                 className="peer w-full border-b border-[#E5E5EA] py-3 pr-10 text-[17px] text-[#191F28] bg-transparent outline-none focus:border-brand transition-colors placeholder-transparent"
                 placeholder="비밀번호"
               />
@@ -92,22 +114,22 @@ export function Login() {
               </button>
             </div>
 
-            {isError && (
-              <p className="text-[13px] text-[#FF3B30] mt-2 font-medium">이메일 또는 비밀번호를 확인해주세요</p>
+            {errorMessage && (
+              <p className="text-[13px] text-[#FF3B30] mt-2 font-medium">{errorMessage}</p>
             )}
 
-            {/* Recaptcha mockup */}
-            {failedAttempts >= 5 && (
-              <div className="mt-4 border border-[#E5E5EA] bg-white rounded-md p-4 flex items-center justify-between shadow-sm animate-in fade-in duration-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 border-2 border-[#C7C7CC] rounded-[4px] bg-white cursor-pointer hover:bg-gray-50 flex items-center justify-center">
-                    {/* empty checkbox */}
-                  </div>
-                  <span className="text-[14px] text-[#191F28]">로봇이 아닙니다</span>
-                </div>
-                <div className="flex flex-col items-center">
-                  <img src="https://www.gstatic.com/recaptcha/api2/logo_48.png" alt="reCAPTCHA" className="w-8" />
-                  <span className="text-[9px] text-[#8B95A1] mt-1">reCAPTCHA</span>
+            {captchaRequired && (
+              <div className="animate-in fade-in slide-in-from-top-2 duration-300 mt-4 flex flex-col items-center gap-2">
+                <div className="w-full bg-[#F2F4F6] rounded-[16px] p-4 flex flex-col items-center gap-3">
+                  <p className="text-[13px] font-bold text-[#4E5968] text-center">
+                    로그인 시도가 많아 보안 인증이 필요해요
+                  </p>
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    onChange={(token) => setRecaptchaToken(token)}
+                    onExpired={() => setRecaptchaToken(null)}
+                  />
                 </div>
               </div>
             )}
