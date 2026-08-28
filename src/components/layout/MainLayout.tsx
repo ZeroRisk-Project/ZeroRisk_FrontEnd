@@ -4,6 +4,7 @@ import { Bell, ChevronDown, Wallet } from "lucide-react";
 import { cn, formatPrice } from "@/src/lib/utils";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import api from "@/src/lib/api";
+import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationResponse } from "@/src/api/notifications";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -120,9 +121,58 @@ export function MainLayout() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
+
+  const loadNotifications = async () => {
+    try {
+      const response = await getNotifications();
+      setNotifications(response.content);
+    } catch (error) {
+      console.error('알림 목록 조회 실패', error);
+    }
+  };
+
+  const handleNotificationOpen = () => {
+    const next = !isNotificationOpen;
+    setIsNotificationOpen(next);
+    if (next) {
+      loadNotifications();
+    }
+  };
+
+  const handleMarkAsRead = async (notificationId: number) => {
+    try {
+      await markNotificationAsRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n)),
+      );
+    } catch (error) {
+      console.error('알림 읽음 처리 실패', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    } catch (error) {
+      console.error('전체 읽음 처리 실패', error);
+    }
+  };
+
+  // 알림 시간 표시용: 백엔드 createdAt(ISO 문자열)을 "N분 전" 형식으로 변환
+  const formatNotificationTime = (isoString: string) => {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) return '방금 전';
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}시간 전`;
+    return `${Math.floor(diffMinutes / 1440)}일 전`;
+  };
 
   useEffect(() => {
     checkLoginStatus();
@@ -268,11 +318,11 @@ export function MainLayout() {
 
               <div className="relative" ref={notificationRef}>
                 <button
-                  onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                  onClick={handleNotificationOpen}
                   className="relative p-2.5 text-text-secondary hover:text-text-primary hover:bg-bg-main rounded-[12px] transition-colors"
                 >
                   <Bell className="w-5.5 h-5.5" />
-                  {MOCK_NOTIFICATIONS.some((n) => !n.isRead) && (
+                  {notifications.some((n) => !n.isRead) && (
                     <span className="absolute top-2 right-2 flex h-2.5 w-2.5 rounded-full bg-up"></span>
                   )}
                 </button>
@@ -281,35 +331,43 @@ export function MainLayout() {
                   <div className="absolute top-full right-0 mt-2 w-[360px] bg-surface border border-border-color rounded-[16px] shadow-lg py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="px-5 py-3 text-sm font-bold text-text-primary border-b border-border-color flex justify-between items-center">
                       <span>알림</span>
-                      <button className="text-xs text-text-secondary hover:text-brand transition-colors font-medium">
+                      <button
+                        onClick={handleMarkAllAsRead}
+                        className="text-xs text-text-secondary hover:text-brand transition-colors font-medium"
+                      >
                         모두 읽음 처리
                       </button>
                     </div>
                     <div className="max-h-[400px] overflow-y-auto">
-                      {MOCK_NOTIFICATIONS.map((noti) => (
-                        <div
-                          key={noti.id}
-                          className={cn(
-                            "px-5 py-4 border-b border-border-color last:border-0 hover:bg-bg-main transition-colors cursor-pointer",
-                            !noti.isRead ? "bg-brand/5" : "",
-                          )}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="text-sm font-bold text-text-primary flex items-center gap-1.5">
-                              {!noti.isRead && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
-                              )}
-                              {noti.title}
-                            </span>
-                            <span className="text-xs text-text-secondary whitespace-nowrap">
-                              {noti.time}
-                            </span>
+                      {notifications.length === 0 ? (
+                        <p className="text-center text-sm text-text-secondary py-8">알림이 없습니다.</p>
+                      ) : (
+                        notifications.map((noti) => (
+                          <div
+                            key={noti.id}
+                            onClick={() => !noti.isRead && handleMarkAsRead(noti.id)}
+                            className={cn(
+                              "px-5 py-4 border-b border-border-color last:border-0 hover:bg-bg-main transition-colors cursor-pointer",
+                              !noti.isRead ? "bg-brand/5" : "",
+                            )}
+                          >
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                                {!noti.isRead && (
+                                  <span className="w-1.5 h-1.5 rounded-full bg-brand"></span>
+                                )}
+                                {noti.title}
+                              </span>
+                              <span className="text-xs text-text-secondary whitespace-nowrap">
+                                {formatNotificationTime(noti.createdAt)}
+                              </span>
+                            </div>
+                            <p className="text-sm text-text-secondary mt-1 line-clamp-2 leading-relaxed">
+                              {noti.message}
+                            </p>
                           </div>
-                          <p className="text-sm text-text-secondary mt-1 line-clamp-2 leading-relaxed">
-                            {noti.content}
-                          </p>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                     <div className="px-3 py-2 border-t border-border-color mt-1">
                       <button className="w-full py-2 text-sm text-text-secondary font-medium hover:bg-bg-main rounded-[8px] transition-colors">
