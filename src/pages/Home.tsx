@@ -5,8 +5,8 @@ import {
   CardHeader,
   CardTitle,
   CardContent,
-} from "@/src/components/ui/Card";
-import { Button } from "@/src/components/ui/Button";
+} from "@/src/shared/components/ui/Card";
+import { Button } from "@/src/shared/components/ui/Button";
 import {
   TrendingUp,
   TrendingDown,
@@ -16,9 +16,9 @@ import {
   ThumbsUp,
   MessageSquare,
 } from "lucide-react";
-import { formatPrice, formatPercent } from "@/src/lib/utils";
-import { Badge } from "@/src/components/ui/Badge";
-import api from "@/src/lib/api";
+import { formatPrice, formatPercent } from "@/src/shared/lib/utils";
+import { Badge } from "@/src/shared/components/ui/Badge";
+import api from "@/src/shared/lib/api";
 
 const POPULAR_STOCKS = [
   { code: "005930", name: "삼성전자", price: 68400, change: -1.2 },

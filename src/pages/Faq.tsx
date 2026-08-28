@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowLeft, ChevronLeft, Search, ChevronDown, ChevronUp, FileQuestion, MessageSquarePlus } from "lucide-react";
-import { Input } from "@/src/components/ui/Input";
+import { Input } from "@/src/shared/components/ui/Input";
 
 interface FaqItem {
   id: number;
