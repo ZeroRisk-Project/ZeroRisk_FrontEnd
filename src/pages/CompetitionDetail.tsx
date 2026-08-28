@@ -90,6 +90,18 @@ export function CompetitionDetail() {
     }
   };
 
+  const handleCancelParticipation = async () => {
+    try {
+      await api.delete(`/competitions/${compId}/join`);
+      setIsJoined(false);
+      await fetchRankings();
+      showToast("대회 참가를 취소했습니다.");
+    } catch (error: any) {
+      const message = error.response?.data?.message ?? "참가 취소에 실패했습니다.";
+      showToast(message);
+    }
+  };
+
   if (!comp) {
     return <div className="py-20 text-center text-text-secondary text-sm">불러오는 중...</div>;
   }
@@ -172,9 +184,12 @@ export function CompetitionDetail() {
                       아직 순위 정보가 없습니다.
                     </div>
                   ) : (
-                    rankings.map((r) => {
+                    rankings.map((r, idx) => {
                       const isMe = r.userId === myUserId;
                       const isPositive = Number(r.returnRate) >= 0;
+                      const isTied =
+                        rankings[idx - 1]?.rank === r.rank ||
+                        rankings[idx + 1]?.rank === r.rank;
                       return (
                         <div
                           key={r.userId}
@@ -184,8 +199,13 @@ export function CompetitionDetail() {
                           )}
                         >
                           <div className="flex items-center gap-4">
-                            <div className={cn("font-bold w-12", isMe ? "text-brand" : "text-text-secondary")}>
-                              {r.rank}위
+                            <div className={cn("font-bold flex items-center gap-1.5", isMe ? "text-brand" : "text-text-secondary")}>
+                              <span>{r.rank}위</span>
+                              {isTied && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#8E8E93]/15 text-[#8E8E93]">
+                                  동점
+                                </span>
+                              )}
                             </div>
                             <div className="font-bold">{isMe ? `나 (${r.nickname})` : r.nickname}</div>
                           </div>
@@ -235,10 +255,20 @@ export function CompetitionDetail() {
                       {myRanking ? formatPercent(myRanking.returnRate) : "-"}
                     </span>
                   </div>
-                  {!isEnded && !isCalculating && (
-                    <Link to="/stocks">
-                      <Button className="w-full mt-2">대회 계좌로 거래하기</Button>
-                    </Link>
+                  {isScheduled ? (
+                    <Button
+                      onClick={handleCancelParticipation}
+                      variant="outline"
+                      className="w-full mt-2 cursor-pointer"
+                    >
+                      참가 취소
+                    </Button>
+                  ) : (
+                    !isEnded && !isCalculating && (
+                      <Link to="/stocks">
+                        <Button className="w-full mt-2">대회 계좌로 거래하기</Button>
+                      </Link>
+                    )
                   )}
                 </div>
               ) : isOngoing ? (

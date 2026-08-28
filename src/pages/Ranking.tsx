@@ -204,13 +204,25 @@ export function Ranking() {
               </tr>
             </thead>
             <tbody>
-              {filteredRankers.map((ranker) => (
+              {filteredRankers.map((ranker, idx) => {
+                const isTied =
+                  filteredRankers[idx - 1]?.rank === ranker.rank ||
+                  filteredRankers[idx + 1]?.rank === ranker.rank;
+
+                return (
                 <tr
-                  key={ranker.rank}
+                  key={`${ranker.rank}-${ranker.userId}`}
                   className="border-b border-border-color last:border-0 transition-colors hover:bg-bg-main"
                 >
                   <td className="px-4 py-4 text-center font-bold text-text-secondary relative">
-                    {ranker.rank}
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span>{ranker.rank}</span>
+                      {isTied && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-[#8E8E93]/15 text-[#8E8E93]">
+                          동점
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-4">
                     <Link
@@ -243,7 +255,8 @@ export function Ranking() {
                     {ranker.returnRate}%
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </CardContent>
