@@ -17,8 +17,10 @@ import { formatPrice, formatPercent, cn } from "@/src/shared/lib/utils";
 import { AdvancedStockChart } from "@/src/features/stock/components/AdvancedStockChart";
 import { OrderBook } from "@/src/features/stock/components/OrderBook";
 import {
+  getStockDetail,
   getStockRankings,
   type RankingType,
+  type StockDetailResponse,
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
 
@@ -256,20 +258,52 @@ export function Stocks() {
     setTimeout(() => setActionToast(""), 3000);
   };
 
+  const [stockDetail, setStockDetail] = useState<StockDetailResponse | null>(null);
+
+  useEffect(() => {
+    if (!code) {
+      setStockDetail(null);
+      return;
+    }
+
+    let ignore = false;
+    getStockDetail(code)
+        .then((detail) => {
+          if (!ignore) setStockDetail(detail);
+        })
+        .catch(() => {
+          if (!ignore) setStockDetail(null);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, [code]);
+
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);
 
-  const stock = activeStockData
+  const stock = stockDetail
     ? {
-        code: activeStockData.code,
-        name: activeStockData.name,
-        price: activeStockData.price,
-        change: activeStockData.price * (activeStockData.change / 100),
-        changeRate: activeStockData.change,
-        volume: activeStockData.volume,
-        isFav: isFav(activeStockData.code),
+        code: stockDetail.code,
+        name: stockDetail.name,
+        price: stockDetail.currentPrice,
+        change: stockDetail.changeAmount,
+        changeRate: stockDetail.changeRate,
+        volume: activeStockData?.volume ?? "-",
+        isFav: isFav(stockDetail.code),
       }
-    : null;
+      : activeStockData
+          ? {
+            code: activeStockData.code,
+            name: activeStockData.name,
+            price: activeStockData.price,
+            change: activeStockData.price * (activeStockData.change / 100),
+            changeRate: activeStockData.change,
+            volume: activeStockData.volume,
+            isFav: isFav(activeStockData.code),
+          }
+          : null;
 
   return (
     <div className="flex gap-6 relative animate-in fade-in duration-500">
