@@ -44,3 +44,28 @@ export async function markNotificationAsRead(notificationId: number): Promise<vo
 export async function markAllNotificationsAsRead(): Promise<void> {
     await api.patch('/notifications/read-all');
 }
+
+// 백엔드 AlertSettingsResponse record와 필드명·타입을 그대로 맞춘 타입
+export interface AlertSettingsResponse {
+    orderFilled: boolean;
+    commentAdded: boolean;
+    competition: boolean;
+    priceAlert: boolean;
+    inquiryAnswered: boolean;
+}
+
+export type AlertSettingsUpdateRequest = AlertSettingsResponse;
+
+// 알림 수신 설정 조회
+export async function getAlertSettings(): Promise<AlertSettingsResponse> {
+    const response = await api.get<AlertSettingsResponse>('/notifications/settings');
+
+    return response.data;
+}
+
+// 알림 수신 설정 수정
+export async function updateAlertSettings(request: AlertSettingsUpdateRequest): Promise<AlertSettingsResponse> {
+    const response = await api.put<AlertSettingsResponse>('/notifications/settings', request);
+
+    return response.data;
+}
