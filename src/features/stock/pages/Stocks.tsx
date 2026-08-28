@@ -17,12 +17,14 @@ import { formatPrice, formatPercent, cn } from "@/src/shared/lib/utils";
 import { AdvancedStockChart } from "@/src/features/stock/components/AdvancedStockChart";
 import { OrderBook } from "@/src/features/stock/components/OrderBook";
 import {
+  getStockChart,
   getStockDetail,
   getStockRankings,
   type RankingType,
   type StockDetailResponse,
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
+import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
 
 export interface StockListItem {
   code: string;
@@ -273,6 +275,28 @@ export function Stocks() {
         })
         .catch(() => {
           if (!ignore) setStockDetail(null);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, [code]);
+
+  const [chartPoints, setChartPoints] = useState<ChartPoint[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (!code) {
+      setChartPoints(undefined);
+      return;
+    }
+
+    let ignore = false;
+    getStockChart(code, "DAY")
+        .then((candles) => {
+          if (!ignore) setChartPoints(toChartPoints(candles));
+        })
+        .catch(() => {
+          if (!ignore) setChartPoints(undefined);
         });
 
     return () => {
@@ -540,7 +564,7 @@ export function Stocks() {
 
                 {/* Chart Area */}
                 <div>
-                  <AdvancedStockChart noCardStyle={true} />
+                  <AdvancedStockChart noCardStyle={true} candles={chartPoints} />
                 </div>
 
                 {/* Section F: 52-Week High/Low Bar */}
