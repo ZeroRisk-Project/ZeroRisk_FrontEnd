@@ -5,38 +5,38 @@
 
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { MainLayout } from "@/src/components/layout/MainLayout";
-import { GlobalNoticePopup } from "@/src/components/GlobalNoticePopup";
+import { MainLayout } from "@/src/shared/components/layout/MainLayout";
+import { GlobalNoticePopup } from "@/src/features/systemnotice/components/GlobalNoticePopup";
 import { Home } from "@/src/pages/Home";
-import { Stocks } from "@/src/pages/Stocks";
-import { Mypage } from "@/src/pages/Mypage";
-import { MypageSettings } from "@/src/pages/MypageSettings";
-import { AccountLinkFlow } from "@/src/pages/AccountLinkFlow";
+import { Stocks } from "@/src/features/stock/pages/Stocks";
+import { Mypage } from "@/src/features/user/pages/Mypage";
+import { MypageSettings } from "@/src/features/user/pages/MypageSettings";
+import { AccountLinkFlow } from "@/src/features/openbanking/pages/AccountLinkFlow";
 
-import { Community } from "@/src/pages/Community";
-import { CommunityPost } from "@/src/pages/CommunityPost";
-import { CommunityWrite } from "@/src/pages/CommunityWrite";
-import { CommunityStock } from "@/src/pages/CommunityStock";
-import { Competitions } from "@/src/pages/Competitions";
-import { CompetitionDetail } from "@/src/pages/CompetitionDetail";
-import { CompetitionCreate } from "@/src/pages/CompetitionCreate";
-import { Ranking } from "@/src/pages/Ranking";
-import { Compare } from "@/src/pages/Compare";
-import { Portfolio } from "@/src/pages/Portfolio";
-import { Admin } from "@/src/pages/Admin";
-import { PublicProfile } from "@/src/pages/PublicProfile";
-import { Login } from "@/src/pages/Login";
-import { Register } from "@/src/pages/Register";
-import { Onboarding } from "@/src/pages/Onboarding";
-import { ForgotPassword } from "@/src/pages/ForgotPassword";
-import { OAuthSuccess } from "./pages/OAuthSuccess";
+import { Community } from "@/src/features/community/pages/Community";
+import { CommunityPost } from "@/src/features/community/pages/CommunityPost";
+import { CommunityWrite } from "@/src/features/community/pages/CommunityWrite";
+import { CommunityStock } from "@/src/features/community/pages/CommunityStock";
+import { Competitions } from "@/src/features/competition/pages/Competitions";
+import { CompetitionDetail } from "@/src/features/competition/pages/CompetitionDetail";
+import { CompetitionCreate } from "@/src/features/competition/pages/CompetitionCreate";
+import { Ranking } from "@/src/features/ranking/pages/Ranking";
+import { Compare } from "@/src/features/stock/pages/Compare";
+import { Portfolio } from "@/src/features/portfolio/pages/Portfolio";
+import { Admin } from "@/src/features/admin/pages/Admin";
+import { PublicProfile } from "@/src/features/user/pages/PublicProfile";
+import { Login } from "@/src/features/auth/pages/Login";
+import { Register } from "@/src/features/auth/pages/Register";
+import { Onboarding } from "@/src/features/auth/pages/Onboarding";
+import { ForgotPassword } from "@/src/features/auth/pages/ForgotPassword";
+import { OAuthSuccess } from "@/src/features/auth/pages/OAuthSuccess";
 
 // New Footer Pages
 import { About } from "@/src/pages/About";
-import { CompetitionsGuide } from "@/src/pages/CompetitionsGuide";
-import { Notice } from "@/src/pages/Notice";
+import { CompetitionsGuide } from "@/src/features/competition/pages/CompetitionsGuide";
+import { Notice } from "@/src/features/announcement/pages/Notice";
 import { Faq } from "@/src/pages/Faq";
-import { Inquiry } from "@/src/pages/Inquiry";
+import { Inquiry } from "@/src/features/inquiry/pages/Inquiry";
 import { Terms } from "@/src/pages/Terms";
 import { Privacy } from "@/src/pages/Privacy";
 
