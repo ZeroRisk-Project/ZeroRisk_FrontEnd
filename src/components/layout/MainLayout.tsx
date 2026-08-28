@@ -1,10 +1,18 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { Bell, ChevronDown, Wallet } from "lucide-react";
+import { Bell, ChevronDown, Wallet, X } from "lucide-react";
 import { cn, formatPrice } from "@/src/lib/utils";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/lib/constants";
 import api from "@/src/lib/api";
-import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, NotificationResponse } from "@/src/api/notifications";
+import {
+  getNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getAlertSettings,
+  updateAlertSettings,
+  NotificationResponse,
+  AlertSettingsResponse,
+} from "@/src/api/notifications";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -14,6 +22,14 @@ const NAV_ITEMS = [
   { label: "랭킹", path: "/ranking" },
   { label: "커뮤니티", path: "/community" },
   { label: "마이페이지", path: "/mypage" },
+];
+
+const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; description: string }[] = [
+  { key: 'orderFilled', label: '주문 체결', description: '보유 종목 매수/매도 체결 시 알림' },
+  { key: 'commentAdded', label: '댓글', description: '내 게시글에 댓글이 달렸을 때 알림' },
+  { key: 'competition', label: '대회', description: '참가 중인 투자 대회 관련 알림' },
+  { key: 'priceAlert', label: '목표가', description: '관심 종목 목표가 도달 시 알림' },
+  { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
 const MOCK_NOTIFICATIONS = [
@@ -121,6 +137,7 @@ export function MainLayout() {
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const isNotificationOpenRef = useRef(isNotificationOpen);
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const menuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
@@ -163,6 +180,38 @@ export function MainLayout() {
     }
   };
 
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [alertSettings, setAlertSettings] = useState<AlertSettingsResponse | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+
+  const openSettingsModal = async () => {
+    setIsNotificationOpen(false);
+    setIsSettingsModalOpen(true);
+    setSettingsLoading(true);
+    try {
+      const settings = await getAlertSettings();
+      setAlertSettings(settings);
+    } catch (error) {
+      console.error('알림 설정 조회 실패', error);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const toggleAlertSetting = async (key: keyof AlertSettingsResponse) => {
+    if (!alertSettings) return;
+
+    const updated = { ...alertSettings, [key]: !alertSettings[key] };
+    setAlertSettings(updated);
+
+    try {
+      await updateAlertSettings(updated);
+    } catch (error) {
+      console.error('알림 설정 변경 실패', error);
+      setAlertSettings(alertSettings);
+    }
+  };
+
   // 알림 시간 표시용: 백엔드 createdAt(ISO 문자열)을 "N분 전" 형식으로 변환
   const formatNotificationTime = (isoString: string) => {
     const diffMs = Date.now() - new Date(isoString).getTime();
@@ -179,6 +228,33 @@ export function MainLayout() {
     window.addEventListener("auth-change", checkLoginStatus);
     return () => {
       window.removeEventListener("auth-change", checkLoginStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    isNotificationOpenRef.current = isNotificationOpen;
+  }, [isNotificationOpen]);
+
+  useEffect(() => {
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
+    const sseBaseUrl = apiBaseUrl.replace(/\/api\/v1\/?$/, '');
+    const eventSource = new EventSource(`${sseBaseUrl}/sse/subscribe`, { withCredentials: true });
+
+    eventSource.addEventListener('notification', () => {
+      // 새 알림이 오면, 드롭다운이 열려있을 때만 목록을 다시 불러와 최신화.
+      // ref로 최신값을 읽어서 stale closure 방지 (deps에 넣으면 매번 재연결되므로 이 방식 사용)
+      if (isNotificationOpenRef.current) {
+        loadNotifications();
+      }
+    });
+
+    eventSource.onerror = () => {
+      // 연결 끊김은 브라우저가 자동 재연결을 시도하므로 별도 처리는 하지 않음
+      console.warn('SSE 연결 오류 발생, 자동 재연결 대기 중');
+    };
+
+    return () => {
+      eventSource.close();
     };
   }, []);
 
@@ -370,13 +446,59 @@ export function MainLayout() {
                       )}
                     </div>
                     <div className="px-3 py-2 border-t border-border-color mt-1">
-                      <button className="w-full py-2 text-sm text-text-secondary font-medium hover:bg-bg-main rounded-[8px] transition-colors">
+                      <button
+                        onClick={openSettingsModal}
+                        className="w-full py-2 text-sm text-text-secondary font-medium hover:bg-bg-main rounded-[8px] transition-colors"
+                      >
                         알림 설정
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+
+              {isSettingsModalOpen && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                  <div className="bg-white rounded-[24px] max-w-sm w-full p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-border-color flex flex-col gap-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-bold text-text-primary">알림 설정</h3>
+                      <button
+                        onClick={() => setIsSettingsModalOpen(false)}
+                        className="w-8 h-8 rounded-full bg-bg-main hover:bg-border-color flex items-center justify-center transition cursor-pointer text-text-secondary hover:text-text-primary"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {settingsLoading || !alertSettings ? (
+                      <p className="text-center text-sm text-text-secondary py-8">불러오는 중...</p>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        {ALERT_SETTING_LABELS.map(({ key, label, description }) => (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between gap-4 py-3 border-b border-border-color last:border-0"
+                          >
+                            <div>
+                              <p className="text-sm font-bold text-text-primary">{label}</p>
+                              <p className="text-xs text-text-secondary mt-0.5">{description}</p>
+                            </div>
+                            <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                              <input
+                                type="checkbox"
+                                className="sr-only peer"
+                                checked={alertSettings[key]}
+                                onChange={() => toggleAlertSetting(key)}
+                              />
+                              <div className="w-11 h-6 bg-border-color peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand"></div>
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="relative" ref={userMenuRef}>
                 <div
