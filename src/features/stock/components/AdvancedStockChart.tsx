@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { cn } from "@/src/shared/lib/utils";
+import type { ChartPoint } from "@/src/features/stock/lib/indicators";
 
 // Helper to generate mock candlestick data
 const generateData = () => {
@@ -96,16 +97,23 @@ const generateData = () => {
   return data;
 };
 
-const CHART_DATA = generateData();
+const MOCK_CHART_DATA = generateData();
 const MY_AVG_PRICE = 269250;
 
 export function AdvancedStockChart({
   hideControlsAndIndicators = false,
   noCardStyle = false,
+  candles,
 }: {
   hideControlsAndIndicators?: boolean;
   noCardStyle?: boolean;
+  candles?: ChartPoint[];
 }) {
+  const CHART_DATA = useMemo(
+      () => (candles && candles.length > 0 ? candles : MOCK_CHART_DATA),
+      [candles],
+  );
+
   const [activeIndicators, setActiveIndicators] = useState({
     ma: !hideControlsAndIndicators,
     bollinger: false,
