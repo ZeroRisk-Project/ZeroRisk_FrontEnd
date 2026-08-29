@@ -751,7 +751,7 @@ export function Portfolio() {
                            <ReferenceLine x={0} stroke="#E5E5EA" strokeWidth={2} />
                            <Bar dataKey="pnl" barSize={24} radius={[0, 4, 4, 0]}>
                               {holdings.map((entry, index) => (
-                                 <Cell key={`cell-${index}`} fill={entry.pnl > 0 ? '#FF3B30' : '#007AFF'} radius={entry.pnl > 0 ? [0, 4, 4, 0] : [4, 0, 0, 4]} />
+                                 <Cell key={`cell-${index}`} fill={entry.pnl > 0 ? '#FF3B30' : '#007AFF'} radius={(entry.pnl > 0 ? [0, 4, 4, 0] : [4, 0, 0, 4]) as unknown as number} />
                               ))}
                            </Bar>
                         </BarChart>
