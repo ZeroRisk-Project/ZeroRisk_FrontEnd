@@ -15,14 +15,12 @@ export interface OrderCreateRequest {
 
 export interface OrderResponse {
     orderId: number;
-    stockCode: string;
     side: OrderSide;
     orderType: OrderType;
     quantity: number;
     limitPrice: number | null;
     status: OrderStatus;
     filledPrice: number | null;
-    createdAt: string;
 }
 
 export interface OrderSummaryResponse {
@@ -33,9 +31,10 @@ export interface OrderSummaryResponse {
     orderType: OrderType;
     quantity: number;
     limitPrice: number | null;
-    status: OrderStatus;
     filledPrice: number | null;
+    status: OrderStatus;
     createdAt: string;
+    filledAt: string | null;
 }
 
 export interface TradeResponse {
