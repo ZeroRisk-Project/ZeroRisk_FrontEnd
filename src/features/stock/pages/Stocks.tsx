@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -16,6 +16,44 @@ import {
 import { formatPrice, formatPercent, cn } from "@/src/shared/lib/utils";
 import { AdvancedStockChart } from "@/src/features/stock/components/AdvancedStockChart";
 import { OrderBook } from "@/src/features/stock/components/OrderBook";
+import {
+  getStockChart,
+  getStockDetail,
+  getStockRankings,
+  type RankingType,
+  type StockDetailResponse,
+  type StockRankingResponse,
+} from "@/src/features/stock/api/stock";
+import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
+
+export interface StockListItem {
+  code: string;
+  name: string;
+  price: number;
+  change: number;
+  volume: string;
+  isFav?: boolean;
+}
+
+const RANKING_TYPE_BY_TAB: Record<string, RankingType> = {
+  거래량: "VOLUME",
+  급상승: "RISE",
+  급하락: "FALL",
+};
+
+const formatVolume = (volume: number): string => {
+  if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(1)}M`;
+  if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
+  return String(volume);
+};
+
+const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
+  code: ranking.code,
+  name: ranking.name,
+  price: ranking.currentPrice,
+  change: ranking.changeRate,
+  volume: formatVolume(ranking.volume),
+});
 
 export const STOCKS_DATA = [
   {
@@ -138,6 +176,29 @@ export function Stocks() {
 
   const isFav = (stockCode: string) => favStocks.includes(stockCode);
 
+  const [rankingStocks, setRankingStocks] = useState<StockListItem[] | null>(null);
+
+  useEffect(() => {
+    const rankingType = RANKING_TYPE_BY_TAB[activeTab];
+    if (!rankingType) {
+      setRankingStocks(null);
+      return;
+    }
+
+    let ignore = false;
+    getStockRankings(rankingType)
+        .then((rankings) => {
+          if (!ignore) setRankingStocks(rankings.map(toStockListItem));
+        })
+        .catch(() => {
+          if (!ignore) setRankingStocks(null);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, [activeTab]);
+
   const parseVolume = (vol: string): number => {
     const num = parseFloat(vol);
     if (vol.endsWith("M")) return num * 1000000;
@@ -146,12 +207,17 @@ export function Stocks() {
   };
 
   const getFilteredAndSortedStocks = () => {
-    let list = [...STOCKS_DATA];
+    const isServerRanked = rankingStocks !== null;
+    let list: StockListItem[] = isServerRanked ? [...rankingStocks] : [...STOCKS_DATA];
 
     // 1. Search Query filtering
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       list = list.filter((s) => s.name.toLowerCase().includes(query) || s.code.includes(query));
+    }
+
+    if (isServerRanked) {
+      return list;
     }
 
     // 2. Sub-filter (보통주 / 우선주)
@@ -194,20 +260,74 @@ export function Stocks() {
     setTimeout(() => setActionToast(""), 3000);
   };
 
+  const [stockDetail, setStockDetail] = useState<StockDetailResponse | null>(null);
+
+  useEffect(() => {
+    if (!code) {
+      setStockDetail(null);
+      return;
+    }
+
+    let ignore = false;
+    getStockDetail(code)
+        .then((detail) => {
+          if (!ignore) setStockDetail(detail);
+        })
+        .catch(() => {
+          if (!ignore) setStockDetail(null);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, [code]);
+
+  const [chartPoints, setChartPoints] = useState<ChartPoint[] | undefined>(undefined);
+
+  useEffect(() => {
+    if (!code) {
+      setChartPoints(undefined);
+      return;
+    }
+
+    let ignore = false;
+    getStockChart(code, "DAY")
+        .then((candles) => {
+          if (!ignore) setChartPoints(toChartPoints(candles));
+        })
+        .catch(() => {
+          if (!ignore) setChartPoints(undefined);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, [code]);
+
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);
 
-  const stock = activeStockData
+  const stock = stockDetail
     ? {
-        code: activeStockData.code,
-        name: activeStockData.name,
-        price: activeStockData.price,
-        change: activeStockData.price * (activeStockData.change / 100),
-        changeRate: activeStockData.change,
-        volume: activeStockData.volume,
-        isFav: isFav(activeStockData.code),
+        code: stockDetail.code,
+        name: stockDetail.name,
+        price: stockDetail.currentPrice,
+        change: stockDetail.changeAmount,
+        changeRate: stockDetail.changeRate,
+        volume: activeStockData?.volume ?? "-",
+        isFav: isFav(stockDetail.code),
       }
-    : null;
+      : activeStockData
+          ? {
+            code: activeStockData.code,
+            name: activeStockData.name,
+            price: activeStockData.price,
+            change: activeStockData.price * (activeStockData.change / 100),
+            changeRate: activeStockData.change,
+            volume: activeStockData.volume,
+            isFav: isFav(activeStockData.code),
+          }
+          : null;
 
   return (
     <div className="flex gap-6 relative animate-in fade-in duration-500">
@@ -444,7 +564,7 @@ export function Stocks() {
 
                 {/* Chart Area */}
                 <div>
-                  <AdvancedStockChart noCardStyle={true} />
+                  <AdvancedStockChart noCardStyle={true} candles={chartPoints} />
                 </div>
 
                 {/* Section F: 52-Week High/Low Bar */}
