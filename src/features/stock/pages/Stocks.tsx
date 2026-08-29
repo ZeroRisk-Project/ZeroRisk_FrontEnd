@@ -179,6 +179,7 @@ export function Stocks() {
   const isFav = (stockCode: string) => favStocks.includes(stockCode);
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -356,6 +357,7 @@ export function Stocks() {
       return;
     }
 
+    setIsSubmittingOrder(true);
     try {
       await createOrder({
         accountId: basicAccountId,
@@ -373,6 +375,8 @@ export function Stocks() {
       );
     } catch (error: any) {
       showToast(error?.response?.data?.message ?? "주문 처리에 실패했습니다.");
+    } finally {
+      setIsSubmittingOrder(false);
     }
   };
 
@@ -902,6 +906,7 @@ export function Stocks() {
                           size="lg"
                           className="flex-1 shrink-1 min-w-0 border-border-color text-text-primary hover:bg-bg-main"
                           onClick={handleBooking}
+                          disabled={isSubmittingOrder}
                         >
                           예약
                         </Button>
@@ -910,6 +915,7 @@ export function Stocks() {
                           size="lg"
                           className="flex-[3] text-base"
                           onClick={handleOrder}
+                          disabled={isSubmittingOrder}
                         >
                           {orderType === "buy" ? "매수하기" : "매도하기"}
                         </Button>
