@@ -19,6 +19,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
 import { getAccounts } from "@/src/features/account/api/account";
+import { getTrades, type TradeResponse } from "@/src/features/order/api/order";
+
+function formatTransactionDate(isoDateTime: string): string {
+  return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
+}
 
 const MOCK_CALENDAR_DATA: Record<
   number,
@@ -72,6 +77,24 @@ export function Mypage() {
     };
     fetchAccounts();
   }, []);
+
+  const [trades, setTrades] = useState<TradeResponse[] | null>(null);
+
+  useEffect(() => {
+    if (basicAccountId === null) {
+      setTrades(null);
+      return;
+    }
+
+    let ignore = false;
+    getTrades(basicAccountId)
+        .then((page) => { if (!ignore) setTrades(page.content); })
+        .catch(() => { if (!ignore) setTrades(null); });
+
+    return () => {
+      ignore = true;
+    };
+  }, [basicAccountId]);
 
   useEffect(() => {
     const checkLinkStatus = async () => {
@@ -172,11 +195,21 @@ export function Mypage() {
     },
   ];
 
-  const TRANSACTIONS_DONE = [
+  const MOCK_TRANSACTIONS_DONE = [
     { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
     { type: "sell", stock: "SK하이닉스", date: "23.11.01 09:12", price: 162000, qty: 5 },
     { type: "buy", stock: "LG에너지솔루션", date: "23.10.28 10:15", price: 395000, qty: 2 }
   ];
+
+  const TRANSACTIONS_DONE = trades
+      ? trades.map((trade) => ({
+        type: trade.side === "BUY" ? "buy" : "sell",
+        stock: trade.stockName,
+        date: formatTransactionDate(trade.tradedAt),
+        price: trade.price,
+        qty: trade.quantity,
+      }))
+      : MOCK_TRANSACTIONS_DONE;
 
   const TRANSACTIONS_PENDING = [
     { type: "buy", stock: "LG에너지솔루션", date: "23.11.03 10:05", price: 390000, qty: 2 },
