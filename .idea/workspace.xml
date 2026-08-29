@@ -1,95 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="915af1be-5cf3-446e-8ea4-b55e9fa8be80" name="변경" comment="" />
+    <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_BRANCH_BY_REPOSITORY">
-      <map>
-        <entry key="$PROJECT_DIR$" value="main" />
-      </map>
-    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GitHubPullRequestSearchHistory">{
-  &quot;lastFilter&quot;: {
-    &quot;state&quot;: &quot;OPEN&quot;,
-    &quot;assignee&quot;: &quot;5s-mini&quot;
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/ZeroRisk-Project/ZeroRisk_FrontEnd.git",
+    "accountId": "e06aa138-b394-4efa-8205-c6e71207b041"
   }
-}</component>
-  <component name="GithubPullRequestsUISettings">{
-  &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/ZeroRisk-Project/ZeroRisk_FrontEnd.git&quot;,
-    &quot;accountId&quot;: &quot;e06aa138-b394-4efa-8205-c6e71207b041&quot;
-  }
-}</component>
-  <component name="ProjectColorInfo">{
-  &quot;associatedIndex&quot;: 1,
-  &quot;fromUser&quot;: false
-}</component>
-  <component name="ProjectId" id="3IXMi1A7CFITmlqMsszf6sAdtOZ" />
+}]]></component>
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
   </component>
-  <component name="ProjectViewState">
-    <option name="hideEmptyMiddlePackages" value="true" />
-    <option name="showLibraryContents" value="true" />
-  </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "feature/portfolio-api-integration에 #27개",
-    "ignore.virus.scanning.warn.message": "true",
-    "kotlin-language-version-configured": "true",
-    "last_opened_file_path": "C:/Users/dncls/Desktop/GitHub/ZeroRisk_FrontEnd",
-    "nodejs_package_manager_path": "npm",
+    "git-widget-placeholder": "feature/order-api-integration",
     "ts.external.directory.path": "C:\\Program Files\\JetBrains\\IntelliJ IDEA 2025.2.3\\plugins\\javascript-plugin\\jsLanguageServicesImpl\\external"
   }
 }]]></component>
-  <component name="RunManager">
-    <configuration default="true" type="JetRunConfigurationType">
-      <module name="ZeroRisk_FrontEnd" />
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
-      <module name="ZeroRisk_FrontEnd" />
-      <option name="filePath" />
-      <method v="2" />
-    </configuration>
-  </component>
-  <component name="SharedIndexes">
-    <attachedChunks>
-      <set>
-        <option value="bundled-jdk-30f59d01ecdd-34e2839f716b-intellij.indexing.shared.core-IU-262.9437.185" />
-        <option value="bundled-js-predefined-d6986cc7102b-4abd2a77f808-JavaScript-IU-262.9437.185" />
-      </set>
-    </attachedChunks>
-  </component>
   <component name="TaskManager">
-    <task active="true" id="Default" summary="디폴트 작업">
-      <changelist id="915af1be-5cf3-446e-8ea4-b55e9fa8be80" name="변경" comment="" />
-      <created>1787906583547</created>
-      <option name="number" value="Default" />
-      <option name="presentableId" value="Default" />
-      <updated>1787906583547</updated>
-      <workItem from="1787906584597" duration="1476000" />
-      <workItem from="1787920902354" duration="1346000" />
-      <workItem from="1787940335302" duration="2710000" />
-      <workItem from="1787970609396" duration="687000" />
-    </task>
     <servers />
-  </component>
-  <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="3" />
   </component>
 </project>
