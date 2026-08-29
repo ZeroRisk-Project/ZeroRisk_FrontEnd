@@ -25,6 +25,7 @@ import {
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
 import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
+import { getAccounts } from "@/src/features/account/api/account";
 
 export interface StockListItem {
   code: string;
@@ -175,6 +176,25 @@ export function Stocks() {
   };
 
   const isFav = (stockCode: string) => favStocks.includes(stockCode);
+
+  const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let ignore = false;
+    getAccounts()
+        .then((accounts) => {
+          if (ignore) return;
+          const basic = accounts.find((account) => account.accountType === "BASIC");
+          setBasicAccountId(basic ? basic.accountId : null);
+        })
+        .catch(() => {
+          if (!ignore) setBasicAccountId(null);
+        });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const [rankingStocks, setRankingStocks] = useState<StockListItem[] | null>(null);
 
