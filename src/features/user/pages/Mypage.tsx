@@ -20,6 +20,7 @@ import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
 import { getAccounts } from "@/src/features/account/api/account";
 import {
+  cancelOrder,
   getOrders,
   getTrades,
   type OrderSummaryResponse,
@@ -105,6 +106,16 @@ export function Mypage() {
       ignore = true;
     };
   }, [basicAccountId]);
+
+  const handleCancelOrder = async (orderId: number) => {
+    if (basicAccountId === null) return;
+    try {
+      await cancelOrder(orderId);
+      const page = await getOrders(basicAccountId, "PENDING");
+      setPendingOrders(page.content);
+    } catch {
+    }
+  };
 
   useEffect(() => {
     const checkLinkStatus = async () => {
@@ -529,7 +540,11 @@ export function Mypage() {
                               <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
                               <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
                               <div className="flex justify-end pl-2">
-                                <button className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer">
+                                <button
+                                    onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
+                                    disabled={log.orderId === null}
+                                    className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>
