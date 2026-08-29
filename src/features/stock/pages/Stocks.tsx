@@ -26,6 +26,7 @@ import {
 } from "@/src/features/stock/api/stock";
 import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
 import { getAccounts } from "@/src/features/account/api/account";
+import { createOrder } from "@/src/features/order/api/order";
 
 export interface StockListItem {
   code: string;
@@ -268,18 +269,6 @@ export function Stocks() {
     return list;
   };
 
-  const handleOrder = () => {
-    setActionToast(
-      `성공적으로 ${orderType === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
-    );
-    setTimeout(() => setActionToast(""), 3000);
-  };
-
-  const handleBooking = () => {
-    setActionToast(`성공적으로 예약 주문이 접수되었습니다.`);
-    setTimeout(() => setActionToast(""), 3000);
-  };
-
   const [stockDetail, setStockDetail] = useState<StockDetailResponse | null>(null);
 
   useEffect(() => {
@@ -348,6 +337,48 @@ export function Stocks() {
             isFav: isFav(activeStockData.code),
           }
           : null;
+
+  const showToast = (message: string) => {
+    setActionToast(message);
+    setTimeout(() => setActionToast(""), 3000);
+  };
+
+  const submitOrder = async (requestedOrderType: "MARKET" | "LIMIT") => {
+    if (!stock) return;
+    if (basicAccountId === null) {
+      showToast("계좌 정보를 불러오지 못했습니다.");
+      return;
+    }
+
+    const orderQuantity = Number(quantity || 0);
+    if (orderQuantity <= 0) {
+      showToast("주문 수량을 입력해 주세요.");
+      return;
+    }
+
+    try {
+      await createOrder({
+        accountId: basicAccountId,
+        stockCode: stock.code,
+        side: orderType === "buy" ? "BUY" : "SELL",
+        orderType: requestedOrderType,
+        quantity: orderQuantity,
+        limitPrice: requestedOrderType === "LIMIT" ? stock.price : undefined,
+      });
+      setQuantity("");
+      showToast(
+          requestedOrderType === "LIMIT" && priceType === "시장가"
+              ? "성공적으로 예약 주문이 접수되었습니다."
+              : `성공적으로 ${orderType === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
+      );
+    } catch (error: any) {
+      showToast(error?.response?.data?.message ?? "주문 처리에 실패했습니다.");
+    }
+  };
+
+  const handleOrder = () => submitOrder(priceType === "시장가" ? "MARKET" : "LIMIT");
+
+  const handleBooking = () => submitOrder("LIMIT");
 
   return (
     <div className="flex gap-6 relative animate-in fade-in duration-500">
