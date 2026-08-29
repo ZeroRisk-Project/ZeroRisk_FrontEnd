@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/shared/components/ui/Card';
 import { Button } from '@/src/shared/components/ui/Button';
 import { Badge } from '@/src/shared/components/ui/Badge';
@@ -10,6 +10,11 @@ import {
   AreaChart, Area, XAxis, YAxis, ComposedChart, Line,
   BarChart, Bar, ReferenceLine, ResponsiveContainer
 } from 'recharts';
+import {
+    getAccounts, getComposition, getHoldings, getSnapshots,
+    type HoldingResponse, type PortfolioCompositionResponse,
+    type PortfolioSnapshotResponse,
+} from '@/src/features/portfolio/api/portfolio';
 
 const PORTFOLIO_DATA = {
   main: {
@@ -130,8 +135,96 @@ export function Portfolio() {
   const [executionLogs, setExecutionLogs] = useState<string[]>([]);
   const [executionProgress, setExecutionProgress] = useState(0);
 
+    const [serverAccountId, setServerAccountId] = useState<number | null>(null);
+    const [serverHoldings, setServerHoldings] = useState<HoldingResponse[] | null>(null);
+    const [serverComposition, setServerComposition] = useState<PortfolioCompositionResponse | null>(null);
+    const [serverSnapshots, setServerSnapshots] = useState<PortfolioSnapshotResponse[] | null>(null);
+
+    useEffect(() => {
+        let ignore = false;
+        getAccounts()
+            .then((accounts) => {
+                if (ignore) return;
+                const wanted = accountId === 'main' ? 'BASIC' : 'COMPETITION';
+                const matched = accounts.find((account) => account.accountType === wanted);
+                setServerAccountId(matched ? matched.accountId : null);
+            })
+            .catch(() => {
+                if (!ignore) setServerAccountId(null);
+            });
+
+        return () => {
+            ignore = true;
+        };
+    }, [accountId]);
+
+    useEffect(() => {
+        if (serverAccountId === null) {
+            setServerHoldings(null);
+            setServerComposition(null);
+            setServerSnapshots(null);
+            return;
+        }
+
+        let ignore = false;
+        getHoldings(serverAccountId)
+            .then((data) => { if (!ignore) setServerHoldings(data); })
+            .catch(() => { if (!ignore) setServerHoldings(null); });
+        getComposition(serverAccountId)
+            .then((data) => { if (!ignore) setServerComposition(data); })
+            .catch(() => { if (!ignore) setServerComposition(null); });
+        getSnapshots(serverAccountId)
+            .then((data) => { if (!ignore) setServerSnapshots(data); })
+            .catch(() => { if (!ignore) setServerSnapshots(null); });
+
+        return () => {
+            ignore = true;
+        };
+    }, [serverAccountId]);
+
   const currentData = portfolioState[accountId];
-  const { summary, holdings, history, risk } = currentData;
+  const holdings = useMemo(() => {
+      if (!serverHoldings) return currentData.holdings;
+      const weightByCode = new Map(
+          (serverComposition?.stocks ?? []).map((stock) => [stock.stockCode, stock.weight]),
+          );
+      return serverHoldings.map((holding) => ({
+          code: holding.stockCode,
+          name: holding.stockName,
+          qty: holding.quantity,
+          avgPrice: holding.averagePrice,
+          currentPrice: holding.currentPrice,
+          amount: holding.evaluationAmount,
+          pnl: holding.profitLoss,
+          pnlPercent: holding.profitRate,
+          weight: weightByCode.get(holding.stockCode) ?? 0,
+      }));
+  }, [serverHoldings, serverComposition, currentData.holdings]);
+
+  const summary = useMemo(() => {
+      if (!serverHoldings || !serverComposition) return currentData.summary;
+      const totalPurchase = serverHoldings.reduce(
+          (sum, holding) => sum + holding.averagePrice * holding.quantity, 0,);
+      const totalPnL = serverHoldings.reduce((sum, holding) => sum + holding.profitLoss, 0);
+      return {
+          totalAsset: serverComposition.totalAsset,
+          totalPurchase,
+          totalPnL,
+          totalReturn: totalPurchase > 0 ? (totalPnL / totalPurchase) * 100 : 0,
+      };
+  }, [serverHoldings, serverComposition, currentData.summary]);
+
+  const history = useMemo(() => {
+      if (!serverSnapshots || serverSnapshots.length === 0) return currentData.history;
+        return serverSnapshots.map((snapshot) => ({
+            date: snapshot.snapshotDate.slice(5),
+            asset: snapshot.totalAsset,
+            kospiRate: 0,
+        }));
+  }, [serverSnapshots, currentData.history]);
+
+  const { risk } = currentData;
+
   const isAlreadyRebalanced = holdings.some(h => h.name.includes('ETF') || h.name.includes('국채'));
 
   const handleRebalanceClick = () => {
@@ -751,7 +844,7 @@ export function Portfolio() {
                            <ReferenceLine x={0} stroke="#E5E5EA" strokeWidth={2} />
                            <Bar dataKey="pnl" barSize={24} radius={[0, 4, 4, 0]}>
                               {holdings.map((entry, index) => (
-                                 <Cell key={`cell-${index}`} fill={entry.pnl > 0 ? '#FF3B30' : '#007AFF'} radius={entry.pnl > 0 ? [0, 4, 4, 0] : [4, 0, 0, 4]} />
+                                 <Cell key={`cell-${index}`} fill={entry.pnl > 0 ? '#FF3B30' : '#007AFF'} radius={(entry.pnl > 0 ? [0, 4, 4, 0] : [4, 0, 0, 4]) as unknown as number} />
                               ))}
                            </Bar>
                         </BarChart>
