@@ -19,7 +19,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
 import { getAccounts } from "@/src/features/account/api/account";
-import { getTrades, type TradeResponse } from "@/src/features/order/api/order";
+import {
+  getOrders,
+  getTrades,
+  type OrderSummaryResponse,
+  type TradeResponse,
+} from "@/src/features/order/api/order";
 
 function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
@@ -79,10 +84,12 @@ export function Mypage() {
   }, []);
 
   const [trades, setTrades] = useState<TradeResponse[] | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<OrderSummaryResponse[] | null>(null);
 
   useEffect(() => {
     if (basicAccountId === null) {
       setTrades(null);
+      setPendingOrders(null);
       return;
     }
 
@@ -90,6 +97,9 @@ export function Mypage() {
     getTrades(basicAccountId)
         .then((page) => { if (!ignore) setTrades(page.content); })
         .catch(() => { if (!ignore) setTrades(null); });
+    getOrders(basicAccountId, "PENDING")
+        .then((page) => { if (!ignore) setPendingOrders(page.content); })
+        .catch(() => { if (!ignore) setPendingOrders(null); });
 
     return () => {
       ignore = true;
@@ -211,10 +221,21 @@ export function Mypage() {
       }))
       : MOCK_TRANSACTIONS_DONE;
 
-  const TRANSACTIONS_PENDING = [
+  const MOCK_TRANSACTIONS_PENDING = [
     { type: "buy", stock: "LG에너지솔루션", date: "23.11.03 10:05", price: 390000, qty: 2 },
     { type: "sell", stock: "카카오", date: "23.11.03 10:10", price: 54900, qty: 10 }
   ];
+
+  const TRANSACTIONS_PENDING = pendingOrders
+      ? pendingOrders.map((order) => ({
+        orderId: order.orderId as number | null,
+        type: order.side === "BUY" ? "buy" : "sell",
+        stock: order.stockName,
+        date: formatTransactionDate(order.createdAt),
+        price: order.limitPrice ?? 0,
+        qty: order.quantity,
+      }))
+      : MOCK_TRANSACTIONS_PENDING.map((tx) => ({ ...tx, orderId: null as number | null }));
 
   const POSTS_NORMAL = [
     { id: 1, title: "단타 꿀팁 방출합니다", date: "2023.11.01", boardName: "자유게시판", likes: 12, comments: 5 },
