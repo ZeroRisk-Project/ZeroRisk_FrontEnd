@@ -18,6 +18,7 @@ import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
+import { getAccounts } from "@/src/features/account/api/account";
 
 const MOCK_CALENDAR_DATA: Record<
   number,
@@ -53,17 +54,20 @@ export function Mypage() {
 
   const [mainAccountBalance, setMainAccountBalance] = useState(0);
   const [isLinked, setIsLinked] = useState(false);
+  const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const response = await api.get("/accounts");
-        const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
+        const accounts = await getAccounts();
+        const basicAccount = accounts.find((account) => account.accountType === "BASIC");
         if (basicAccount) {
           setMainAccountBalance(basicAccount.balance);
+          setBasicAccountId(basicAccount.accountId);
         }
       } catch {
         setMainAccountBalance(0);
+        setBasicAccountId(null);
       }
     };
     fetchAccounts();
