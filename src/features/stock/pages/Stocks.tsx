@@ -27,6 +27,10 @@ import {
 import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
+import {
+  createPriceAlert,
+  type PriceAlertDirection,
+} from "@/src/features/pricealert/api/pricealert";
 
 export interface StockListItem {
   code: string;
@@ -180,6 +184,10 @@ export function Stocks() {
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+
+  const [alertDirection, setAlertDirection] = useState<PriceAlertDirection>("ABOVE");
+  const [alertPrice, setAlertPrice] = useState("");
+  const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -383,6 +391,27 @@ export function Stocks() {
   const handleOrder = () => submitOrder(priceType === "시장가" ? "MARKET" : "LIMIT");
 
   const handleBooking = () => submitOrder("LIMIT");
+
+  const handleCreateAlert = async () => {
+    if (!stock) return;
+
+    const targetPrice = Number(alertPrice || stock.price);
+    if (targetPrice <= 0) {
+      showToast("목표가를 입력해 주세요.");
+      return;
+    }
+
+    setIsSubmittingAlert(true);
+    try {
+      await createPriceAlert(stock.code, targetPrice, alertDirection);
+      setAlertPrice("");
+      showToast("목표가 알림이 등록되었습니다.");
+    } catch (error: any) {
+      showToast(error?.response?.data?.message ?? "목표가 알림 등록에 실패했습니다.");
+    } finally {
+      setIsSubmittingAlert(false);
+    }
+  };
 
   return (
     <div className="flex gap-6 relative animate-in fade-in duration-500">
@@ -926,6 +955,51 @@ export function Stocks() {
                         )}
                       </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Price Alert Panel */}
+              <Card>
+                <CardContent className="p-0">
+                  <div className="p-6 border-b border-border-color">
+                    <h3 className="font-bold">목표가 알림</h3>
+                  </div>
+                  <div className="p-6 flex flex-col gap-4">
+                    <div className="flex bg-bg-main p-1 rounded-[16px]">
+                      {(["ABOVE", "BELOW"] as const).map((direction) => (
+                          <button
+                              key={direction}
+                              onClick={() => setAlertDirection(direction)}
+                              className={cn(
+                                  "flex-1 py-2 text-[13px] font-bold rounded-[12px] transition-colors",
+                                  alertDirection === direction
+                                      ? "bg-surface text-text-primary shadow-sm"
+                                      : "text-text-secondary hover:text-text-primary",
+                              )}
+                          >
+                            {direction === "ABOVE" ? "이상일 때" : "이하일 때"}
+                          </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
+                      <input
+                          className="flex-1 h-12 px-4 bg-transparent text-right font-bold tabular-nums outline-none w-full"
+                          placeholder={String(stock.price)}
+                          value={alertPrice}
+                          onChange={(e) => setAlertPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                      />
+                      <span className="pr-4 text-sm font-bold text-text-secondary">원</span>
+                    </div>
+                    <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full border-border-color text-text-primary hover:bg-bg-main"
+                        onClick={handleCreateAlert}
+                        disabled={isSubmittingAlert}
+                    >
+                      알림 등록
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
