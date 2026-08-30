@@ -27,6 +27,7 @@ import {
 import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
+import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
 
 export interface StockListItem {
   code: string;
@@ -156,27 +157,13 @@ export function Stocks() {
 
   const isCompared = (stockCode: string) => compareStocks.includes(stockCode);
 
-  const [favStocks, setFavStocks] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("fav_stocks");
-      if (saved) return JSON.parse(saved);
-      return STOCKS_DATA.filter((s) => s.isFav).map((s) => s.code);
-    } catch {
-      return STOCKS_DATA.filter((s) => s.isFav).map((s) => s.code);
-    }
-  });
+  const { isFavorite, toggleFavorite } = useWatchlist();
 
   const toggleFav = (stockCode: string) => {
-    setFavStocks((prev) => {
-      const next = prev.includes(stockCode)
-        ? prev.filter((c) => c !== stockCode)
-        : [...prev, stockCode];
-      localStorage.setItem("fav_stocks", JSON.stringify(next));
-      return next;
-    });
+    void toggleFavorite(stockCode);
   };
 
-  const isFav = (stockCode: string) => favStocks.includes(stockCode);
+  const isFav = (stockCode: string) => isFavorite(stockCode);
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
