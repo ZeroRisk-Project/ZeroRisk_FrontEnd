@@ -10,19 +10,19 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
-  <component name="GithubPullRequestsUISettings"><![CDATA[{
-  "selectedUrlAndAccountId": {
-    "url": "https://github.com/ZeroRisk-Project/ZeroRisk_FrontEnd.git",
-    "accountId": "e06aa138-b394-4efa-8205-c6e71207b041"
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/ZeroRisk-Project/ZeroRisk_FrontEnd.git&quot;,
+    &quot;accountId&quot;: &quot;e06aa138-b394-4efa-8205-c6e71207b041&quot;
   }
-}]]></component>
+}</component>
   <component name="ProjectLevelVcsManager">
     <ConfirmationsSetting value="2" id="Add" />
   </component>
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
-    "git-widget-placeholder": "feature/order-api-integration",
-    "ts.external.directory.path": "C:\\Program Files\\JetBrains\\IntelliJ IDEA 2025.2.3\\plugins\\javascript-plugin\\jsLanguageServicesImpl\\external"
+    "git-widget-placeholder": "feature/price-alert-api-integration",
+    "ts.external.directory.path": "C:\\Users\\dncls\\Desktop\\GitHub\\ZeroRisk_FrontEnd\\node_modules\\typescript\\lib"
   }
 }]]></component>
   <component name="TaskManager">
