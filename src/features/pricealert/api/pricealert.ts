@@ -8,6 +8,7 @@ export interface PriceAlertResponse {
     stockName: string;
     targetPrice: number;
     direction: PriceAlertDirection;
+    triggered: boolean;
     createdAt: string;
 }
 

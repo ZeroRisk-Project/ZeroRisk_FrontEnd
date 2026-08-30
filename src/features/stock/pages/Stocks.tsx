@@ -233,15 +233,16 @@ export function Stocks() {
       list = list.filter((s) => s.name.toLowerCase().includes(query) || s.code.includes(query));
     }
 
-    if (isServerRanked) {
-      return list;
-    }
-
     // 2. Sub-filter (보통주 / 우선주)
     if (activeFilter === "보통주") {
       list = list.filter((s) => !s.name.endsWith("우"));
     } else if (activeFilter === "우선주") {
       list = list.filter((s) => s.name.endsWith("우"));
+    }
+
+    // 서버 랭킹 응답은 이미 서버가 정한 순서를 따르므로 탭 기준 정렬을 건너뛴다
+    if (isServerRanked) {
+      return list;
     }
 
     // 3. Tab-based sorting/filtering

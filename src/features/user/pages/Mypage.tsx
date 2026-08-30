@@ -190,15 +190,7 @@ export function Mypage() {
     }
   };
 
-  const [favStockCodes, setFavStockCodes] = useState<string[]>(() => {
-    try {
-      const saved = localStorage.getItem("fav_stocks");
-      if (saved) return JSON.parse(saved);
-      return STOCKS_DATA.filter((s) => s.isFav).map((s) => s.code);
-    } catch {
-      return STOCKS_DATA.filter((s) => s.isFav).map((s) => s.code);
-    }
-  });
+  const { favorites, toggleFavorite } = useWatchlist();
 
   const handleToggleFavorite = (code: string) => {
     void toggleFavorite(code);
