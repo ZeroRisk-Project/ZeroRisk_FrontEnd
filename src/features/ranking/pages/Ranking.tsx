@@ -1,11 +1,18 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import axios from "axios";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Badge } from "@/src/shared/components/ui/Badge";
 import { Input } from "@/src/shared/components/ui/Input";
 import { cn } from "@/src/shared/lib/utils";
 import { User, Medal, Search } from "lucide-react";
-import { getRankings, getMyRanking, RankingResponse } from "@/src/features/ranking/api/ranking";
+import { getRankings, getMyRanking, RankingResponse, RankingPeriodParam } from "@/src/features/ranking/api/ranking";
+
+const TAB_TO_PERIOD: Record<string, RankingPeriodParam> = {
+  "일간": "DAILY",
+  "주간": "WEEKLY",
+  "월간": "MONTHLY",
+};
 
 export function Ranking() {
   const [activeTab, setActiveTab] = useState("주간");
@@ -14,17 +21,38 @@ export function Ranking() {
   const [myRanking, setMyRanking] = useState<RankingResponse | null>(null);
   const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    getRankings(page, 20)
-      .then(setRankings)
-      .catch(() => setRankings([]));
-  }, [page]);
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    setPage(0); // 탭 전환 시 이전 탭에서 보던 페이지가 그대로 남아있지 않도록 초기화
+  };
 
   useEffect(() => {
-    getMyRanking()
+    const period = TAB_TO_PERIOD[activeTab];
+    const controller = new AbortController();
+
+    getRankings(period, page, 20, controller.signal)
+      .then(setRankings)
+      .catch((error) => {
+        if (axios.isCancel(error)) return; // 탭을 빠르게 전환해 취소된 이전 요청 - 무시
+        setRankings([]);
+      });
+
+    return () => controller.abort();
+  }, [activeTab, page]);
+
+  useEffect(() => {
+    const period = TAB_TO_PERIOD[activeTab];
+    const controller = new AbortController();
+
+    getMyRanking(period, controller.signal)
       .then(setMyRanking)
-      .catch(() => setMyRanking(null)); // 비로그인이거나 아직 랭킹 데이터가 없는 경우
-  }, []);
+      .catch((error) => {
+        if (axios.isCancel(error)) return;
+        setMyRanking(null); // 비로그인이거나 해당 기간의 랭킹 데이터가 없는 경우
+      });
+
+    return () => controller.abort();
+  }, [activeTab]);
 
   const filteredRankers = rankings
     .slice(3)
@@ -39,7 +67,7 @@ export function Ranking() {
           {["일간", "주간", "월간"].map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => handleTabChange(tab)}
               className={cn(
                 "text-lg font-bold pb-2 transition-colors border-b-2 relative top-[9px]",
                 activeTab === tab
@@ -55,7 +83,14 @@ export function Ranking() {
 
       {myRanking && (
         <div className="bg-[#F2F4F6] rounded-[16px] p-4 flex items-center justify-between">
-          <span className="text-[13px] font-bold text-[#4E5968]">내 순위</span>
+          <div>
+            <span className="text-[13px] font-bold text-[#4E5968]">내 순위</span>
+            {myRanking.baseDate && (
+              <div className="text-[11px] text-text-secondary mt-1">
+                {myRanking.baseDate.replaceAll('-', '.')} 대비
+              </div>
+            )}
+          </div>
           <div className="flex items-center gap-3">
             <span className="font-bold text-[#191F28]">{myRanking.rank}위</span>
             <span className={cn("font-bold", myRanking.returnRate >= 0 ? "text-up" : "text-down")}>
@@ -65,6 +100,12 @@ export function Ranking() {
         </div>
       )}
 
+      {rankings.length === 0 ? (
+        <div className="text-center py-16 text-text-secondary text-sm">
+          아직 {activeTab} 랭킹 데이터가 없습니다
+        </div>
+      ) : (
+        <>
       {rankings.length >= 3 && (
         <div className="max-w-[860px] mx-auto pt-[48px] px-[60px] pb-0 flex items-end justify-center gap-6 relative overflow-hidden mb-8 group/podium-container">
           {/* Subtle radial glow behind 1st place */}
@@ -261,6 +302,8 @@ export function Ranking() {
           </table>
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   );
 }
