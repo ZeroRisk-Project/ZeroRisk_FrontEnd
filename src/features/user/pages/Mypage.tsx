@@ -16,9 +16,10 @@ import {
 import { formatPrice, cn } from "@/src/shared/lib/utils";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
-import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
 import { getAccounts } from "@/src/features/account/api/account";
+import { getStockDetail } from "@/src/features/stock/api/stock";
+import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
 import {
   deletePriceAlert,
   getPriceAlerts,
@@ -200,25 +201,40 @@ export function Mypage() {
   });
 
   const handleToggleFavorite = (code: string) => {
-    setFavStockCodes((prev) => {
-      let nextList: string[];
-      if (prev.includes(code)) {
-        nextList = prev.filter((c) => c !== code);
-      } else {
-        nextList = [...prev, code];
-      }
-      try {
-        localStorage.setItem("fav_stocks", JSON.stringify(nextList));
-      } catch (e) {
-        console.error(e);
-      }
-      return nextList;
-    });
+    void toggleFavorite(code);
   };
 
-  const favoriteStocks = STOCKS_DATA.filter((s) =>
-    favStockCodes.includes(s.code),
-  );
+  const [favoriteQuotes, setFavoriteQuotes] = useState<Record<string, { price: number; change: number }>>({});
+
+  useEffect(() => {
+    if (!favorites || favorites.length === 0) {
+      setFavoriteQuotes({});
+      return;
+    }
+
+    let ignore = false;
+    Promise.all(
+        favorites.map((favorite) =>
+            getStockDetail(favorite.stockCode)
+                .then((detail) => [detail.code, { price: detail.currentPrice, change: detail.changeRate }] as const)
+                .catch(() => null),
+        ),
+    ).then((results) => {
+      if (ignore) return;
+      setFavoriteQuotes(Object.fromEntries(results.filter((entry) => entry !== null)));
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, [favorites]);
+
+  const favoriteStocks = (favorites ?? []).map((favorite) => ({
+    code: favorite.stockCode,
+    name: favorite.stockName,
+    price: favoriteQuotes[favorite.stockCode]?.price ?? 0,
+    change: favoriteQuotes[favorite.stockCode]?.change ?? 0,
+  }));
 
   const MY_HOLDINGS = [
     {
