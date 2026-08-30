@@ -18,6 +18,18 @@ import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
 import { Link, useNavigate } from "react-router-dom";
 import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
+import { getAccounts } from "@/src/features/account/api/account";
+import {
+  cancelOrder,
+  getOrders,
+  getTrades,
+  type OrderSummaryResponse,
+  type TradeResponse,
+} from "@/src/features/order/api/order";
+
+function formatTransactionDate(isoDateTime: string): string {
+  return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
+}
 
 const MOCK_CALENDAR_DATA: Record<
   number,
@@ -53,21 +65,57 @@ export function Mypage() {
 
   const [mainAccountBalance, setMainAccountBalance] = useState(0);
   const [isLinked, setIsLinked] = useState(false);
+  const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchAccounts = async () => {
       try {
-        const response = await api.get("/accounts");
-        const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
+        const accounts = await getAccounts();
+        const basicAccount = accounts.find((account) => account.accountType === "BASIC");
         if (basicAccount) {
           setMainAccountBalance(basicAccount.balance);
+          setBasicAccountId(basicAccount.accountId);
         }
       } catch {
         setMainAccountBalance(0);
+        setBasicAccountId(null);
       }
     };
     fetchAccounts();
   }, []);
+
+  const [trades, setTrades] = useState<TradeResponse[] | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<OrderSummaryResponse[] | null>(null);
+
+  useEffect(() => {
+    if (basicAccountId === null) {
+      setTrades(null);
+      setPendingOrders(null);
+      return;
+    }
+
+    let ignore = false;
+    getTrades(basicAccountId)
+        .then((page) => { if (!ignore) setTrades(page.content); })
+        .catch(() => { if (!ignore) setTrades(null); });
+    getOrders(basicAccountId, "PENDING")
+        .then((page) => { if (!ignore) setPendingOrders(page.content); })
+        .catch(() => { if (!ignore) setPendingOrders(null); });
+
+    return () => {
+      ignore = true;
+    };
+  }, [basicAccountId]);
+
+  const handleCancelOrder = async (orderId: number) => {
+    if (basicAccountId === null) return;
+    try {
+      await cancelOrder(orderId);
+      const page = await getOrders(basicAccountId, "PENDING");
+      setPendingOrders(page.content);
+    } catch {
+    }
+  };
 
   useEffect(() => {
     const checkLinkStatus = async () => {
@@ -168,16 +216,37 @@ export function Mypage() {
     },
   ];
 
-  const TRANSACTIONS_DONE = [
+  const MOCK_TRANSACTIONS_DONE = [
     { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
     { type: "sell", stock: "SK하이닉스", date: "23.11.01 09:12", price: 162000, qty: 5 },
     { type: "buy", stock: "LG에너지솔루션", date: "23.10.28 10:15", price: 395000, qty: 2 }
   ];
 
-  const TRANSACTIONS_PENDING = [
+  const TRANSACTIONS_DONE = trades
+      ? trades.map((trade) => ({
+        type: trade.side === "BUY" ? "buy" : "sell",
+        stock: trade.stockName,
+        date: formatTransactionDate(trade.tradedAt),
+        price: trade.price,
+        qty: trade.quantity,
+      }))
+      : MOCK_TRANSACTIONS_DONE;
+
+  const MOCK_TRANSACTIONS_PENDING = [
     { type: "buy", stock: "LG에너지솔루션", date: "23.11.03 10:05", price: 390000, qty: 2 },
     { type: "sell", stock: "카카오", date: "23.11.03 10:10", price: 54900, qty: 10 }
   ];
+
+  const TRANSACTIONS_PENDING = pendingOrders
+      ? pendingOrders.map((order) => ({
+        orderId: order.orderId as number | null,
+        type: order.side === "BUY" ? "buy" : "sell",
+        stock: order.stockName,
+        date: formatTransactionDate(order.createdAt),
+        price: order.limitPrice ?? 0,
+        qty: order.quantity,
+      }))
+      : MOCK_TRANSACTIONS_PENDING.map((tx) => ({ ...tx, orderId: null as number | null }));
 
   const POSTS_NORMAL = [
     { id: 1, title: "단타 꿀팁 방출합니다", date: "2023.11.01", boardName: "자유게시판", likes: 12, comments: 5 },
@@ -471,7 +540,11 @@ export function Mypage() {
                               <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
                               <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
                               <div className="flex justify-end pl-2">
-                                <button className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer">
+                                <button
+                                    onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
+                                    disabled={log.orderId === null}
+                                    className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
                                   <X className="w-4 h-4" />
                                 </button>
                               </div>
