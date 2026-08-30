@@ -20,6 +20,11 @@ import { STOCKS_DATA } from "@/src/features/stock/pages/Stocks";
 import api from "@/src/shared/lib/api";
 import { getAccounts } from "@/src/features/account/api/account";
 import {
+  deletePriceAlert,
+  getPriceAlerts,
+  type PriceAlertResponse,
+} from "@/src/features/pricealert/api/pricealert";
+import {
   cancelOrder,
   getOrders,
   getTrades,
@@ -161,6 +166,28 @@ export function Mypage() {
   }, []);
 
   const myCompetitions = myProfile?.competitionHistory ?? [];
+
+  const [priceAlerts, setPriceAlerts] = useState<PriceAlertResponse[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    getPriceAlerts()
+        .then((data) => { if (!ignore) setPriceAlerts(data); })
+        .catch(() => { if (!ignore) setPriceAlerts([]); });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  const handleDeletePriceAlert = async (alertId: number) => {
+    try {
+      await deletePriceAlert(alertId);
+      setPriceAlerts(await getPriceAlerts());
+    } catch {
+
+    }
+  };
 
   const [favStockCodes, setFavStockCodes] = useState<string[]>(() => {
     try {
@@ -362,7 +389,7 @@ export function Mypage() {
             {/* Left Nav Filters */}
             <div className="w-full lg:w-[140px] shrink-0 lg:sticky lg:top-6 z-10">
               <div className="flex lg:flex-col gap-2 overflow-x-auto pb-2 lg:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-                {["거래내역", "관심종목", "보유종목", "대회", "게시글", "댓글"].map((filter) => (
+                {["거래내역", "관심종목", "목표가 알림", "보유종목", "대회", "게시글", "댓글"].map((filter) => (
                   <button
                     key={filter}
                     onClick={() => {
@@ -420,7 +447,7 @@ export function Mypage() {
                   </>
                 )}
 
-                {["관심종목", "보유종목", "대회", "댓글"].includes(mainFilter) && (
+                {["관심종목", "목표가 알림", "보유종목", "대회", "댓글"].includes(mainFilter) && (
                   <h3 className="font-bold text-lg text-[#191F28] flex items-center gap-2">
                     {mainFilter === "댓글"
                       ? "작성한 댓글"
@@ -430,6 +457,8 @@ export function Mypage() {
                     <span className="text-[15px] font-semibold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-lg">
                       {mainFilter === "관심종목"
                         ? favoriteStocks.length
+                        : mainFilter === "목표가 알림"
+                        ? priceAlerts.length
                         : mainFilter === "보유종목"
                         ? MY_HOLDINGS.length
                         : mainFilter === "대회"
@@ -596,6 +625,57 @@ export function Mypage() {
                       })
                     )}
                   </div>
+                )}
+
+                {mainFilter === "목표가 알림" && (
+                    <div className="p-6 space-y-2">
+                      {priceAlerts.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
+                            <p>등록된 목표가 알림이 없습니다.</p>
+                          </div>
+                      ) : (
+                          priceAlerts.map((alert) => {
+                            const isAbove = alert.direction === "ABOVE";
+                            return (
+                                <div
+                                    key={alert.alertId}
+                                    className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-[#F2F4F6] flex items-center justify-center font-bold text-xs text-[#4E5968] shrink-0">
+                                      {alert.stockName.substring(0, 2)}
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-[#191F28] text-[15px]">{alert.stockName}</h4>
+                                      <span className="text-[12px] text-[#8B95A1]">{alert.stockCode}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-4">
+                                    <div className="text-right">
+                                      <div className="font-bold text-[#191F28] text-[15px]">
+                                        {formatPrice(alert.targetPrice)}원
+                                      </div>
+                                      <div
+                                          className={cn(
+                                              "text-[13px] font-bold mt-0.5",
+                                              isAbove ? "text-[#F04452]" : "text-[#3182F6]",
+                                          )}
+                                      >
+                                        {isAbove ? "이상일 때" : "이하일 때"}
+                                      </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleDeletePriceAlert(alert.alertId)}
+                                        className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                            );
+                          })
+                      )}
+                    </div>
                 )}
 
                 {mainFilter === "보유종목" && (
