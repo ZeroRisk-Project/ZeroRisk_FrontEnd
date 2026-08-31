@@ -2,7 +2,8 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/watchlist/api/watchlist.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/watchlist/api/watchlist.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -42,7 +43,7 @@
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "feature/order-limit-price",
+    "git-widget-placeholder": "feature/watchlist-group-management",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
@@ -76,7 +77,8 @@
       <option name="presentableId" value="Default" />
       <updated>1788071492969</updated>
       <workItem from="1788071493682" duration="3612000" />
-      <workItem from="1788158452314" duration="1357000" />
+      <workItem from="1788158452314" duration="2173000" />
+      <workItem from="1788179218856" duration="776000" />
     </task>
     <servers />
   </component>
