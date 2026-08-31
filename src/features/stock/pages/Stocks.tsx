@@ -181,6 +181,7 @@ export function Stocks() {
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [limitPrice, setLimitPrice] = useState("");
 
   const [alertDirection, setAlertDirection] = useState<PriceAlertDirection>("ABOVE");
   const [alertPrice, setAlertPrice] = useState("");
@@ -344,6 +345,10 @@ export function Stocks() {
             isFav: isFav(activeStockData.code),
           }
           : null;
+
+  useEffect(() => {
+    setLimitPrice(stock ? String(stock.price) : "");
+  }, [stock?.code, stock?.price]);
 
   const showToast = (message: string) => {
     setActionToast(message);
@@ -823,7 +828,10 @@ export function Stocks() {
                             value={
                               priceType === "시장가"
                                 ? "시장가"
-                                : stock.price.toLocaleString()
+                                : Number(limitPrice || 0).toLocaleString()
+                            }
+                            onChange={(e) =>
+                                setLimitPrice(e.target.value.replace(/[^0-9]/g, ""))
                             }
                             readOnly={priceType === "시장가"}
                           />
