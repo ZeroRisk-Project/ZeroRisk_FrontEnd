@@ -190,7 +190,9 @@ export function Mypage() {
     }
   };
 
-  const { favorites, toggleFavorite } = useWatchlist();
+  const { groups, favorites, toggleFavorite, addGroup, renameGroup, removeGroup, changeFavoriteGroup } =
+      useWatchlist();
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
 
   const handleToggleFavorite = (code: string) => {
     void toggleFavorite(code);
@@ -222,11 +224,24 @@ export function Mypage() {
   }, [favorites]);
 
   const favoriteStocks = (favorites ?? []).map((favorite) => ({
+    favoriteId: favorite.favoriteId,
+    groupId: favorite.groupId,
     code: favorite.stockCode,
     name: favorite.stockName,
     price: favoriteQuotes[favorite.stockCode]?.price ?? 0,
     change: favoriteQuotes[favorite.stockCode]?.change ?? 0,
   }));
+
+  const visibleFavorites =
+      selectedGroupId === null
+          ? favoriteStocks
+          : favoriteStocks.filter((stock) => stock.groupId === selectedGroupId);
+
+  useEffect(() => {
+    if (selectedGroupId !== null && !groups.some((group) => group.groupId === selectedGroupId)) {
+      setSelectedGroupId(null);
+    }
+  }, [groups, selectedGroupId]);
 
   const MY_HOLDINGS = [
     {
