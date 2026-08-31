@@ -944,7 +944,7 @@ export function Stocks() {
                               Number(quantity || 0) *
                                 (priceType === "시장가"
                                   ? stock.price
-                                  : stock.price),
+                                  : Number(limitPrice || 0)),
                             )}
                             원
                           </span>
