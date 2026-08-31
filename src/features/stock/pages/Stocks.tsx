@@ -374,6 +374,12 @@ export function Stocks() {
       return;
     }
 
+    const orderLimitPrice = Number(limitPrice || 0);
+    if (requestedOrderType === "LIMIT" && orderLimitPrice <= 0) {
+      showToast("주문 가격을 입력해 주세요.");
+      return;
+    }
+
     setIsSubmittingOrder(true);
     try {
       await createOrder({
@@ -382,7 +388,7 @@ export function Stocks() {
         side: orderType === "buy" ? "BUY" : "SELL",
         orderType: requestedOrderType,
         quantity: orderQuantity,
-        limitPrice: requestedOrderType === "LIMIT" ? stock.price : undefined,
+        limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
       });
       setQuantity("");
       showToast(
