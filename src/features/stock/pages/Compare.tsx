@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/src/shared/components/ui/Card';
 import { Badge } from '@/src/shared/components/ui/Badge';
 import { Button } from '@/src/shared/components/ui/Button';
@@ -7,7 +7,19 @@ import { ArrowLeft, X, Search, Plus, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { cn } from '@/src/shared/lib/utils';
-import { STOCKS_DATA } from './Stocks';
+import {
+  getStockDetail,
+  searchStocks,
+  type StockSummaryResponse,
+} from '@/src/features/stock/api/stock';
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+interface CompareStock {
+  code: string;
+  name: string;
+  change: number;
+}
 
 const LINE_COLORS = [
   'var(--color-brand)', // 브랜드 컬러 (주 컬러)
@@ -59,14 +71,52 @@ export function Compare() {
   const isDefaultExample = compareCodes.length === 0;
   const displayCodes = !isDefaultExample ? compareCodes : ['005930', '000660'];
 
-  const activeCompareStocks = STOCKS_DATA.filter(s => displayCodes.includes(s.code));
+  const displayCodesKey = displayCodes.join(',');
+  const [activeCompareStocks, setActiveCompareStocks] = useState<CompareStock[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    Promise.all(
+        displayCodesKey.split(',').filter(Boolean).map(code =>
+            getStockDetail(code)
+                .then(detail => ({ code: detail.code, name: detail.name, change: detail.changeRate }))
+                .catch(() => null),
+        ),
+    ).then(results => {
+      if (!ignore) setActiveCompareStocks(results.filter(stock => stock !== null));
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, [displayCodesKey]);
 
   // 검색어에 따른 자동완성 종목
-  const suggestions = STOCKS_DATA.filter(s => {
-    const matchText = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.includes(searchQuery);
-    const notSelected = !compareCodes.includes(s.code);
-    return searchQuery ? (matchText && notSelected) : notSelected;
-  });
+  const [suggestions, setSuggestions] = useState<StockSummaryResponse[]>([]);
+
+  useEffect(() => {
+    const keyword = searchQuery.trim();
+    if (!keyword) {
+      setSuggestions([]);
+      return;
+    }
+
+    let ignore = false;
+    const timer = setTimeout(() => {
+      searchStocks(keyword)
+          .then(results => {
+            if (!ignore) setSuggestions(results.filter(s => !compareCodes.includes(s.code)));
+          })
+          .catch(() => {
+            if (!ignore) setSuggestions([]);
+          });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, compareCodes]);
 
   // 선택된 기간에 따른 데이터 포인트 수 지정
   const points = activePeriod === '1개월' ? 30 : activePeriod === '3개월' ? 90 : activePeriod === '6개월' ? 180 : 365;
