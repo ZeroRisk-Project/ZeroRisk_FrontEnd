@@ -54,6 +54,16 @@ const formatVolume = (volume: number): string => {
   return String(volume);
 };
 
+const getTickSize = (price: number): number => {
+  if (price < 2_000) return 1;
+  if (price < 5_000) return 5;
+  if (price < 20_000) return 10;
+  if (price < 50_000) return 50;
+  if (price < 200_000) return 100;
+  if (price < 500_000) return 500;
+  return 1_000;
+};
+
 const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
   code: ranking.code,
   name: ranking.name,
@@ -170,7 +180,9 @@ export function Stocks() {
   const isFav = (stockCode: string) => isFavorite(stockCode);
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
+  const [basicAccountBalance, setBasicAccountBalance] = useState(0);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [limitPrice, setLimitPrice] = useState("");
 
   const [alertDirection, setAlertDirection] = useState<PriceAlertDirection>("ABOVE");
   const [alertPrice, setAlertPrice] = useState("");
@@ -183,15 +195,28 @@ export function Stocks() {
           if (ignore) return;
           const basic = accounts.find((account) => account.accountType === "BASIC");
           setBasicAccountId(basic ? basic.accountId : null);
+          setBasicAccountBalance(basic ? basic.balance : 0);
         })
         .catch(() => {
-          if (!ignore) setBasicAccountId(null);
+          if (ignore) return;
+          setBasicAccountId(null);
+          setBasicAccountBalance(0);
         });
 
     return () => {
       ignore = true;
     };
   }, []);
+
+  const refreshAccountBalance = async () => {
+    try {
+      const accounts = await getAccounts();
+      const basic = accounts.find((account) => account.accountType === "BASIC");
+      setBasicAccountBalance(basic ? basic.balance : 0);
+    } catch {
+
+    }
+  };
 
   const [rankingStocks, setRankingStocks] = useState<StockListItem[] | null>(null);
 
@@ -335,6 +360,16 @@ export function Stocks() {
           }
           : null;
 
+  useEffect(() => {
+    setLimitPrice(stock ? String(stock.price) : "");
+  }, [stock?.code, stock?.price]);
+
+  const stepLimitPrice = (direction: 1 | -1) => {
+    const current = Number(limitPrice || 0);
+    const tick = direction === 1 ? getTickSize(current) : getTickSize(Math.max(0, current - 1));
+    setLimitPrice(String(Math.max(0, current + direction * tick)));
+  };
+
   const showToast = (message: string) => {
     setActionToast(message);
     setTimeout(() => setActionToast(""), 3000);
@@ -353,6 +388,12 @@ export function Stocks() {
       return;
     }
 
+    const orderLimitPrice = Number(limitPrice || 0);
+    if (requestedOrderType === "LIMIT" && orderLimitPrice <= 0) {
+      showToast("주문 가격을 입력해 주세요.");
+      return;
+    }
+
     setIsSubmittingOrder(true);
     try {
       await createOrder({
@@ -361,9 +402,10 @@ export function Stocks() {
         side: orderType === "buy" ? "BUY" : "SELL",
         orderType: requestedOrderType,
         quantity: orderQuantity,
-        limitPrice: requestedOrderType === "LIMIT" ? stock.price : undefined,
+        limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
       });
       setQuantity("");
+      void refreshAccountBalance();
       showToast(
           requestedOrderType === "LIMIT" && priceType === "시장가"
               ? "성공적으로 예약 주문이 접수되었습니다."
@@ -805,6 +847,8 @@ export function Stocks() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                            onClick={() => stepLimitPrice(-1)}
+                            disabled={priceType === "시장가"}
                           >
                             -
                           </Button>
@@ -813,7 +857,10 @@ export function Stocks() {
                             value={
                               priceType === "시장가"
                                 ? "시장가"
-                                : stock.price.toLocaleString()
+                                : Number(limitPrice || 0).toLocaleString()
+                            }
+                            onChange={(e) =>
+                                setLimitPrice(e.target.value.replace(/[^0-9]/g, ""))
                             }
                             readOnly={priceType === "시장가"}
                           />
@@ -821,6 +868,8 @@ export function Stocks() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                            onClick={() => stepLimitPrice(1)}
+                            disabled={priceType === "시장가"}
                           >
                             +
                           </Button>
@@ -895,7 +944,7 @@ export function Stocks() {
                             주문 가능 금액
                           </span>
                           <span className="font-bold tabular-nums">
-                            42,500,000원
+                            {formatPrice(basicAccountBalance)}원
                           </span>
                         </div>
                         <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
@@ -910,7 +959,7 @@ export function Stocks() {
                               Number(quantity || 0) *
                                 (priceType === "시장가"
                                   ? stock.price
-                                  : stock.price),
+                                  : Number(limitPrice || 0)),
                             )}
                             원
                           </span>
