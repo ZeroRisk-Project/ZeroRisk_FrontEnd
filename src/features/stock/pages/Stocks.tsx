@@ -180,6 +180,7 @@ export function Stocks() {
   const isFav = (stockCode: string) => isFavorite(stockCode);
 
   const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
+  const [basicAccountBalance, setBasicAccountBalance] = useState(0);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [limitPrice, setLimitPrice] = useState("");
 
@@ -194,15 +195,28 @@ export function Stocks() {
           if (ignore) return;
           const basic = accounts.find((account) => account.accountType === "BASIC");
           setBasicAccountId(basic ? basic.accountId : null);
+          setBasicAccountBalance(basic ? basic.balance : 0);
         })
         .catch(() => {
-          if (!ignore) setBasicAccountId(null);
+          if (ignore) return;
+          setBasicAccountId(null);
+          setBasicAccountBalance(0);
         });
 
     return () => {
       ignore = true;
     };
   }, []);
+
+  const refreshAccountBalance = async () => {
+    try {
+      const accounts = await getAccounts();
+      const basic = accounts.find((account) => account.accountType === "BASIC");
+      setBasicAccountBalance(basic ? basic.balance : 0);
+    } catch {
+
+    }
+  };
 
   const [rankingStocks, setRankingStocks] = useState<StockListItem[] | null>(null);
 
@@ -391,6 +405,7 @@ export function Stocks() {
         limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
       });
       setQuantity("");
+      void refreshAccountBalance();
       showToast(
           requestedOrderType === "LIMIT" && priceType === "시장가"
               ? "성공적으로 예약 주문이 접수되었습니다."
@@ -929,7 +944,7 @@ export function Stocks() {
                             주문 가능 금액
                           </span>
                           <span className="font-bold tabular-nums">
-                            42,500,000원
+                            {formatPrice(basicAccountBalance)}원
                           </span>
                         </div>
                         <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
