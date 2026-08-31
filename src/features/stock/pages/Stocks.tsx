@@ -350,6 +350,12 @@ export function Stocks() {
     setLimitPrice(stock ? String(stock.price) : "");
   }, [stock?.code, stock?.price]);
 
+  const stepLimitPrice = (direction: 1 | -1) => {
+    const current = Number(limitPrice || 0);
+    const tick = direction === 1 ? getTickSize(current) : getTickSize(Math.max(0, current - 1));
+    setLimitPrice(String(Math.max(0, current + direction * tick)));
+  };
+
   const showToast = (message: string) => {
     setActionToast(message);
     setTimeout(() => setActionToast(""), 3000);
@@ -820,6 +826,8 @@ export function Stocks() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                            onClick={() => stepLimitPrice(-1)}
+                            disabled={priceType === "시장가"}
                           >
                             -
                           </Button>
@@ -839,6 +847,8 @@ export function Stocks() {
                             variant="ghost"
                             size="icon"
                             className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                            onClick={() => stepLimitPrice(1)}
+                            disabled={priceType === "시장가"}
                           >
                             +
                           </Button>
