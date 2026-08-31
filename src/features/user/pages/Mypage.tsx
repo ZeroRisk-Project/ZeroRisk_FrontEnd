@@ -479,7 +479,7 @@ export function Mypage() {
                       : mainFilter}
                     <span className="text-[15px] font-semibold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-lg">
                       {mainFilter === "관심종목"
-                        ? favoriteStocks.length
+                        ? visibleFavorites.length
                         : mainFilter === "목표가 알림"
                         ? priceAlerts.length
                         : mainFilter === "보유종목"
@@ -610,12 +610,40 @@ export function Mypage() {
 
                 {mainFilter === "관심종목" && (
                   <div className="p-6 space-y-2">
-                    {favoriteStocks.length === 0 ? (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <button
+                          onClick={() => setSelectedGroupId(null)}
+                          className={cn(
+                              "shrink-0 px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                              selectedGroupId === null
+                                  ? "bg-[#191F28] text-white"
+                                  : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                          )}
+                      >
+                        전체
+                      </button>
+                      {groups.map((group) => (
+                          <button
+                              key={group.groupId}
+                              onClick={() => setSelectedGroupId(group.groupId)}
+                              className={cn(
+                                  "shrink-0 px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                                  selectedGroupId === group.groupId
+                                      ? "bg-[#191F28] text-white"
+                                      : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                              )}
+                          >
+                            {group.name}
+                          </button>
+                      ))}
+                    </div>
+
+                    {visibleFavorites.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
                         <p>등록된 관심종목이 없습니다.</p>
                       </div>
                     ) : (
-                      favoriteStocks.map((stock) => {
+                        visibleFavorites.map((stock) => {
                         const isUp = stock.change >= 0;
                         return (
                           <div
