@@ -12,6 +12,10 @@ import {
   Heart,
   ThumbsUp,
   Settings,
+  Plus,
+  Edit2,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { formatPrice, cn } from "@/src/shared/lib/utils";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
@@ -190,7 +194,34 @@ export function Mypage() {
     }
   };
 
-  const { favorites, toggleFavorite } = useWatchlist();
+  const { groups, favorites, toggleFavorite, addGroup, renameGroup, removeGroup, changeFavoriteGroup } =
+      useWatchlist();
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [isAddingGroup, setIsAddingGroup] = useState(false);
+  const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
+  const [groupNameDraft, setGroupNameDraft] = useState("");
+
+  const closeGroupEditor = () => {
+    setIsAddingGroup(false);
+    setEditingGroupId(null);
+    setGroupNameDraft("");
+  };
+
+  const handleSubmitGroupName = async () => {
+    const name = groupNameDraft.trim();
+    if (!name) return;
+    if (editingGroupId === null) {
+      await addGroup(name);
+    } else {
+      await renameGroup(editingGroupId, name);
+    }
+    closeGroupEditor();
+  };
+
+  const handleRemoveGroup = async (groupId: number) => {
+    if (!window.confirm("그룹을 삭제하면 그룹에 담긴 관심종목도 함께 삭제됩니다. 삭제하시겠습니까?")) return;
+    await removeGroup(groupId);
+  };
 
   const handleToggleFavorite = (code: string) => {
     void toggleFavorite(code);
@@ -222,11 +253,24 @@ export function Mypage() {
   }, [favorites]);
 
   const favoriteStocks = (favorites ?? []).map((favorite) => ({
+    favoriteId: favorite.favoriteId,
+    groupId: favorite.groupId,
     code: favorite.stockCode,
     name: favorite.stockName,
     price: favoriteQuotes[favorite.stockCode]?.price ?? 0,
     change: favoriteQuotes[favorite.stockCode]?.change ?? 0,
   }));
+
+  const visibleFavorites =
+      selectedGroupId === null
+          ? favoriteStocks
+          : favoriteStocks.filter((stock) => stock.groupId === selectedGroupId);
+
+  useEffect(() => {
+    if (selectedGroupId !== null && !groups.some((group) => group.groupId === selectedGroupId)) {
+      setSelectedGroupId(null);
+    }
+  }, [groups, selectedGroupId]);
 
   const MY_HOLDINGS = [
     {
@@ -464,7 +508,7 @@ export function Mypage() {
                       : mainFilter}
                     <span className="text-[15px] font-semibold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-lg">
                       {mainFilter === "관심종목"
-                        ? favoriteStocks.length
+                        ? visibleFavorites.length
                         : mainFilter === "목표가 알림"
                         ? priceAlerts.length
                         : mainFilter === "보유종목"
@@ -595,12 +639,133 @@ export function Mypage() {
 
                 {mainFilter === "관심종목" && (
                   <div className="p-6 space-y-2">
-                    {favoriteStocks.length === 0 ? (
+                    <div className="flex items-center gap-2 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                      <button
+                          onClick={() => setSelectedGroupId(null)}
+                          className={cn(
+                              "shrink-0 px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                              selectedGroupId === null
+                                  ? "bg-[#191F28] text-white"
+                                  : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                          )}
+                      >
+                        전체
+                      </button>
+                      {groups.map((group) =>
+                          editingGroupId === group.groupId ? (
+                              <div
+                                  key={group.groupId}
+                                  className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1"
+                              >
+                                <input
+                                    autoFocus
+                                    maxLength={50}
+                                    value={groupNameDraft}
+                                    onChange={(e) => setGroupNameDraft(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") void handleSubmitGroupName();
+                                      if (e.key === "Escape") closeGroupEditor();
+                                    }}
+                                    className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
+                                />
+                                <button
+                                    onClick={() => void handleSubmitGroupName()}
+                                    className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                    onClick={closeGroupEditor}
+                                    className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                          ) : (
+                              <div key={group.groupId} className="shrink-0 flex items-center gap-1">
+                                <button
+                                    onClick={() => setSelectedGroupId(group.groupId)}
+                                    className={cn(
+                                        "px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                                        selectedGroupId === group.groupId
+                                            ? "bg-[#191F28] text-white"
+                                            : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                                    )}
+                                >
+                                  {group.name}
+                                </button>
+                                {selectedGroupId === group.groupId && (
+                                    <>
+                                      <button
+                                          onClick={() => {
+                                            setIsAddingGroup(false);
+                                            setEditingGroupId(group.groupId);
+                                            setGroupNameDraft(group.name);
+                                          }}
+                                          className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#191F28] rounded-lg transition-colors cursor-pointer"
+                                      >
+                                        <Edit2 className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                          onClick={() => void handleRemoveGroup(group.groupId)}
+                                          className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </>
+                                )}
+                              </div>
+                          )
+                      )}
+
+                      {isAddingGroup ? (
+                          <div className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1">
+                            <input
+                                autoFocus
+                                maxLength={50}
+                                placeholder="그룹 이름"
+                                value={groupNameDraft}
+                                onChange={(e) => setGroupNameDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") void handleSubmitGroupName();
+                                  if (e.key === "Escape") closeGroupEditor();
+                                }}
+                                className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
+                            />
+                            <button
+                                onClick={() => void handleSubmitGroupName()}
+                                className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                                onClick={closeGroupEditor}
+                                className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                      ) : (
+                          <button
+                              onClick={() => {
+                                setEditingGroupId(null);
+                                setIsAddingGroup(true);
+                                setGroupNameDraft("");
+                              }}
+                              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-[13px] font-bold text-[#8B95A1] border border-dashed border-[#D1D6DB] hover:text-[#191F28] hover:border-[#8B95A1] transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            새 그룹
+                          </button>
+                      )}
+                    </div>
+
+                    {visibleFavorites.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
                         <p>등록된 관심종목이 없습니다.</p>
                       </div>
                     ) : (
-                      favoriteStocks.map((stock) => {
+                        visibleFavorites.map((stock) => {
                         const isUp = stock.change >= 0;
                         return (
                           <div
@@ -622,10 +787,27 @@ export function Mypage() {
                                 <span className="text-[12px] text-[#8B95A1]">{stock.code}</span>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <div className="font-bold text-[#191F28] text-[15px]">{formatPrice(stock.price)}원</div>
-                              <div className={cn("text-[13px] font-bold mt-0.5", isUp ? "text-[#F04452]" : "text-[#3182F6]")}>
+                            <div className="flex items-center gap-3">
+                              {groups.length > 1 && (
+                                  <select
+                                      value={stock.groupId}
+                                      onChange={(e) =>
+                                          void changeFavoriteGroup(stock.favoriteId, Number(e.target.value))
+                                      }
+                                      className="max-w-[110px] bg-[#F2F4F6] border-none rounded-lg px-2 py-1.5 text-[12px] font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
+                                  >
+                                    {groups.map((group) => (
+                                        <option key={group.groupId} value={group.groupId}>
+                                          {group.name}
+                                        </option>
+                                    ))}
+                                  </select>
+                              )}
+                              <div className="text-right">
+                                <div className="font-bold text-[#191F28] text-[15px]">{formatPrice(stock.price)}원</div>
+                                <div className={cn("text-[13px] font-bold mt-0.5", isUp ? "text-[#F04452]" : "text-[#3182F6]")}>
                                 {isUp ? "+" : ""}{stock.change}%
+                                </div>
                               </div>
                             </div>
                           </div>
