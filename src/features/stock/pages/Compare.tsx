@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent } from '@/src/shared/components/ui/Card';
 import { Badge } from '@/src/shared/components/ui/Badge';
 import { Button } from '@/src/shared/components/ui/Button';
@@ -7,7 +7,61 @@ import { ArrowLeft, X, Search, Plus, RotateCcw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine } from 'recharts';
 import { cn } from '@/src/shared/lib/utils';
-import { STOCKS_DATA } from './Stocks';
+import {
+  getStockChart,
+  getStockDetail,
+  searchStocks,
+  type ChartCandleResponse,
+  type ChartInterval,
+  type StockSummaryResponse,
+} from '@/src/features/stock/api/stock';
+
+const SEARCH_DEBOUNCE_MS = 300;
+
+const PERIOD_CONFIG: Record<string, { interval: ChartInterval; points: number }> = {
+  '1개월': { interval: 'DAY', points: 22 },
+  '3개월': { interval: 'DAY', points: 66 },
+  '6개월': { interval: 'WEEK', points: 26 },
+  '1년': { interval: 'WEEK', points: 52 },
+};
+
+interface CompareStock {
+  code: string;
+  name: string;
+}
+
+interface ChartRow {
+  date: string;
+  [stockName: string]: string | number;
+}
+
+function formatChartDate(dateTime: string): string {
+  return `${dateTime.slice(4, 6)}.${dateTime.slice(6, 8)}`;
+}
+
+function sliceRecent(candles: ChartCandleResponse[], points: number): ChartCandleResponse[] {
+  return [...candles].sort((a, b) => a.dateTime.localeCompare(b.dateTime)).slice(-points);
+}
+
+function toReturnRows(series: { stock: CompareStock; candles: ChartCandleResponse[] }[]): ChartRow[] {
+  const axis = series.find(s => s.candles.length > 0)?.candles ?? [];
+  const normalized = series.map(({ stock, candles }) => ({
+    name: stock.name,
+    base: candles[0]?.close ?? 0,
+    closeByDate: new Map(candles.map(candle => [candle.dateTime, candle.close])),
+  }));
+
+  return axis.map(candle => {
+    const row: ChartRow = { date: formatChartDate(candle.dateTime) };
+    normalized.forEach(({ name, base, closeByDate }) => {
+      const close = closeByDate.get(candle.dateTime);
+      if (base > 0 && close !== undefined) {
+        row[name] = Number((((close - base) / base) * 100).toFixed(2));
+      }
+    });
+    return row;
+  });
+}
 
 const LINE_COLORS = [
   'var(--color-brand)', // 브랜드 컬러 (주 컬러)
@@ -59,37 +113,77 @@ export function Compare() {
   const isDefaultExample = compareCodes.length === 0;
   const displayCodes = !isDefaultExample ? compareCodes : ['005930', '000660'];
 
-  const activeCompareStocks = STOCKS_DATA.filter(s => displayCodes.includes(s.code));
+  const displayCodesKey = displayCodes.join(',');
+  const [activeCompareStocks, setActiveCompareStocks] = useState<CompareStock[]>([]);
+
+  useEffect(() => {
+    let ignore = false;
+    Promise.all(
+        displayCodesKey.split(',').filter(Boolean).map(code =>
+            getStockDetail(code)
+                .then(detail => ({ code: detail.code, name: detail.name }))
+                .catch(() => null),
+        ),
+    ).then(results => {
+      if (!ignore) setActiveCompareStocks(results.filter(stock => stock !== null));
+    });
+
+    return () => {
+      ignore = true;
+    };
+  }, [displayCodesKey]);
 
   // 검색어에 따른 자동완성 종목
-  const suggestions = STOCKS_DATA.filter(s => {
-    const matchText = s.name.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.includes(searchQuery);
-    const notSelected = !compareCodes.includes(s.code);
-    return searchQuery ? (matchText && notSelected) : notSelected;
-  });
+  const [suggestions, setSuggestions] = useState<StockSummaryResponse[]>([]);
 
-  // 선택된 기간에 따른 데이터 포인트 수 지정
-  const points = activePeriod === '1개월' ? 30 : activePeriod === '3개월' ? 90 : activePeriod === '6개월' ? 180 : 365;
+  useEffect(() => {
+    const keyword = searchQuery.trim();
+    if (!keyword) {
+      setSuggestions([]);
+      return;
+    }
 
-  const dynamicMockData = Array.from({ length: points }).map((_, i) => {
-    const dateObj = new Date();
-    dateObj.setDate(dateObj.getDate() - (points - i));
-    
-    const row: any = {
-      date: dateObj.toLocaleDateString('ko-KR', { month: '2-digit', day: '2-digit' }),
+    let ignore = false;
+    const timer = setTimeout(() => {
+      searchStocks(keyword)
+          .then(results => {
+            if (!ignore) setSuggestions(results.filter(s => !compareCodes.includes(s.code)));
+          })
+          .catch(() => {
+            if (!ignore) setSuggestions([]);
+          });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
     };
-    
-    activeCompareStocks.forEach((stock, sIdx) => {
-      const codeSeed = parseInt(stock.code) || 12345;
-      const sinVal = Math.sin(i * 0.15 + sIdx * 1.2 + codeSeed * 0.01);
-      const cosVal = Math.sin(i * 0.05 - sIdx * 0.5);
-      const trend = stock.change * (i / points) * 3;
-      const val = (sinVal * 10) + (cosVal * 4) + trend;
-      
-      row[stock.name] = Number(val.toFixed(2));
+  }, [searchQuery, compareCodes]);
+
+  const [chartRows, setChartRows] = useState<ChartRow[]>([]);
+
+  useEffect(() => {
+    if (activeCompareStocks.length === 0) {
+      setChartRows([]);
+      return;
+    }
+
+    const { interval, points } = PERIOD_CONFIG[activePeriod];
+
+    let ignore = false;
+    Promise.all(
+        activeCompareStocks.map(stock =>
+            getStockChart(stock.code, interval)
+                .then(candles => ({ stock, candles: sliceRecent(candles, points) }))
+                .catch(() => ({ stock, candles: [] as ChartCandleResponse[] })),
+        ),
+    ).then(series => {
+      if (!ignore) setChartRows(toReturnRows(series));
     });
-    return row;
-  });
+    return () => {
+      ignore = true;
+    };
+  }, [activeCompareStocks, activePeriod]);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -210,7 +304,7 @@ export function Compare() {
           {/* Chart */}
           <div className="h-[430px] w-full pt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={dynamicMockData} margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
+              <LineChart data={chartRows} margin={{ top: 10, right: 20, bottom: 20, left: -10 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E5EA" />
                 <XAxis dataKey="date" tick={{ fill: '#8E8E93', fontSize: 11 }} axisLine={false} tickLine={false} dy={10} />
                 <YAxis 
