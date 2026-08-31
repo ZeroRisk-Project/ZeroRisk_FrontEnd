@@ -35,6 +35,20 @@ export interface ChartCandleResponse {
     volume: number;
 }
 
+export interface StockSummaryResponse {
+    id: number;
+    code: string;
+    name: string;
+    market: Market;
+}
+
+export async function searchStocks(keyword: string, size = 10): Promise<StockSummaryResponse[]> {
+    const response = await api.get<{ content: StockSummaryResponse[] }>('/stocks/search', {
+        params: { keyword, size },
+    });
+    return response.data.content;
+}
+
 export async function getStockDetail(code: string): Promise<StockDetailResponse> {
     const response = await api.get<StockDetailResponse>(`/stocks/${code}`);
     return response.data;
