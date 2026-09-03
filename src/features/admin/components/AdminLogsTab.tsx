@@ -11,6 +11,7 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   PROCESS: "신고처리",
   REJECT: "신고반려",
   ANSWER: "문의답변",
+  RETRY: "재처리",
 };
 
 interface AdminLogsTabProps {
