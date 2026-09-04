@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -21,10 +22,9 @@ import {
   getStockDetail,
   getStockRankings,
   type RankingType,
-  type StockDetailResponse,
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
-import { toChartPoints, type ChartPoint } from "@/src/features/stock/lib/indicators";
+import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
 import {
@@ -179,8 +179,6 @@ export function Stocks() {
 
   const isFav = (stockCode: string) => isFavorite(stockCode);
 
-  const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
-  const [basicAccountBalance, setBasicAccountBalance] = useState(0);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [limitPrice, setLimitPrice] = useState("");
 
@@ -188,58 +186,31 @@ export function Stocks() {
   const [alertPrice, setAlertPrice] = useState("");
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
 
-  useEffect(() => {
-    let ignore = false;
-    getAccounts()
-        .then((accounts) => {
-          if (ignore) return;
-          const basic = accounts.find((account) => account.accountType === "BASIC");
-          setBasicAccountId(basic ? basic.accountId : null);
-          setBasicAccountBalance(basic ? basic.balance : 0);
-        })
-        .catch(() => {
-          if (ignore) return;
-          setBasicAccountId(null);
-          setBasicAccountBalance(0);
-        });
+  const queryClient = useQueryClient();
 
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const accountsQuery = useQuery({
+    queryKey: ["stocks", "accounts"],
+    queryFn: () => getAccounts(),
+    retry: false,
+  });
+  const basicAccount = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
+  const basicAccountId = basicAccount ? basicAccount.accountId : null;
+  const basicAccountBalance = basicAccount ? basicAccount.balance : 0;
 
-  const refreshAccountBalance = async () => {
-    try {
-      const accounts = await getAccounts();
-      const basic = accounts.find((account) => account.accountType === "BASIC");
-      setBasicAccountBalance(basic ? basic.balance : 0);
-    } catch {
-
-    }
+  // 주문 성공 후 잔고를 다시 반영해야 할 때, 직접 재조회하는 대신 캐시를 무효화해서
+  // React Query가 다시 가져오게 한다 - 결과적으로 화면에 보이는 잔고 갱신은 기존과 동일.
+  const refreshAccountBalance = () => {
+    void queryClient.invalidateQueries({ queryKey: ["stocks", "accounts"] });
   };
 
-  const [rankingStocks, setRankingStocks] = useState<StockListItem[] | null>(null);
-
-  useEffect(() => {
-    const rankingType = RANKING_TYPE_BY_TAB[activeTab];
-    if (!rankingType) {
-      setRankingStocks(null);
-      return;
-    }
-
-    let ignore = false;
-    getStockRankings(rankingType)
-        .then((rankings) => {
-          if (!ignore) setRankingStocks(rankings.map(toStockListItem));
-        })
-        .catch(() => {
-          if (!ignore) setRankingStocks(null);
-        });
-
-    return () => {
-      ignore = true;
-    };
-  }, [activeTab]);
+  const rankingType = RANKING_TYPE_BY_TAB[activeTab];
+  const rankingsQuery = useQuery({
+    queryKey: ["stocks", "rankings", rankingType],
+    queryFn: () => getStockRankings(rankingType as RankingType),
+    enabled: !!rankingType,
+    retry: false,
+  });
+  const rankingStocks = rankingType && rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : null;
 
   const parseVolume = (vol: string): number => {
     const num = parseFloat(vol);
@@ -291,49 +262,21 @@ export function Stocks() {
     return list;
   };
 
-  const [stockDetail, setStockDetail] = useState<StockDetailResponse | null>(null);
+  const stockDetailQuery = useQuery({
+    queryKey: ["stocks", "detail", code],
+    queryFn: () => getStockDetail(code as string),
+    enabled: !!code,
+    retry: false,
+  });
+  const stockDetail = stockDetailQuery.data ?? null;
 
-  useEffect(() => {
-    if (!code) {
-      setStockDetail(null);
-      return;
-    }
-
-    let ignore = false;
-    getStockDetail(code)
-        .then((detail) => {
-          if (!ignore) setStockDetail(detail);
-        })
-        .catch(() => {
-          if (!ignore) setStockDetail(null);
-        });
-
-    return () => {
-      ignore = true;
-    };
-  }, [code]);
-
-  const [chartPoints, setChartPoints] = useState<ChartPoint[] | undefined>(undefined);
-
-  useEffect(() => {
-    if (!code) {
-      setChartPoints(undefined);
-      return;
-    }
-
-    let ignore = false;
-    getStockChart(code, "DAY")
-        .then((candles) => {
-          if (!ignore) setChartPoints(toChartPoints(candles));
-        })
-        .catch(() => {
-          if (!ignore) setChartPoints(undefined);
-        });
-
-    return () => {
-      ignore = true;
-    };
-  }, [code]);
+  const stockChartQuery = useQuery({
+    queryKey: ["stocks", "chart", code],
+    queryFn: () => getStockChart(code as string, "DAY"),
+    enabled: !!code,
+    retry: false,
+  });
+  const chartPoints = stockChartQuery.data ? toChartPoints(stockChartQuery.data) : undefined;
 
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);

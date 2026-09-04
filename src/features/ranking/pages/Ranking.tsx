@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Badge } from "@/src/shared/components/ui/Badge";
 import { Input } from "@/src/shared/components/ui/Input";
 import { cn } from "@/src/shared/lib/utils";
 import { User, Medal, Search } from "lucide-react";
-import { getRankings, getMyRanking, RankingResponse, RankingPeriodParam } from "@/src/features/ranking/api/ranking";
+import { getRankings, getMyRanking, RankingPeriodParam } from "@/src/features/ranking/api/ranking";
 
 const TAB_TO_PERIOD: Record<string, RankingPeriodParam> = {
   "일간": "DAILY",
@@ -17,42 +17,30 @@ const TAB_TO_PERIOD: Record<string, RankingPeriodParam> = {
 export function Ranking() {
   const [activeTab, setActiveTab] = useState("주간");
   const [searchQuery, setSearchQuery] = useState("");
-  const [rankings, setRankings] = useState<RankingResponse[]>([]);
-  const [myRanking, setMyRanking] = useState<RankingResponse | null>(null);
   const [page, setPage] = useState(0);
+  const period = TAB_TO_PERIOD[activeTab];
 
   const handleTabChange = (tab: string) => {
     setActiveTab(tab);
     setPage(0); // 탭 전환 시 이전 탭에서 보던 페이지가 그대로 남아있지 않도록 초기화
   };
 
-  useEffect(() => {
-    const period = TAB_TO_PERIOD[activeTab];
-    const controller = new AbortController();
+  // React Query가 쿼리 키(period, page) 변경 시 이전 요청을 자동으로 취소해준다 -
+  // 기존 AbortController + useEffect cleanup 패턴과 동일한 효과 (탭을 빠르게 전환해
+  // 취소된 이전 요청의 응답이 최신 탭 상태를 덮어쓰는 걸 방지).
+  const { data: rankingsData } = useQuery({
+    queryKey: ["rankings", period, page],
+    queryFn: ({ signal }) => getRankings(period, page, 20, signal),
+    retry: false, // 기존 로직도 재시도 없이 실패 시 바로 빈 목록으로 처리했음
+  });
+  const rankings = rankingsData ?? []; // 로딩 중/실패 시 기존과 동일하게 빈 배열로 취급
 
-    getRankings(period, page, 20, controller.signal)
-      .then(setRankings)
-      .catch((error) => {
-        if (axios.isCancel(error)) return; // 탭을 빠르게 전환해 취소된 이전 요청 - 무시
-        setRankings([]);
-      });
-
-    return () => controller.abort();
-  }, [activeTab, page]);
-
-  useEffect(() => {
-    const period = TAB_TO_PERIOD[activeTab];
-    const controller = new AbortController();
-
-    getMyRanking(period, controller.signal)
-      .then(setMyRanking)
-      .catch((error) => {
-        if (axios.isCancel(error)) return;
-        setMyRanking(null); // 비로그인이거나 해당 기간의 랭킹 데이터가 없는 경우
-      });
-
-    return () => controller.abort();
-  }, [activeTab]);
+  const { data: myRankingData } = useQuery({
+    queryKey: ["myRanking", period],
+    queryFn: ({ signal }) => getMyRanking(period, signal),
+    retry: false,
+  });
+  const myRanking = myRankingData ?? null; // 비로그인이거나 해당 기간의 랭킹 데이터가 없는 경우
 
   const filteredRankers = rankings
     .slice(3)
