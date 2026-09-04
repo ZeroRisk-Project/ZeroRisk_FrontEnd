@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/shared/components/ui/Card';
 import { Button } from '@/src/shared/components/ui/Button';
 import { Badge } from '@/src/shared/components/ui/Badge';
@@ -12,8 +13,6 @@ import {
 } from 'recharts';
 import {
     getAccounts, getComposition, getHoldings, getSnapshots,
-    type HoldingResponse, type PortfolioCompositionResponse,
-    type PortfolioSnapshotResponse,
 } from '@/src/features/portfolio/api/portfolio';
 
 const PORTFOLIO_DATA = {
@@ -135,52 +134,46 @@ export function Portfolio() {
   const [executionLogs, setExecutionLogs] = useState<string[]>([]);
   const [executionProgress, setExecutionProgress] = useState(0);
 
-    const [serverAccountId, setServerAccountId] = useState<number | null>(null);
-    const [serverHoldings, setServerHoldings] = useState<HoldingResponse[] | null>(null);
-    const [serverComposition, setServerComposition] = useState<PortfolioCompositionResponse | null>(null);
-    const [serverSnapshots, setServerSnapshots] = useState<PortfolioSnapshotResponse[] | null>(null);
+    // 계좌 목록은 accountId(선택된 탭)와 무관하게 항상 같은 응답이라, 쿼리 키에 accountId를
+    // 안 넣어서 React Query가 최초 1회만 조회하고 이후엔 캐시를 재사용한다 - 화면에 보이는
+    // 최종 결과(serverAccountId)는 기존과 동일, 중복 요청만 자연스럽게 줄어든다.
+    const accountsQuery = useQuery({
+        queryKey: ['portfolio', 'accounts'],
+        queryFn: () => getAccounts(),
+        retry: false,
+    });
 
-    useEffect(() => {
-        let ignore = false;
-        getAccounts()
-            .then((accounts) => {
-                if (ignore) return;
-                const wanted = accountId === 'main' ? 'BASIC' : 'COMPETITION';
-                const matched = accounts.find((account) => account.accountType === wanted);
-                setServerAccountId(matched ? matched.accountId : null);
-            })
-            .catch(() => {
-                if (!ignore) setServerAccountId(null);
-            });
+    const serverAccountId = useMemo(() => {
+        if (!accountsQuery.data) return null;
+        const wanted = accountId === 'main' ? 'BASIC' : 'COMPETITION';
+        const matched = accountsQuery.data.find((account) => account.accountType === wanted);
+        return matched ? matched.accountId : null;
+    }, [accountsQuery.data, accountId]);
 
-        return () => {
-            ignore = true;
-        };
-    }, [accountId]);
+    // 기존엔 세 요청을 개별적으로 발사해 각자 따로 성공/실패를 처리했다 - 쿼리 3개로 그대로 대응.
+    const holdingsQuery = useQuery({
+        queryKey: ['portfolio', 'holdings', serverAccountId],
+        queryFn: () => getHoldings(serverAccountId as number),
+        enabled: serverAccountId !== null,
+        retry: false,
+    });
+    const serverHoldings = holdingsQuery.data ?? null;
 
-    useEffect(() => {
-        if (serverAccountId === null) {
-            setServerHoldings(null);
-            setServerComposition(null);
-            setServerSnapshots(null);
-            return;
-        }
+    const compositionQuery = useQuery({
+        queryKey: ['portfolio', 'composition', serverAccountId],
+        queryFn: () => getComposition(serverAccountId as number),
+        enabled: serverAccountId !== null,
+        retry: false,
+    });
+    const serverComposition = compositionQuery.data ?? null;
 
-        let ignore = false;
-        getHoldings(serverAccountId)
-            .then((data) => { if (!ignore) setServerHoldings(data); })
-            .catch(() => { if (!ignore) setServerHoldings(null); });
-        getComposition(serverAccountId)
-            .then((data) => { if (!ignore) setServerComposition(data); })
-            .catch(() => { if (!ignore) setServerComposition(null); });
-        getSnapshots(serverAccountId)
-            .then((data) => { if (!ignore) setServerSnapshots(data); })
-            .catch(() => { if (!ignore) setServerSnapshots(null); });
-
-        return () => {
-            ignore = true;
-        };
-    }, [serverAccountId]);
+    const snapshotsQuery = useQuery({
+        queryKey: ['portfolio', 'snapshots', serverAccountId],
+        queryFn: () => getSnapshots(serverAccountId as number),
+        enabled: serverAccountId !== null,
+        retry: false,
+    });
+    const serverSnapshots = snapshotsQuery.data ?? null;
 
   const currentData = portfolioState[accountId];
   const holdings = useMemo(() => {

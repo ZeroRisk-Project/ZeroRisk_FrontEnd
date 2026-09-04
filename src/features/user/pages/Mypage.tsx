@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -27,14 +28,11 @@ import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
 import {
   deletePriceAlert,
   getPriceAlerts,
-  type PriceAlertResponse,
 } from "@/src/features/pricealert/api/pricealert";
 import {
   cancelOrder,
   getOrders,
   getTrades,
-  type OrderSummaryResponse,
-  type TradeResponse,
 } from "@/src/features/order/api/order";
 
 function formatTransactionDate(isoDateTime: string): string {
@@ -73,122 +71,81 @@ export function Mypage() {
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
 
-  const [mainAccountBalance, setMainAccountBalance] = useState(0);
-  const [isLinked, setIsLinked] = useState(false);
-  const [basicAccountId, setBasicAccountId] = useState<number | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      try {
-        const accounts = await getAccounts();
-        const basicAccount = accounts.find((account) => account.accountType === "BASIC");
-        if (basicAccount) {
-          setMainAccountBalance(basicAccount.balance);
-          setBasicAccountId(basicAccount.accountId);
-        }
-      } catch {
-        setMainAccountBalance(0);
-        setBasicAccountId(null);
-      }
-    };
-    fetchAccounts();
-  }, []);
+  const accountsQuery = useQuery({
+    queryKey: ["mypage", "accounts"],
+    queryFn: () => getAccounts(),
+    retry: false,
+  });
+  const basicAccountFromAccounts = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
+  const mainAccountBalance = basicAccountFromAccounts ? basicAccountFromAccounts.balance : 0;
+  const basicAccountId = basicAccountFromAccounts ? basicAccountFromAccounts.accountId : null;
 
-  const [trades, setTrades] = useState<TradeResponse[] | null>(null);
-  const [pendingOrders, setPendingOrders] = useState<OrderSummaryResponse[] | null>(null);
+  const tradesQuery = useQuery({
+    queryKey: ["mypage", "trades", basicAccountId],
+    queryFn: () => getTrades(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+  const trades = tradesQuery.data?.content ?? null;
 
-  useEffect(() => {
-    if (basicAccountId === null) {
-      setTrades(null);
-      setPendingOrders(null);
-      return;
-    }
-
-    let ignore = false;
-    getTrades(basicAccountId)
-        .then((page) => { if (!ignore) setTrades(page.content); })
-        .catch(() => { if (!ignore) setTrades(null); });
-    getOrders(basicAccountId, "PENDING")
-        .then((page) => { if (!ignore) setPendingOrders(page.content); })
-        .catch(() => { if (!ignore) setPendingOrders(null); });
-
-    return () => {
-      ignore = true;
-    };
-  }, [basicAccountId]);
+  const pendingOrdersQuery = useQuery({
+    queryKey: ["mypage", "pendingOrders", basicAccountId],
+    queryFn: () => getOrders(basicAccountId as number, "PENDING"),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+  const pendingOrders = pendingOrdersQuery.data?.content ?? null;
 
   const handleCancelOrder = async (orderId: number) => {
     if (basicAccountId === null) return;
     try {
       await cancelOrder(orderId);
-      const page = await getOrders(basicAccountId, "PENDING");
-      setPendingOrders(page.content);
+      await queryClient.invalidateQueries({ queryKey: ["mypage", "pendingOrders", basicAccountId] });
     } catch {
     }
   };
 
-  useEffect(() => {
-    const checkLinkStatus = async () => {
-      try {
-        await api.get("/openbanking/auths");
-        setIsLinked(true);
-      } catch {
-        setIsLinked(false);
-      }
-    };
-    checkLinkStatus();
-  }, []);
+  const linkStatusQuery = useQuery({
+    queryKey: ["mypage", "linkStatus"],
+    queryFn: () => api.get("/openbanking/auths"),
+    retry: false,
+  });
+  const isLinked = linkStatusQuery.isSuccess;
 
-  const [prizeHistory, setPrizeHistory] = useState<any[]>([]);
+  const prizeHistoryQuery = useQuery({
+    queryKey: ["mypage", "prizeHistory"],
+    queryFn: () => api.get("/prizes/me"),
+    retry: false,
+  });
+  const prizeHistory = prizeHistoryQuery.data?.data ?? [];
 
-  useEffect(() => {
-    const fetchPrizeHistory = async () => {
-      try {
-        const response = await api.get("/prizes/me");
-        setPrizeHistory(response.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchPrizeHistory();
-  }, []);
-
-  const [myProfile, setMyProfile] = useState<any>(null);
-  const [myEmail, setMyEmail] = useState("");
-
-  useEffect(() => {
-    const fetchMyProfile = async () => {
-      try {
-        const meResponse = await api.get("/users/me");
-        setMyEmail(meResponse.data.email);
-        const profileResponse = await api.get(`/profiles/${meResponse.data.userId}`);
-        setMyProfile(profileResponse.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchMyProfile();
-  }, []);
+  const myProfileQuery = useQuery({
+    queryKey: ["mypage", "profile"],
+    queryFn: async () => {
+      const meResponse = await api.get("/users/me");
+      const profileResponse = await api.get(`/profiles/${meResponse.data.userId}`);
+      return { email: meResponse.data.email, profile: profileResponse.data };
+    },
+    retry: false,
+  });
+  const myEmail = myProfileQuery.data?.email ?? "";
+  const myProfile = myProfileQuery.data?.profile ?? null;
 
   const myCompetitions = myProfile?.competitionHistory ?? [];
 
-  const [priceAlerts, setPriceAlerts] = useState<PriceAlertResponse[]>([]);
-
-  useEffect(() => {
-    let ignore = false;
-    getPriceAlerts()
-        .then((data) => { if (!ignore) setPriceAlerts(data); })
-        .catch(() => { if (!ignore) setPriceAlerts([]); });
-
-    return () => {
-      ignore = true;
-    };
-  }, []);
+  const priceAlertsQuery = useQuery({
+    queryKey: ["mypage", "priceAlerts"],
+    queryFn: () => getPriceAlerts(),
+    retry: false,
+  });
+  const priceAlerts = priceAlertsQuery.data ?? [];
 
   const handleDeletePriceAlert = async (alertId: number) => {
     try {
       await deletePriceAlert(alertId);
-      setPriceAlerts(await getPriceAlerts());
+      await queryClient.invalidateQueries({ queryKey: ["mypage", "priceAlerts"] });
     } catch {
 
     }
@@ -227,30 +184,24 @@ export function Mypage() {
     void toggleFavorite(code);
   };
 
-  const [favoriteQuotes, setFavoriteQuotes] = useState<Record<string, { price: number; change: number }>>({});
+  const favoriteCodes = (favorites ?? []).map((favorite) => favorite.stockCode);
 
-  useEffect(() => {
-    if (!favorites || favorites.length === 0) {
-      setFavoriteQuotes({});
-      return;
-    }
-
-    let ignore = false;
-    Promise.all(
-        favorites.map((favorite) =>
-            getStockDetail(favorite.stockCode)
-                .then((detail) => [detail.code, { price: detail.currentPrice, change: detail.changeRate }] as const)
-                .catch(() => null),
-        ),
-    ).then((results) => {
-      if (ignore) return;
-      setFavoriteQuotes(Object.fromEntries(results.filter((entry) => entry !== null)));
-    });
-
-    return () => {
-      ignore = true;
-    };
-  }, [favorites]);
+  const favoriteQuotesQuery = useQuery({
+    queryKey: ["mypage", "favoriteQuotes", favoriteCodes],
+    queryFn: async () => {
+      const results = await Promise.all(
+          (favorites ?? []).map((favorite) =>
+              getStockDetail(favorite.stockCode)
+                  .then((detail) => [detail.code, { price: detail.currentPrice, change: detail.changeRate }] as const)
+                  .catch(() => null),
+          ),
+      );
+      return Object.fromEntries(results.filter((entry) => entry !== null));
+    },
+    enabled: !!favorites && favorites.length > 0,
+    retry: false,
+  });
+  const favoriteQuotes = favoriteQuotesQuery.data ?? {};
 
   const favoriteStocks = (favorites ?? []).map((favorite) => ({
     favoriteId: favorite.favoriteId,

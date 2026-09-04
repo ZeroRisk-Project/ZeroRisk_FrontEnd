@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle, AlertTriangle } from "lucide-react";
 import api from "@/src/shared/lib/api";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -91,145 +92,107 @@ interface PostItem {
 export function Admin() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices">("dashboard");
 
+  const queryClient = useQueryClient();
+
   // App States representing mockup database
-  const [users, setUsers] = useState<any[]>([]);
-  const [reports, setReports] = useState<any[]>([]);
-
-  const [adminProfile, setAdminProfile] = useState<{ nickname: string; email: string; profileImageUrl: string | null }>({ nickname: "", email: "", profileImageUrl: null });
-
-  useEffect(() => {
-    const fetchAdminProfile = async () => {
-      try {
-        const response = await api.get("/users/me");
-        setAdminProfile({ nickname: response.data.nickname, email: response.data.email, profileImageUrl: response.data.profileImageUrl });
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchAdminProfile();
-  }, []);
-
+  const reportsQuery = useQuery({
+    queryKey: ["admin", "reports"],
+    queryFn: () => api.get("/admin/reports", { params: { size: 100 } }),
+    retry: false,
+  });
+  const reports = reportsQuery.data?.data.content ?? [];
   const fetchReports = async () => {
-    try {
-      const response = await api.get("/admin/reports", { params: { size: 100 } });
-      setReports(response.data.content);
-    } catch (error) {
-      console.error(error);
-    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "reports"] });
   };
 
-  useEffect(() => {
-    fetchReports();
-  }, []);
-
-  const [dashboardSummary, setDashboardSummary] = useState<any>(null);
-
-  useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const response = await api.get("/admin/dashboard");
-        setDashboardSummary(response.data);
-      } catch (error) {
-        console.error(error);
+  const adminProfileQuery = useQuery({
+    queryKey: ["admin", "profile"],
+    queryFn: () => api.get("/users/me"),
+    retry: false,
+  });
+  const adminProfile = adminProfileQuery.data
+    ? {
+        nickname: adminProfileQuery.data.data.nickname,
+        email: adminProfileQuery.data.data.email,
+        profileImageUrl: adminProfileQuery.data.data.profileImageUrl,
       }
-    };
-    fetchDashboard();
-  }, []);
+    : { nickname: "", email: "", profileImageUrl: null };
 
-  const [serverHealth, setServerHealth] = useState<any>(null);
+  const dashboardQuery = useQuery({
+    queryKey: ["admin", "dashboard"],
+    queryFn: () => api.get("/admin/dashboard"),
+    retry: false,
+  });
 
-  useEffect(() => {
-    const fetchHealth = async () => {
-      try {
-        const response = await api.get("/admin/dashboard/health");
-        setServerHealth(response.data);
-      } catch (error) {
-        setServerHealth({ webServerUp: false, databaseUp: false });
+  const serverHealthQuery = useQuery({
+    queryKey: ["admin", "health"],
+    queryFn: () => api.get("/admin/dashboard/health"),
+    retry: false,
+  });
+  const serverHealth = serverHealthQuery.data
+    ? serverHealthQuery.data.data
+    : serverHealthQuery.isError
+      ? { webServerUp: false, databaseUp: false }
+      : null;
+
+  // 10초마다 폴링(refetchInterval)해서 응답시간 지표를 갱신 - 기존 setInterval(fetchMetrics, 10000)과 동일.
+  // dashboardSummary는 /admin/dashboard 응답에 /admin/metrics의 응답시간 필드를 얹은 값이라, 두 쿼리를 합쳐서 파생시킨다.
+  const metricsQuery = useQuery({
+    queryKey: ["admin", "metrics"],
+    queryFn: () => api.get("/admin/metrics"),
+    refetchInterval: 10000,
+    retry: false,
+  });
+  const dashboardSummary = dashboardQuery.data
+    ? {
+        ...dashboardQuery.data.data,
+        ...(metricsQuery.data
+          ? {
+              latestResponseTimeMs: metricsQuery.data.data.latestResponseTimeMs,
+              averageResponseTimeMs: metricsQuery.data.data.averageResponseTimeMs,
+            }
+          : {}),
       }
-    };
-    fetchHealth();
-  }, []);
+    : null;
+  const metricsHistory = metricsQuery.data?.data.points ?? [];
 
-  const [metricsHistory, setMetricsHistory] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const response = await api.get("/admin/metrics");
-        setMetricsHistory(response.data.points);
-        setDashboardSummary((prev: any) => ({
-          ...prev,
-          latestResponseTimeMs: response.data.latestResponseTimeMs,
-          averageResponseTimeMs: response.data.averageResponseTimeMs,
-        }));
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchMetrics();
-    const interval = setInterval(fetchMetrics, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const [inquiries, setInquiries] = useState<any[]>([]);
-
+  const inquiriesQuery = useQuery({
+    queryKey: ["admin", "inquiries"],
+    queryFn: () => api.get("/admin/inquiries", { params: { size: 100 } }),
+    retry: false,
+  });
+  const inquiries = inquiriesQuery.data?.data.content ?? [];
   const fetchInquiries = async () => {
-    try {
-      const response = await api.get("/admin/inquiries", { params: { size: 100 } });
-      setInquiries(response.data.content);
-    } catch (error) {
-      console.error(error);
-    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "inquiries"] });
   };
 
-  useEffect(() => {
-    fetchInquiries();
-  }, []);
-  const [competitions, setCompetitions] = useState<any[]>([]);
-
+  const competitionsQuery = useQuery({
+    queryKey: ["admin", "competitions"],
+    queryFn: () => api.get("/competitions", { params: { size: 100 } }),
+    retry: false,
+  });
+  const competitions = competitionsQuery.data?.data.content ?? [];
   const fetchAdminCompetitions = async () => {
-    try {
-      const response = await api.get("/competitions", { params: { size: 100 } });
-      setCompetitions(response.data.content);
-    } catch (error) {
-      console.error(error);
-    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "competitions"] });
   };
 
-  useEffect(() => {
-    fetchAdminCompetitions();
-  }, []);
-
-  const [logs, setLogs] = useState<any[]>([]);
-
-  const fetchActionLogs = async () => {
-    try {
-      const response = await api.get("/admin/action-logs", { params: { size: 100 } });
-      setLogs(response.data.content);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  useEffect(() => {
-    fetchActionLogs();
-  }, []);
+  const logsQuery = useQuery({
+    queryKey: ["admin", "logs"],
+    queryFn: () => api.get("/admin/action-logs", { params: { size: 100 } }),
+    retry: false,
+  });
+  const logs = logsQuery.data?.data.content ?? [];
 
   // Announcements State
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-
+  const announcementsQuery = useQuery({
+    queryKey: ["admin", "announcements"],
+    queryFn: () => api.get("/announcements"),
+    retry: false,
+  });
+  const announcements = announcementsQuery.data?.data ?? [];
   const fetchAnnouncements = async () => {
-    try {
-      const response = await api.get("/announcements");
-      setAnnouncements(response.data);
-    } catch (error) {
-      console.error(error);
-    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "announcements"] });
   };
-
-  useEffect(() => {
-    fetchAnnouncements();
-  }, []);
 
   const [announcementModal, setAnnouncementModal] = useState<{ isOpen: boolean; announcement: any | null }>({ isOpen: false, announcement: null });
   const [announcementForm, setAnnouncementForm] = useState({ tag: "GUIDE", title: "", content: "", isImportant: false });
@@ -276,20 +239,15 @@ export function Admin() {
   };
 
   // System Notices State
-  const [systemNotices, setSystemNotices] = useState<any[]>([]);
-
+  const systemNoticesQuery = useQuery({
+    queryKey: ["admin", "systemNotices"],
+    queryFn: () => api.get("/admin/system-notices"),
+    retry: false,
+  });
+  const systemNotices = systemNoticesQuery.data?.data ?? [];
   const fetchSystemNotices = async () => {
-    try {
-      const response = await api.get("/admin/system-notices");
-      setSystemNotices(response.data);
-    } catch (error) {
-      console.error(error);
-    }
+    await queryClient.invalidateQueries({ queryKey: ["admin", "systemNotices"] });
   };
-
-  useEffect(() => {
-    fetchSystemNotices();
-  }, []);
 
   const [systemNoticeModal, setSystemNoticeModal] = useState(false);
   const [systemNoticeForm, setSystemNoticeForm] = useState({ severity: "MAINTENANCE", title: "", message: "" });
@@ -367,6 +325,8 @@ export function Admin() {
     return () => window.removeEventListener("click", handleGlobalClick);
   }, [contextMenu.isOpen]);
 
+  // 서버에 실제로 남기는 로그가 아니라, 관리자가 방금 한 행동을 화면에 즉시 반영하는 로컬 echo다.
+  // logs가 useQuery 캐시로 옮겨갔으므로, 캐시를 직접 patch해서 같은 효과(맨 앞에 즉시 추가)를 낸다.
   const logAdminAction = (type: string, target: string, content: string) => {
     const newLog: ActivityLog = {
       id: Date.now() + Math.floor(Math.random() * 1000),
@@ -376,25 +336,28 @@ export function Admin() {
       content,
       ip: "127.0.0.1" // 로컬 관리자 IP 세션
     };
-    setLogs(prev => [newLog, ...prev]);
+    queryClient.setQueryData(["admin", "logs"], (prev: any) => {
+      const prevContent = prev?.data?.content ?? [];
+      return { ...prev, data: { ...(prev?.data ?? {}), content: [newLog, ...prevContent] } };
+    });
   };
 
   const [posts, setPosts] = useState<PostItem[]>([]);
 
-  const loadAdminPosts = async () => {
-    try {
-      const response = await getAdminPosts();
-      setPosts(response.content);
-    } catch (error) {
-      console.error('관리자 게시글 목록 조회 실패', error);
-    }
-  };
+  const postsQuery = useQuery({
+    queryKey: ["admin", "posts"],
+    queryFn: () => getAdminPosts(),
+    enabled: activeTab === 'posts',
+    retry: false,
+  });
 
+  // posts는 탭 내부(모더레이션 처리 등)에서 setPosts로 직접 로컬 수정도 하므로, 조회 성공 시에만
+  // 로컬 state를 서버 값으로 채워넣는다 - 이후의 로컬 수정은 그대로 유지됨.
   useEffect(() => {
-    if (activeTab === 'posts') {
-      loadAdminPosts();
+    if (postsQuery.data) {
+      setPosts(postsQuery.data.content);
     }
-  }, [activeTab]);
+  }, [postsQuery.data]);
 
   // General States
   const [loading, setLoading] = useState(false);
@@ -414,16 +377,23 @@ export function Admin() {
   const [selectedPostDetail, setSelectedPostDetail] = useState<PostItem | null>(null);
   const [postComments, setPostComments] = useState<AdminCommentResponse[]>([]);
 
+  const postCommentsQuery = useQuery({
+    queryKey: ["admin", "postComments", selectedPostDetail?.id],
+    queryFn: () => getAdminComments(selectedPostDetail!.id),
+    enabled: !!selectedPostDetail,
+    retry: false,
+  });
+
+  // postComments도 탭에서 setPostComments로 직접 로컬 수정하므로 posts와 동일한 패턴.
   useEffect(() => {
     if (!selectedPostDetail) {
       setPostComments([]);
       return;
     }
-
-    getAdminComments(selectedPostDetail.id)
-      .then(setPostComments)
-      .catch((error) => console.error('댓글 목록 조회 실패', error));
-  }, [selectedPostDetail?.id]);
+    if (postCommentsQuery.data) {
+      setPostComments(postCommentsQuery.data);
+    }
+  }, [selectedPostDetail, postCommentsQuery.data]);
 
   // Report Detail view Modal
   const [reportDetailModal, setReportDetailModal] = useState<{ isOpen: boolean; report: ReportItem | null }>({ isOpen: false, report: null });
@@ -442,24 +412,22 @@ export function Admin() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get("/admin/users", {
+  const usersQuery = useQuery({
+    queryKey: ["admin", "users", debouncedSearchQuery, filterStatus],
+    queryFn: () =>
+      api.get("/admin/users", {
         params: {
           keyword: debouncedSearchQuery || undefined,
           status: filterStatus !== "ALL" ? filterStatus : undefined,
           size: 100,
         },
-      });
-      setUsers(response.data.content);
-    } catch (error) {
-      console.error(error);
-    }
+      }),
+    retry: false,
+  });
+  const users = usersQuery.data?.data.content ?? [];
+  const fetchUsers = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "users", debouncedSearchQuery, filterStatus] });
   };
-
-  useEffect(() => {
-    fetchUsers();
-  }, [debouncedSearchQuery, filterStatus]);
 
   // Suspension Modal
   const [suspensionModal, setSuspensionModal] = useState<{ isOpen: boolean; userId: number | null }>({ isOpen: false, userId: null });

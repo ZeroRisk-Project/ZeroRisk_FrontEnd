@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { getPosts, PostResponse } from "@/src/features/community/api/posts"; // 실제 경로로 수정
+import React, { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getPosts } from "@/src/features/community/api/posts"; // 실제 경로로 수정
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -22,24 +23,20 @@ export function Community() {
   const [activeTab, setActiveTab] = useState("자유게시판");
   const [searchQuery, setSearchQuery] = useState("");
   const [likedProfits, setLikedProfits] = useState<Record<number, boolean>>({});
-  const [freePosts, setFreePosts] = useState<PostResponse[]>([]);
-  const [noticePosts, setNoticePosts] = useState<PostResponse[]>([]);
 
-  useEffect(() => {
-    if (activeTab !== "자유게시판") {
-      return;
-    }
-
-    // 공지(NOTICE)와 일반 자유글(FREE)을 따로 조회해서 공지를 목록 상단에 얹는 구조
-    Promise.all([getPosts("NOTICE", 0, 5), getPosts("FREE", 0, 20)])
-      .then(([noticeRes, freeRes]) => {
-        setNoticePosts(noticeRes.content);
-        setFreePosts(freeRes.content);
-      })
-      .catch((error) => {
-        console.error("게시글 목록 조회 실패", error);
-      });
-  }, [activeTab]);
+  // 공지(NOTICE)와 일반 자유글(FREE)을 따로 조회해서 공지를 목록 상단에 얹는 구조 -
+  // 두 응답이 한 세트로 같이 갱신돼야 해서 하나의 쿼리로 묶었다. 자유게시판 탭일 때만 조회.
+  const { data: freeBoardData } = useQuery({
+    queryKey: ["community", "free-board"],
+    queryFn: async () => {
+      const [noticeRes, freeRes] = await Promise.all([getPosts("NOTICE", 0, 5), getPosts("FREE", 0, 20)]);
+      return { noticePosts: noticeRes.content, freePosts: freeRes.content };
+    },
+    enabled: activeTab === "자유게시판",
+    retry: false,
+  });
+  const noticePosts = freeBoardData?.noticePosts ?? [];
+  const freePosts = freeBoardData?.freePosts ?? [];
 
   // 백엔드가 내려주는 createdAt(ISO 문자열)을 "N분 전"/"N시간 전"/"N일 전"으로 변환
   const formatRelativeTime = (isoString: string) => {

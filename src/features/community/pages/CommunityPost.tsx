@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/src/shared/components/ui/Card';
 import { Button } from '@/src/shared/components/ui/Button';
 import { Badge } from '@/src/shared/components/ui/Badge';
@@ -30,10 +31,7 @@ export function CommunityPost() {
   const { id } = useParams();
   const navigate = useNavigate();
   const postId = Number(id);
-
-  const [post, setPost] = useState<PostResponse | null>(null);
-  const [comments, setComments] = useState<CommentResponse[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   const [isEditingPost, setIsEditingPost] = useState(false);
   const [editTitle, setEditTitle] = useState('');
@@ -45,26 +43,32 @@ export function CommunityPost() {
   const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
   const [editingCommentText, setEditingCommentText] = useState('');
 
-  const loadPost = async () => {
-    const data = await getPost(postId);
-    setPost(data);
-    setEditTitle(data.title);
-    setEditContent(data.content);
-  };
+  const postQuery = useQuery({
+    queryKey: ['community', 'post', postId],
+    queryFn: () => getPost(postId),
+    enabled: !!postId,
+    retry: false,
+  });
+  const post = postQuery.data ?? null;
 
-  const loadComments = async () => {
-    const data = await getComments(postId);
-    setComments(data);
-  };
+  const commentsQuery = useQuery({
+    queryKey: ['community', 'comments', postId],
+    queryFn: () => getComments(postId),
+    enabled: !!postId,
+    retry: false,
+  });
+  const comments = commentsQuery.data ?? [];
 
+  const loading = postQuery.isLoading || commentsQuery.isLoading;
+
+  // 게시글 데이터가 (최초 조회든, 수정 후 재조회든) 갱신될 때마다 수정 폼의 초기값을 맞춰준다 -
+  // 기존 loadPost()가 setPost와 함께 setEditTitle/setEditContent도 같이 호출하던 것과 동일한 효과.
   useEffect(() => {
-    if (!postId) return;
-
-    setLoading(true);
-    Promise.all([loadPost(), loadComments()])
-      .catch((error) => console.error('게시글/댓글 조회 실패', error))
-      .finally(() => setLoading(false));
-  }, [postId]);
+    if (post) {
+      setEditTitle(post.title);
+      setEditContent(post.content);
+    }
+  }, [post]);
 
   const [myVote, setMyVote] = useState<'LIKE' | 'DISLIKE' | null>(null);
 
@@ -72,7 +76,8 @@ export function CommunityPost() {
     try {
       await votePost(postId, voteType);
 
-      setPost((prev) => {
+      // 서버를 다시 조회하지 않고 캐시된 post를 직접 patch - 기존 setPost 로직과 동일
+      queryClient.setQueryData(['community', 'post', postId], (prev: PostResponse | undefined) => {
         if (!prev) return prev;
 
         if (myVote === voteType) {
@@ -115,7 +120,7 @@ export function CommunityPost() {
     try {
       await updatePost(postId, { title: editTitle, content: editContent });
       setIsEditingPost(false);
-      await loadPost();
+      await queryClient.invalidateQueries({ queryKey: ['community', 'post', postId] });
     } catch (error) {
       console.error('게시글 수정 실패', error);
     }
@@ -139,8 +144,8 @@ export function CommunityPost() {
     try {
       await createComment(postId, { content: commentText });
       setCommentText('');
-      await loadComments();
-      await loadPost(); // commentCount 갱신 반영
+      await queryClient.invalidateQueries({ queryKey: ['community', 'comments', postId] });
+      await queryClient.invalidateQueries({ queryKey: ['community', 'post', postId] }); // commentCount 갱신 반영
     } catch (error) {
       console.error('댓글 작성 실패', error);
     }
@@ -153,8 +158,8 @@ export function CommunityPost() {
       await createComment(postId, { content: replyText, parentId });
       setReplyText('');
       setReplyingTo(null);
-      await loadComments();
-      await loadPost();
+      await queryClient.invalidateQueries({ queryKey: ['community', 'comments', postId] });
+      await queryClient.invalidateQueries({ queryKey: ['community', 'post', postId] });
     } catch (error) {
       console.error('답글 작성 실패', error);
     }
@@ -166,7 +171,7 @@ export function CommunityPost() {
     try {
       await updateComment(commentId, { content: editingCommentText });
       setEditingCommentId(null);
-      await loadComments();
+      await queryClient.invalidateQueries({ queryKey: ['community', 'comments', postId] });
     } catch (error) {
       console.error('댓글 수정 실패', error);
     }
@@ -177,8 +182,8 @@ export function CommunityPost() {
 
     try {
       await deleteComment(commentId);
-      await loadComments();
-      await loadPost();
+      await queryClient.invalidateQueries({ queryKey: ['community', 'comments', postId] });
+      await queryClient.invalidateQueries({ queryKey: ['community', 'post', postId] });
     } catch (error) {
       console.error('댓글 삭제 실패', error);
     }

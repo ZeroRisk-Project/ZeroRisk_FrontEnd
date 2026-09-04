@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Square
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import api from "@/src/shared/lib/api";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
 
@@ -60,17 +61,15 @@ export function MypageSettings() {
   const [accountLinked, setAccountLinked] = useState(false);
   const [hasPracticeCredit, setHasPracticeCredit] = useState(false);
 
+  const accountLinkQuery = useQuery({
+    queryKey: ["mypageSettings", "accountLinked"],
+    queryFn: () => api.get("/openbanking/auths"),
+    retry: false,
+  });
+
   useEffect(() => {
-    const checkAccountLink = async () => {
-      try {
-        await api.get("/openbanking/auths");
-        setAccountLinked(true);
-      } catch {
-        setAccountLinked(false);
-      }
-    };
-    checkAccountLink();
-  }, []);
+    setAccountLinked(accountLinkQuery.isSuccess);
+  }, [accountLinkQuery.isSuccess]);
 
   const [profileSettings, setProfileSettings] = useState({
     showReturnRate: true,
@@ -80,17 +79,19 @@ export function MypageSettings() {
     showCompetitions: true,
   });
 
+  const profileSettingsQuery = useQuery({
+    queryKey: ["mypageSettings", "profileSettings"],
+    queryFn: () => api.get("/profiles/me/settings"),
+    retry: false,
+  });
+
+  // 조회 성공 시에만 서버 값으로 초기화 - 이후 handleToggleSetting의 로컬 낙관적 업데이트/롤백은
+  // 그대로 이 state를 직접 다루므로 손대지 않는다.
   useEffect(() => {
-    const fetchProfileSettings = async () => {
-      try {
-        const response = await api.get("/profiles/me/settings");
-        setProfileSettings(response.data);
-      } catch (error) {
-        console.error(error);
-      }
-    };
-    fetchProfileSettings();
-  }, []);
+    if (profileSettingsQuery.data) {
+      setProfileSettings(profileSettingsQuery.data.data);
+    }
+  }, [profileSettingsQuery.data]);
 
   const handleToggleSetting = async (key: keyof typeof profileSettings) => {
     const previous = profileSettings;
@@ -104,23 +105,22 @@ export function MypageSettings() {
     }
   };
 
+  const myInfoQuery = useQuery({
+    queryKey: ["mypageSettings", "myInfo"],
+    queryFn: () => api.get("/users/me"),
+    retry: false,
+  });
+
   useEffect(() => {
-    const fetchMyInfo = async () => {
-      try {
-        const response = await api.get("/users/me");
-        setNickname(response.data.nickname);
-        setEmail(response.data.email);
-        setProfilePic(response.data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
-        setAccountType(response.data.oauthProvider ? "social" : "general");
-        setHasPracticeCredit(!!response.data.hasClaimedPracticeCredit);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMyInfo();
-  }, []);
+    if (myInfoQuery.data) {
+      const data = myInfoQuery.data.data;
+      setNickname(data.nickname);
+      setEmail(data.email);
+      setProfilePic(data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
+      setAccountType(data.oauthProvider ? "social" : "general");
+      setHasPracticeCredit(!!data.hasClaimedPracticeCredit);
+    }
+  }, [myInfoQuery.data]);
 
   // Delete Account States
   const [deleteStep, setDeleteStep] = useState<1 | 2 | 3>(1);
