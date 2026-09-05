@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -14,6 +14,9 @@ import {
   Search,
 } from "lucide-react";
 import { cn, formatPrice, formatPercent } from "@/src/shared/lib/utils";
+import api from "@/src/shared/lib/api";
+import { useChatMessages } from "@/src/features/chat/lib/useChatMessages";
+import { useChatSocket } from "@/src/features/chat/lib/useChatSocket";
 
 export function CommunityStock() {
   const { code } = useParams();
@@ -28,6 +31,35 @@ export function CommunityStock() {
     price: 68400,
     change: -1.2,
     participants: 1205,
+  };
+
+  const [message, setMessage] = useState("");
+  const [myUserId, setMyUserId] = useState<number | null>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
+
+  const stockCode = stockInfo.code;
+  const historyQuery = useChatMessages("STOCK", stockCode);
+  const { liveMessages, connected, sendMessage } = useChatSocket("STOCK", stockCode);
+
+  useEffect(() => {
+    api
+      .get("/users/me")
+      .then((response) => setMyUserId(response.data.userId))
+      .catch((error) => console.error(error));
+  }, []);
+
+  // 히스토리(과거, 최신순으로 오니 뒤집어서 오래된순) + 실시간 수신(이미 오래된순)을 이어붙임
+  const historyMessages = [...(historyQuery.data?.content ?? [])].reverse();
+  const allMessages = [...historyMessages, ...liveMessages];
+
+  useEffect(() => {
+    chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [allMessages.length]);
+
+  const handleSend = () => {
+    if (!message.trim()) return;
+    sendMessage(message);
+    setMessage("");
   };
 
   return (
@@ -294,81 +326,75 @@ export function CommunityStock() {
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-bg-main/50">
-              {[
-                {
-                  isMe: false,
-                  name: "단타의신",
-                  text: "외인들 싹다 던지네 ㅋㅋㅋ",
-                  time: "14:30",
-                },
-                {
-                  isMe: false,
-                  name: "삼전가즈아",
-                  text: "이거 오늘 6.5만 깨지면 진짜 답없습니다.",
-                  time: "14:31",
-                },
-                {
-                  isMe: true,
-                  name: "나",
-                  text: "저 방금 6.8만에 풀매수 때렸는데 ㅠㅠ",
-                  time: "14:32",
-                },
-                {
-                  isMe: false,
-                  name: "워렌버핏",
-                  text: "지금이 저점 추매 기회입니다. 다들 줍줍하세요~",
-                  time: "14:33",
-                },
-              ].map((msg, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex flex-col",
-                    msg.isMe ? "items-end" : "items-start",
-                  )}
-                >
-                  {!msg.isMe && (
-                    <Link
-                      to={`/users/${encodeURIComponent(msg.name)}`}
-                      className="text-xs text-text-secondary hover:underline font-semibold mb-1 ml-1 transition-colors cursor-pointer"
-                    >
-                      {msg.name}
-                    </Link>
-                  )}
-                  <div className="flex items-end gap-1.5">
-                    {msg.isMe && (
-                      <span className="text-[10px] text-text-secondary">
-                        {msg.time}
-                      </span>
+              {allMessages.map((msg) => {
+                const isMe = msg.authorId === myUserId;
+                const time = new Date(msg.createdAt).toLocaleTimeString("ko-KR", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                });
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={cn(
+                      "flex flex-col",
+                      isMe ? "items-end" : "items-start",
                     )}
-                    <div
-                      className={cn(
-                        "px-4 py-2 rounded-[16px] text-sm max-w-[220px] break-words shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
-                        msg.isMe
-                          ? "bg-brand text-white rounded-br-sm"
-                          : "bg-surface border border-border-color rounded-bl-sm",
+                  >
+                    {!isMe && (
+                      <Link
+                        to={`/users/${encodeURIComponent(msg.authorNickname)}`}
+                        className="text-xs text-text-secondary hover:underline font-semibold mb-1 ml-1 transition-colors cursor-pointer"
+                      >
+                        {msg.authorNickname}
+                      </Link>
+                    )}
+                    <div className="flex items-end gap-1.5">
+                      {isMe && (
+                        <span className="text-[10px] text-text-secondary">
+                          {time}
+                        </span>
                       )}
-                    >
-                      {msg.text}
+                      <div
+                        className={cn(
+                          "px-4 py-2 rounded-[16px] text-sm max-w-[220px] break-words shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+                          isMe
+                            ? "bg-brand text-white rounded-br-sm"
+                            : "bg-surface border border-border-color rounded-bl-sm",
+                        )}
+                      >
+                        {msg.message}
+                      </div>
+                      {!isMe && (
+                        <span className="text-[10px] text-text-secondary">
+                          {time}
+                        </span>
+                      )}
                     </div>
-                    {!msg.isMe && (
-                      <span className="text-[10px] text-text-secondary">
-                        {msg.time}
-                      </span>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div ref={chatBottomRef} />
             </div>
 
             <div className="p-3 border-t border-border-color bg-surface shrink-0 rounded-b-[16px]">
               <div className="flex items-center relative">
                 <Input
                   className="pr-12 bg-bg-main border-border-color focus-visible:ring-brand shadow-sm rounded-[16px] py-6"
-                  placeholder="메시지 입력..."
+                  placeholder={connected ? "메시지 입력..." : "연결 중..."}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSend();
+                    }
+                  }}
+                  disabled={!connected}
                 />
                 <Button
                   size="icon"
+                  onClick={handleSend}
+                  disabled={!connected}
                   className="absolute right-1.5 top-1.5 bottom-1.5 w-9 h-9 rounded-[12px] bg-brand text-white border-transparent hover:bg-brand/90"
                 >
                   <Send className="w-4 h-4 ml-[-2px]" />

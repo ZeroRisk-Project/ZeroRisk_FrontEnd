@@ -6,6 +6,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Users, Trophy, ChevronDown } from "lucide-react";
 import { cn, formatPrice, formatPercent } from "@/src/shared/lib/utils";
 import api from "@/src/shared/lib/api";
+import { CompetitionChatPanel } from "@/src/features/chat/components/CompetitionChatPanel";
 
 export function CompetitionDetail() {
   const { id } = useParams();
@@ -219,12 +220,16 @@ export function CompetitionDetail() {
                 </div>
               )}
               {activeTab === "채팅" && (
-                <div className="p-6 text-center text-text-secondary py-12">
-                  <p>채팅 기능은 준비중입니다.</p>
-                  <p className="text-sm mt-2">
-                    곧 실시간 채팅으로 다른 참가자들과 소통할 수 있습니다.
-                  </p>
-                </div>
+                isJoined ? (
+                  <CompetitionChatPanel competitionId={compId} myUserId={myUserId} />
+                ) : (
+                  <div className="p-6 text-center text-text-secondary py-12">
+                    <p>대회 참가자만 채팅에 참여할 수 있습니다.</p>
+                    <p className="text-sm mt-2">
+                      대회에 참가하시면 다른 참가자들과 실시간으로 소통할 수 있습니다.
+                    </p>
+                  </div>
+                )
               )}
             </CardContent>
           </Card>
