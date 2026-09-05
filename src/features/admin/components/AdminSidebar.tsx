@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { cn } from "@/src/shared/lib/utils";
 import { DEFAULT_PROFILE_IMAGE } from "@/src/shared/lib/constants";
 
-type AdminTab = "dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices";
+type AdminTab = "dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices" | "notification-dlq";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -57,6 +57,7 @@ export function AdminSidebar({ activeTab, setActiveTab, adminProfile, totalRepor
               { id: "logs", label: "로그 모니터링", icon: "📋" },
               { id: "announcements", label: "공지사항", icon: "📢" },
               { id: "system-notices", label: "긴급 알림", icon: "🚨" },
+              { id: "notification-dlq", label: "알림 실패 관리", icon: "📮" },
             ].map((item) => {
               const isActive = activeTab === item.id;
               return (

@@ -14,6 +14,7 @@ import { AdminInquiriesTab } from "@/src/features/inquiry/components/AdminInquir
 import { AdminCompetitionsTab } from "@/src/features/competition/components/AdminCompetitionsTab";
 import { AdminAnnouncementsTab } from "@/src/features/announcement/components/AdminAnnouncementsTab";
 import { AdminSystemNoticesTab } from "@/src/features/systemnotice/components/AdminSystemNoticesTab";
+import { AdminNotificationDlqTab } from "@/src/features/notification/components/AdminNotificationDlqTab";
 
 // Interfaces
 interface UserItem {
@@ -90,7 +91,7 @@ interface PostItem {
 }
 
 export function Admin() {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "members" | "posts" | "reports" | "inquiries" | "competitions" | "logs" | "announcements" | "system-notices" | "notification-dlq">("dashboard");
 
   const queryClient = useQueryClient();
 
@@ -780,6 +781,13 @@ export function Admin() {
                 systemNoticeForm={systemNoticeForm}
                 setSystemNoticeForm={setSystemNoticeForm}
                 handleSystemNoticeSubmit={handleSystemNoticeSubmit}
+              />
+            )}
+            {activeTab === "notification-dlq" && (
+              <AdminNotificationDlqTab
+                activeTab={activeTab}
+                triggerToast={triggerToast}
+                logAdminAction={logAdminAction}
               />
             )}
           </div>
