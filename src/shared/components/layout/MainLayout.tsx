@@ -32,50 +32,6 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
-const MOCK_NOTIFICATIONS = [
-  {
-    id: 1,
-    type: "stock",
-    title: "삼성전자 체결 알림",
-    content: "삼성전자 10주 매수가 체결되었습니다.",
-    time: "방금 전",
-    isRead: false,
-  },
-  {
-    id: 2,
-    type: "comment",
-    title: "새로운 댓글",
-    content:
-      "회원님의 '투자 전략 질문있습니다' 게시물에 새로운 댓글이 달렸습니다.",
-    time: "10분 전",
-    isRead: false,
-  },
-  {
-    id: 3,
-    type: "post",
-    title: "인기 게시물",
-    content: "회원님이 작성한 게시물이 실시간 인기글에 등록되었습니다.",
-    time: "1시간 전",
-    isRead: true,
-  },
-  {
-    id: 4,
-    type: "stock",
-    title: "지정가 도달",
-    content: "설정하신 SK하이닉스 150,000원 이하 조건에 도달했습니다.",
-    time: "2시간 전",
-    isRead: true,
-  },
-  {
-    id: 5,
-    type: "system",
-    title: "수익률 랭킹 변동",
-    content: "이번 주 누적 랭킹이 토너먼트 상위 10%에 진입했습니다!",
-    time: "어제",
-    isRead: true,
-  },
-];
-
 const MOCK_ACCOUNTS = [
   { id: "main", name: "웹 메인 계좌", balance: 50000000 },
   { id: "comp1", name: "제1회 제로리스크 대회", balance: 12500000 },
