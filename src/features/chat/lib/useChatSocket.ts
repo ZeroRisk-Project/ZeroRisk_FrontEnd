@@ -2,6 +2,10 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { Client, IMessage } from '@stomp/stompjs';
 import { ChatChannelType, ChatMessageResponse } from '@/src/features/chat/api/chat';
 
+// 1008(Policy Violation)은 관리자 강제 종료(정지 처리) 시 백엔드가 명시적으로 내려주는 코드.
+// 이 경우엔 재연결을 계속 시도하면 안 되고, 사용자에게 사유를 알려야 함.
+const POLICY_VIOLATION_CLOSE_CODE = 1008;
+
 function resolveWsUrl(): string {
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
     const httpBase = apiBaseUrl.replace(/\/api\/v1\/?$/, '');
@@ -12,6 +16,7 @@ function resolveWsUrl(): string {
 export function useChatSocket(channelType: ChatChannelType, channelId: string) {
     const [liveMessages, setLiveMessages] = useState<ChatMessageResponse[]>([]);
     const [connected, setConnected] = useState(false);
+    const [disconnectReason, setDisconnectReason] = useState<string | null>(null);
     const clientRef = useRef<Client | null>(null);
 
     useEffect(() => {
@@ -20,6 +25,7 @@ export function useChatSocket(channelType: ChatChannelType, channelId: string) {
         }
 
         setLiveMessages([]);
+        setDisconnectReason(null);
 
         const client = new Client({
             webSocketFactory: () => new WebSocket(resolveWsUrl()),
@@ -32,6 +38,16 @@ export function useChatSocket(channelType: ChatChannelType, channelId: string) {
                 });
             },
             onDisconnect: () => setConnected(false),
+            onWebSocketClose: (event: CloseEvent) => {
+                setConnected(false);
+
+                if (event.code === POLICY_VIOLATION_CLOSE_CODE) {
+                    // 정지 등 정책 위반으로 강제 종료된 경우: 재연결을 중단시키고 사용자에게 알림
+                    client.deactivate();
+                    setDisconnectReason(event.reason || '연결이 종료되었습니다.');
+                }
+                // 그 외(1000/1001 등 일반 종료)는 stompjs의 reconnectDelay가 알아서 재연결 시도함
+            },
             onStompError: (frame) => {
                 console.error('STOMP 에러', frame.headers['message'], frame.body);
             },
@@ -60,5 +76,5 @@ export function useChatSocket(channelType: ChatChannelType, channelId: string) {
         [channelType, channelId],
     );
 
-    return { liveMessages, connected, sendMessage };
+    return { liveMessages, connected, sendMessage, disconnectReason };
 }
