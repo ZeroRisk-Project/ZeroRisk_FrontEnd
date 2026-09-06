@@ -13,6 +13,8 @@ import {
   NotificationResponse,
   AlertSettingsResponse,
 } from "@/src/features/notification/api/notifications";
+import { getAccounts, type AccountResponse } from "@/src/features/account/api/account";
+import { getCompetitionDetail } from "@/src/features/competition/api/competition";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -32,11 +34,26 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
-const MOCK_ACCOUNTS = [
-  { id: "main", name: "웹 메인 계좌", balance: 50000000 },
-  { id: "comp1", name: "제1회 제로리스크 대회", balance: 12500000 },
-  { id: "comp2", name: "대학생 투자 챔피언십", balance: 5200000 },
-];
+interface AccountOption {
+  accountId: number;
+  name: string;
+  balance: number;
+}
+
+const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
+
+async function toAccountOption(account: AccountResponse): Promise<AccountOption> {
+  if (account.accountType !== "COMPETITION" || account.competitionId === null) {
+    return { accountId: account.accountId, name: "기본 계좌", balance: account.balance };
+  }
+
+  try {
+    const competition = await getCompetitionDetail(account.competitionId);
+    return { accountId: account.accountId, name: competition.title, balance: account.balance };
+  } catch {
+    return { accountId: account.accountId, name: "대회 계좌", balance: account.balance };
+  }
+}
 
 export function MainLayout() {
   const location = useLocation();
