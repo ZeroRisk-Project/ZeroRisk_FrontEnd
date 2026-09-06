@@ -18,7 +18,7 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
 
   const channelId = String(competitionId);
   const historyQuery = useChatMessages("COMPETITION", channelId);
-  const { liveMessages, connected, sendMessage } = useChatSocket("COMPETITION", channelId);
+  const { liveMessages, connected, sendMessage, disconnectReason } = useChatSocket("COMPETITION", channelId);
 
   const historyMessages = [...(historyQuery.data?.content ?? [])].reverse();
   const allMessages = [...historyMessages, ...liveMessages];
@@ -81,28 +81,32 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
       </div>
 
       <div className="p-3 border-t border-border-color bg-surface shrink-0 rounded-b-[16px]">
-        <div className="flex items-center relative">
-          <Input
-            className="pr-12 bg-bg-main border-border-color focus-visible:ring-brand shadow-sm rounded-[16px] py-6"
-            placeholder={connected ? "메시지 입력..." : "연결 중..."}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                handleSend();
-              }
-            }}
-            disabled={!connected}
-          />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!connected}
-            className="absolute right-1.5 top-1.5 bottom-1.5 w-9 h-9 rounded-[12px] bg-brand text-white border-transparent hover:bg-brand/90"
-          >
-            <Send className="w-4 h-4 ml-[-2px]" />
-          </Button>
-        </div>
+        {disconnectReason ? (
+          <p className="text-center text-sm text-down py-2 font-medium">{disconnectReason}</p>
+        ) : (
+          <div className="flex items-center relative">
+            <Input
+              className="pr-12 bg-bg-main border-border-color focus-visible:ring-brand shadow-sm rounded-[16px] py-6"
+              placeholder={connected ? "메시지 입력..." : "연결 중..."}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  handleSend();
+                }
+              }}
+              disabled={!connected}
+            />
+            <Button
+              size="icon"
+              onClick={handleSend}
+              disabled={!connected}
+              className="absolute right-1.5 top-1.5 bottom-1.5 w-9 h-9 rounded-[12px] bg-brand text-white border-transparent hover:bg-brand/90"
+            >
+              <Send className="w-4 h-4 ml-[-2px]" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
