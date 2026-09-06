@@ -63,18 +63,22 @@ export function MainLayout() {
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
 
-  const fetchMainAccountBalance = async () => {
+  const fetchAccounts = async () => {
     try {
-      const response = await api.get("/accounts");
-      const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
-      if (basicAccount) {
-        setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: basicAccount.balance });
-      }
+      const response = await getAccounts();
+      const options = await Promise.all(response.map(toAccountOption));
+      setAccounts(options);
+
+      const basicAccount = response.find((account) => account.accountType === "BASIC");
+      const defaultOption = options.find((option) => option.accountId === basicAccount?.accountId);
+      setActiveAccount(defaultOption ?? options[0] ?? EMPTY_ACCOUNT);
     } catch {
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
     }
   };
 
