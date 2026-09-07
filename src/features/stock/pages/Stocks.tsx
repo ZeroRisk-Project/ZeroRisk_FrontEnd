@@ -25,6 +25,7 @@ import {
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
+import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
 import {
@@ -62,6 +63,11 @@ const getTickSize = (price: number): number => {
   if (price < 200_000) return 100;
   if (price < 500_000) return 500;
   return 1_000;
+};
+
+const toWeek52Position = (price: number, low: number, high: number): number => {
+  if (high <= low) return 0;
+  return Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
 };
 
 const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
@@ -277,6 +283,7 @@ export function Stocks() {
     retry: false,
   });
   const chartPoints = stockChartQuery.data ? toChartPoints(stockChartQuery.data) : undefined;
+  const diagnosis = chartPoints ? toDiagnosis(chartPoints) : null;
 
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);
@@ -290,6 +297,8 @@ export function Stocks() {
         changeRate: stockDetail.changeRate,
         volume: activeStockData?.volume ?? "-",
         isFav: isFav(stockDetail.code),
+        week52High: stockDetail.week52High,
+        week52Low: stockDetail.week52Low,
       }
       : activeStockData
           ? {
@@ -300,6 +309,8 @@ export function Stocks() {
             changeRate: activeStockData.change,
             volume: activeStockData.volume,
             isFav: isFav(activeStockData.code),
+            week52High: null,
+            week52Low: null,
           }
           : null;
 
@@ -625,38 +636,40 @@ export function Stocks() {
                 </div>
 
                 {/* Section F: 52-Week High/Low Bar */}
-                <div className="p-6">
-                  <div className="relative h-[48px] flex items-center w-full">
-                    <span className="text-[11px] text-text-secondary mr-3 w-[100px]">
-                      52주 최저 <span className="tabular-nums">155,200</span>
-                    </span>
+                {stock.week52High !== null && stock.week52Low !== null && (
+                    <div className="p-6">
+                      <div className="relative h-[48px] flex items-center w-full">
+                      <span className="text-[11px] text-text-secondary mr-3 w-[100px]">
+                        52주 최저 <span className="tabular-nums">{formatPrice(stock.week52Low)}</span>
+                      </span>
 
-                    <div className="flex-1 h-[6px] bg-[#F2F2F7] rounded-[16px] relative flex shadow-inner">
-                      <div
-                        className="bg-[#1CBC9A] h-full rounded-[16px]"
-                        style={{ width: "85%" }}
-                      ></div>
+                      <div className="flex-1 h-[6px] bg-[#F2F2F7] rounded-[16px] relative flex shadow-inner">
+                        <div
+                          className="bg-[#1CBC9A] h-full rounded-[16px]"
+                          style={{ width: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
+                        ></div>
 
-                      {/* Current Price Dot */}
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2"
-                        style={{ left: "85%" }}
-                      >
-                        <div className="w-[14px] h-[14px] rounded-full bg-[#1CBC9A] border-[3px] border-white shadow-[0_2px_6px_rgba(28,188,154,0.4)] -ml-[7px]"></div>
-                        <div className="absolute top-[16px] left-1/2 -translate-x-1/2 text-[12px] font-bold text-[#1C1C1E] tabular-nums">
-                          269,250
-                        </div>
-                        <div className="absolute bottom-[16px] left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1CBC9A]/10 text-[#1CBC9A] text-[10px] font-bold px-2 py-0.5 rounded-[16px]">
-                          52주 최고 대비 93.5%
+                        {/* Current Price Dot */}
+                        <div
+                            className="absolute top-1/2 -translate-y-1/2"
+                            style={{ left: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
+                        >
+                          <div className="w-[14px] h-[14px] rounded-full bg-[#1CBC9A] border-[3px] border-white shadow-[0_2px_6px_rgba(28,188,154,0.4)] -ml-[7px]"></div>
+                          <div className="absolute top-[16px] left-1/2 -translate-x-1/2 text-[12px] font-bold text-[#1C1C1E] tabular-nums">
+                            {formatPrice(stock.price)}
+                          </div>
+                          <div className="absolute bottom-[16px] left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1CBC9A]/10 text-[#1CBC9A] text-[10px] font-bold px-2 py-0.5 rounded-[16px]">
+                            52주 최고 대비 {stock.week52High > 0 ? ((stock.price / stock.week52High) * 100).toFixed(1) : "0.0"}%
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <span className="text-[11px] text-text-secondary ml-3 w-[100px] text-right">
-                      52주 최고 <span className="tabular-nums">288,073</span>
-                    </span>
+                      <span className="text-[11px] text-text-secondary ml-3 w-[100px] text-right">
+                        52주 최고 <span className="tabular-nums">{formatPrice(stock.week52High)}</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
+                )}
               </Card>
 
               {/* Technical Analysis Panel */}
