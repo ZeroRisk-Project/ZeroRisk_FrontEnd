@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Wallet, X } from "lucide-react";
 import { cn, formatPrice } from "@/src/shared/lib/utils";
@@ -435,7 +436,7 @@ export function MainLayout() {
                 )}
               </div>
 
-              {isSettingsModalOpen && (
+              {isSettingsModalOpen && createPortal(
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
                   <div className="bg-white rounded-[24px] max-w-sm w-full p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-border-color flex flex-col gap-4">
                     <div className="flex justify-between items-center">
@@ -475,7 +476,8 @@ export function MainLayout() {
                       </div>
                     )}
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
 
               <div className="relative" ref={userMenuRef}>
