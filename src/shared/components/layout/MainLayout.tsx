@@ -15,7 +15,11 @@ import {
   AlertSettingsResponse,
 } from "@/src/features/notification/api/notifications";
 import { getAccounts, type AccountResponse } from "@/src/features/account/api/account";
-import { getCompetitionDetail } from "@/src/features/competition/api/competition";
+import {
+  getCompetitionDetail,
+  getCompetitionRankings,
+  getMyJoinedCompetitionIds,
+} from "@/src/features/competition/api/competition";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -43,6 +47,12 @@ interface AccountOption {
 
 const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
 
+interface OngoingCompetition {
+  title: string;
+  myRank: number | null;
+  participantCount: number;
+}
+
 async function toAccountOption(account: AccountResponse): Promise<AccountOption> {
   if (account.accountType !== "COMPETITION" || account.competitionId === null) {
     return { accountId: account.accountId, name: "기본 계좌", balance: account.balance };
@@ -67,6 +77,31 @@ export function MainLayout() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
+  const [ongoingCompetition, setOngoingCompetition] = useState<OngoingCompetition | null>(null);
+
+  const fetchOngoingCompetition = async (userId: number) => {
+    try {
+      const competitionIds = await getMyJoinedCompetitionIds();
+      const details = await Promise.all(
+          competitionIds.map((competitionId) => getCompetitionDetail(competitionId).catch(() => null)),
+      );
+      const ongoing = details.find((detail) => detail !== null && detail.status === "ONGOING");
+      if (!ongoing) {
+        setOngoingCompetition(null);
+        return;
+      }
+
+      const rankings = await getCompetitionRankings(ongoing.id).catch(() => []);
+      const myRanking = rankings.find((ranking) => ranking.userId === userId);
+      setOngoingCompetition({
+        title: ongoing.title,
+        myRank: myRanking?.rank ?? null,
+        participantCount: rankings.length,
+      });
+    } catch {
+      setOngoingCompetition(null);
+    }
+  };
 
   const fetchAccounts = async () => {
     try {
@@ -92,6 +127,7 @@ export function MainLayout() {
       setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
       await fetchAccounts();
+      await fetchOngoingCompetition(response.data.userId);
 
       if (!admin && !response.data.hasClaimedPracticeCredit) {
         let accountLinked = true;
@@ -110,6 +146,7 @@ export function MainLayout() {
       setIsAdmin(false);
       setAccounts([]);
       setActiveAccount(EMPTY_ACCOUNT);
+      setOngoingCompetition(null);
     }
   };
 
@@ -570,7 +607,7 @@ export function MainLayout() {
               </div>
             )}
 
-            {showCompAlert && (
+            {showCompAlert && ongoingCompetition && (
               <div
                 onClick={() => navigate("/competitions")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
@@ -578,8 +615,12 @@ export function MainLayout() {
                 <div className="flex items-center gap-3">
                   <div className="text-2xl bg-yellow-50 w-10 h-10 flex items-center justify-center rounded-full">🏆</div>
                   <div>
-                    <div className="text-[15px] font-bold text-slate-800">[제2회 단타 마스터] 진행 중</div>
-                    <div className="text-[13px] font-medium text-slate-500 mt-0.5">현재 내 순위: 12위 / 45명</div>
+                    <div className="text-[15px] font-bold text-slate-800">[{ongoingCompetition.title}] 진행 중</div>
+                    <div className="text-[13px] font-medium text-slate-500 mt-0.5">
+                      {ongoingCompetition.myRank !== null
+                          ? `현재 내 순위: ${ongoingCompetition.myRank}위 / ${ongoingCompetition.participantCount}명`
+                          : `참가자 ${ongoingCompetition.participantCount}명`}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
