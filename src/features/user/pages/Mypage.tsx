@@ -44,20 +44,6 @@ function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
 }
 
-const MOCK_CALENDAR_DATA: Record<
-  number,
-  { type: "buy" | "sell" | "profit" | "loss"; text: string }[]
-> = {
-  2: [{ type: "buy", text: "삼성전자 10주 매수" }],
-  5: [{ type: "profit", text: "SK하이닉스 +150,000원" }],
-  12: [
-    { type: "buy", text: "카카오 20주 매수" },
-    { type: "loss", text: "LG디스플레이 -40,000원" },
-  ],
-  18: [{ type: "profit", text: "삼성전자 +80,000원" }],
-  24: [{ type: "sell", text: "카카오 20주 매도" }],
-};
-
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
   ONGOING: "진행중",
@@ -1060,7 +1046,7 @@ export function Mypage() {
                   <button className="p-1 hover:bg-[#F2F4F6] rounded-full transition-colors text-[#8B95A1] cursor-pointer">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <span className="text-[15px] font-bold text-[#191F28]">2023년 11월</span>
+                  <span className="text-[15px] font-bold text-[#191F28]">{calendarYear}년 {calendarMonth + 1}월</span>
                   <button className="p-1 hover:bg-[#F2F4F6] rounded-full transition-colors text-[#8B95A1] cursor-pointer">
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -1083,7 +1069,7 @@ export function Mypage() {
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const date = i + 1;
-                  const hasData = MOCK_CALENDAR_DATA[date];
+                  const hasData = calendarData[date];
                   let dotHTML = null;
 
                   if (hasData) {
@@ -1110,10 +1096,10 @@ export function Mypage() {
                 })}
               </div>
 
-              {selectedDate && MOCK_CALENDAR_DATA[selectedDate] && (
+              {selectedDate && calendarData[selectedDate] && (
                 <div className="mt-4 p-4 bg-[#F9FAFB] rounded-2xl space-y-3 animate-in fade-in duration-300">
-                  <div className="text-[13px] font-bold text-[#6B7684]">11월 {selectedDate}일 내역</div>
-                  {MOCK_CALENDAR_DATA[selectedDate].map((log, index) => {
+                  <div className="text-[13px] font-bold text-[#6B7684]">{calendarMonth + 1}월 {selectedDate}일 내역</div>
+                  {calendarData[selectedDate].map((log, index) => {
                     const isUp = log.type === "buy";
                     const label = isUp ? "매수" : "매도";
                     return (
