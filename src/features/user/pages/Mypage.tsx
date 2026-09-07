@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -34,6 +34,9 @@ import {
   getOrders,
   getTrades,
 } from "@/src/features/order/api/order";
+import { getComposition, getHoldings } from "@/src/features/portfolio/api/portfolio";
+
+const TRADES_PAGE_SIZE = 100;
 
 function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
@@ -84,7 +87,7 @@ export function Mypage() {
 
   const tradesQuery = useQuery({
     queryKey: ["mypage", "trades", basicAccountId],
-    queryFn: () => getTrades(basicAccountId as number),
+    queryFn: () => getTrades(basicAccountId as number, 0, TRADES_PAGE_SIZE),
     enabled: basicAccountId !== null,
     retry: false,
   });
@@ -223,28 +226,36 @@ export function Mypage() {
     }
   }, [groups, selectedGroupId]);
 
-  const MY_HOLDINGS = [
-    {
-      stockCode: "005930",
-      stockName: "삼성전자",
-      avgPrice: 65000,
-      currentPrice: 68400,
-      qty: 110,
-      ratio: 60,
-      returnRate: 5.4,
-      evalAmount: 7524000,
-    },
-    {
-      stockCode: "000660",
-      stockName: "SK하이닉스",
-      avgPrice: 166500,
-      currentPrice: 164500,
-      qty: 30,
-      ratio: 40,
-      returnRate: -1.2,
-      evalAmount: 4935000,
-    },
-  ];
+  const holdingsQuery = useQuery({
+    queryKey: ["mypage", "holdings", basicAccountId],
+    queryFn: () => getHoldings(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+
+  const compositionQuery = useQuery({
+    queryKey: ["mypage", "composition", basicAccountId],
+    queryFn: () => getComposition(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+
+  const MY_HOLDINGS = useMemo(() => {
+    const weightByCode = new Map(
+        (compositionQuery.data?.stocks ?? []).map((stock) => [stock.stockCode, stock.weight]),
+    );
+
+    return (holdingsQuery.data ?? []).map((holding) => ({
+      stockCode: holding.stockCode,
+      stockName: holding.stockName,
+      avgPrice: holding.averagePrice,
+      currentPrice: holding.currentPrice,
+      qty: holding.quantity,
+      ratio: weightByCode.get(holding.stockCode) ?? 0,
+      returnRate: holding.profitRate,
+      evalAmount: holding.evaluationAmount,
+    }));
+  }, [holdingsQuery.data, compositionQuery.data]);
 
   const MOCK_TRANSACTIONS_DONE = [
     { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
@@ -293,9 +304,31 @@ export function Mypage() {
     { id: 2, content: "성투하세요!", postTitle: "오늘 카카오 진입했습니다", date: "2023.10.29", boardName: "수익인증 게시판", likes: 12, replies: 3 }
   ];
 
-  // November 2023 Calendar Grid (starts on Wednesday)
-  const daysInMonth = 30;
-  const firstDayOffset = 3; // 0=Sun, 1=Mon, 2=Tue, 3=Wed
+  const calendarYear = new Date().getFullYear();
+  const calendarMonth = new Date().getMonth();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDayOffset = new Date(calendarYear, calendarMonth, 1).getDay();
+
+  const calendarData = useMemo(() => {
+    const grouped: Record<number, { type: "buy" | "sell"; text: string }[]> = {};
+
+    for (const trade of trades ?? []) {
+      const tradedAt = new Date(trade.tradedAt);
+      if (tradedAt.getFullYear() !== calendarYear || tradedAt.getMonth() !== calendarMonth) {
+        continue;
+      }
+
+      const type = trade.side === "BUY" ? "buy" : "sell";
+      const day = tradedAt.getDate();
+      grouped[day] = grouped[day] ?? [];
+      grouped[day].push({
+        type,
+        text: `${trade.stockName} ${trade.quantity}주 ${type === "buy" ? "매수" : "매도"}`,
+      });
+    }
+
+    return grouped;
+  }, [trades, calendarYear, calendarMonth]);
 
   return (
     <>
@@ -821,6 +854,11 @@ export function Mypage() {
 
                 {mainFilter === "보유종목" && (
                   <div className="p-6 space-y-3">
+                    {MY_HOLDINGS.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
+                          <p>보유 중인 종목이 없습니다.</p>
+                        </div>
+                    )}
                     {MY_HOLDINGS.map((stock, idx) => {
                       const isUp = stock.returnRate >= 0;
                       return (
@@ -1067,9 +1105,9 @@ export function Mypage() {
                   let dotHTML = null;
 
                   if (hasData) {
-                    const hasBuyProf = hasData.some((d) => d.type === "buy" || d.type === "profit");
-                    const hasSellLoss = hasData.some((d) => d.type === "sell" || d.type === "loss");
-                    let dotColor = hasBuyProf && hasSellLoss ? "bg-purple-500" : hasBuyProf ? "bg-[#F04452]" : "bg-[#3182F6]";
+                    const hasBuy = hasData.some((d) => d.type === "buy");
+                    const hasSell = hasData.some((d) => d.type === "sell");
+                    let dotColor = hasBuy && hasSell ? "bg-purple-500" : hasBuy ? "bg-[#F04452]" : "bg-[#3182F6]";
                     dotHTML = <span className={cn("w-1.5 h-1.5 rounded-full absolute bottom-1.5", dotColor)}></span>;
                   }
 
@@ -1094,8 +1132,8 @@ export function Mypage() {
                 <div className="mt-4 p-4 bg-[#F9FAFB] rounded-2xl space-y-3 animate-in fade-in duration-300">
                   <div className="text-[13px] font-bold text-[#6B7684]">11월 {selectedDate}일 내역</div>
                   {MOCK_CALENDAR_DATA[selectedDate].map((log, index) => {
-                    const isUp = log.type === "buy" || log.type === "profit";
-                    const label = log.type === "buy" ? "매수" : log.type === "sell" ? "매도" : log.type === "profit" ? "수익" : "손실";
+                    const isUp = log.type === "buy";
+                    const label = isUp ? "매수" : "매도";
                     return (
                       <div key={index} className="flex items-center justify-between text-[14px]">
                         <span className="font-bold text-[#191F28]">{log.text}</span>

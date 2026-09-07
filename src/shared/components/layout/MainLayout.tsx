@@ -13,6 +13,8 @@ import {
   NotificationResponse,
   AlertSettingsResponse,
 } from "@/src/features/notification/api/notifications";
+import { getAccounts, type AccountResponse } from "@/src/features/account/api/account";
+import { getCompetitionDetail } from "@/src/features/competition/api/competition";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -32,11 +34,26 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
-const MOCK_ACCOUNTS = [
-  { id: "main", name: "웹 메인 계좌", balance: 50000000 },
-  { id: "comp1", name: "제1회 제로리스크 대회", balance: 12500000 },
-  { id: "comp2", name: "대학생 투자 챔피언십", balance: 5200000 },
-];
+interface AccountOption {
+  accountId: number;
+  name: string;
+  balance: number;
+}
+
+const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
+
+async function toAccountOption(account: AccountResponse): Promise<AccountOption> {
+  if (account.accountType !== "COMPETITION" || account.competitionId === null) {
+    return { accountId: account.accountId, name: "기본 계좌", balance: account.balance };
+  }
+
+  try {
+    const competition = await getCompetitionDetail(account.competitionId);
+    return { accountId: account.accountId, name: competition.title, balance: account.balance };
+  } catch {
+    return { accountId: account.accountId, name: "대회 계좌", balance: account.balance };
+  }
+}
 
 export function MainLayout() {
   const location = useLocation();
@@ -46,18 +63,22 @@ export function MainLayout() {
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
 
-  const fetchMainAccountBalance = async () => {
+  const fetchAccounts = async () => {
     try {
-      const response = await api.get("/accounts");
-      const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
-      if (basicAccount) {
-        setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: basicAccount.balance });
-      }
+      const response = await getAccounts();
+      const options = await Promise.all(response.map(toAccountOption));
+      setAccounts(options);
+
+      const basicAccount = response.find((account) => account.accountType === "BASIC");
+      const defaultOption = options.find((option) => option.accountId === basicAccount?.accountId);
+      setActiveAccount(defaultOption ?? options[0] ?? EMPTY_ACCOUNT);
     } catch {
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
     }
   };
 
@@ -69,7 +90,7 @@ export function MainLayout() {
       const admin = response.data.userRole === "ADMIN";
       setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
-      await fetchMainAccountBalance();
+      await fetchAccounts();
 
       if (!admin && !response.data.hasClaimedPracticeCredit) {
         let accountLinked = true;
@@ -86,7 +107,8 @@ export function MainLayout() {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
       setIsAdmin(false);
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
     }
   };
 
@@ -311,30 +333,30 @@ export function MainLayout() {
                       계좌 선택
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      {MOCK_ACCOUNTS.map((acc) => (
+                      {accounts.map((acc) => (
                         <button
-                          key={acc.id}
+                          key={acc.accountId}
                           onClick={() => {
                             setActiveAccount(acc);
                             setIsAccountMenuOpen(false);
                           }}
                           className={cn(
                             "w-full text-left px-4 py-3 hover:bg-bg-main transition-colors flex flex-col gap-1",
-                            activeAccount.id === acc.id ? "bg-brand/5" : "",
+                            activeAccount.accountId === acc.accountId ? "bg-brand/5" : "",
                           )}
                         >
                           <div className="flex items-center justify-between w-full">
                             <span
                               className={cn(
                                 "text-sm font-medium",
-                                activeAccount.id === acc.id
+                                activeAccount.accountId === acc.accountId
                                   ? "text-brand"
                                   : "text-text-primary",
                               )}
                             >
                               {acc.name}
                             </span>
-                            {activeAccount.id === acc.id && (
+                            {activeAccount.accountId === acc.accountId && (
                               <span className="w-2 h-2 rounded-full bg-brand" />
                             )}
                           </div>
