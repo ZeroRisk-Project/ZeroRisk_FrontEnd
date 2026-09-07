@@ -44,20 +44,6 @@ function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
 }
 
-const MOCK_CALENDAR_DATA: Record<
-  number,
-  { type: "buy" | "sell" | "profit" | "loss"; text: string }[]
-> = {
-  2: [{ type: "buy", text: "삼성전자 10주 매수" }],
-  5: [{ type: "profit", text: "SK하이닉스 +150,000원" }],
-  12: [
-    { type: "buy", text: "카카오 20주 매수" },
-    { type: "loss", text: "LG디스플레이 -40,000원" },
-  ],
-  18: [{ type: "profit", text: "삼성전자 +80,000원" }],
-  24: [{ type: "sell", text: "카카오 20주 매도" }],
-};
-
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
   ONGOING: "진행중",
@@ -260,12 +246,6 @@ export function Mypage() {
     }));
   }, [holdingsQuery.data, compositionQuery.data]);
 
-  const MOCK_TRANSACTIONS_DONE = [
-    { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
-    { type: "sell", stock: "SK하이닉스", date: "23.11.01 09:12", price: 162000, qty: 5 },
-    { type: "buy", stock: "LG에너지솔루션", date: "23.10.28 10:15", price: 395000, qty: 2 }
-  ];
-
   const TRANSACTIONS_DONE = trades
       ? trades.map((trade) => ({
         type: trade.side === "BUY" ? "buy" : "sell",
@@ -274,12 +254,7 @@ export function Mypage() {
         price: trade.price,
         qty: trade.quantity,
       }))
-      : MOCK_TRANSACTIONS_DONE;
-
-  const MOCK_TRANSACTIONS_PENDING = [
-    { type: "buy", stock: "LG에너지솔루션", date: "23.11.03 10:05", price: 390000, qty: 2 },
-    { type: "sell", stock: "카카오", date: "23.11.03 10:10", price: 54900, qty: 10 }
-  ];
+      : [];
 
   const TRANSACTIONS_PENDING = pendingOrders
       ? pendingOrders.map((order) => ({
@@ -290,7 +265,7 @@ export function Mypage() {
         price: order.limitPrice ?? 0,
         qty: order.quantity,
       }))
-      : MOCK_TRANSACTIONS_PENDING.map((tx) => ({ ...tx, orderId: null as number | null }));
+      : [];
 
   const myPostsQuery = useQuery({
     queryKey: ["mypage", "posts"],
@@ -535,29 +510,35 @@ export function Mypage() {
                           <div className="text-right pr-2">수량</div>
                           <div className="text-right">결제금액</div>
                         </div>
-                        {TRANSACTIONS_DONE.map((log, idx) => {
-                          const isBuy = log.type === "buy";
-                          return (
-                            <div
-                              key={idx}
-                              className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                            >
-                              <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                              <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                              <div>
-                                <span className={cn(
-                                  "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                  isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
-                                )}>
-                                  {isBuy ? "매수" : "매도"}
-                                </span>
-                              </div>
-                              <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                              <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                              <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
+                        {TRANSACTIONS_DONE.length === 0 ? (
+                            <div className="p-10 text-center text-[#8B95A1] text-sm">
+                              거래 내역이 없습니다.
                             </div>
-                          );
-                        })}
+                        ) : (
+                          TRANSACTIONS_DONE.map((log, idx) => {
+                            const isBuy = log.type === "buy";
+                              return (
+                                <div
+                                    key={idx}
+                                    className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                                >
+                                  <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
+                                  <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
+                                  <div>
+                                  <span className={cn(
+                                      "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
+                                      isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
+                                  )}>
+                                    {isBuy ? "매수" : "매도"}
+                                  </span>
+                                    </div>
+                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
+                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
+                                    <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
+                              </div>
+                              );
+                            })
+                        )}
                       </>
                     ) : (
                       <>
@@ -570,38 +551,44 @@ export function Mypage() {
                           <div className="text-right">결제금액</div>
                           <div></div>
                         </div>
-                        {TRANSACTIONS_PENDING.map((log, idx) => {
-                          const isBuy = log.type === "buy";
-                          return (
-                            <div
-                              key={idx}
-                              className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                            >
-                              <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                              <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                              <div>
-                                <span className={cn(
-                                  "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                  isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
-                                )}>
-                                  {isBuy ? "매수대기" : "매도대기"}
-                                </span>
-                              </div>
-                              <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                              <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                              <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
-                              <div className="flex justify-end pl-2">
-                                <button
-                                    onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
-                                    disabled={log.orderId === null}
-                                    className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                >
-                                  <X className="w-4 h-4" />
-                                </button>
-                              </div>
+                        {TRANSACTIONS_PENDING.length === 0 ? (
+                            <div className="p-10 text-center text-[#8B95A1] text-sm">
+                              미체결 주문이 없습니다.
                             </div>
-                          );
-                        })}
+                        ) : (
+                            TRANSACTIONS_PENDING.map((log, idx) => {
+                              const isBuy = log.type === "buy";
+                              return (
+                                  <div
+                                      key={idx}
+                                      className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                                  >
+                                    <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
+                                    <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
+                                    <div>
+                                  <span className={cn(
+                                      "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
+                                      isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
+                                  )}>
+                                    {isBuy ? "매수대기" : "매도대기"}
+                                  </span>
+                                    </div>
+                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
+                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
+                                    <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
+                                    <div className="flex justify-end pl-2">
+                                      <button
+                                          onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
+                                          disabled={log.orderId === null}
+                                          className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </button>
+                                    </div>
+                                  </div>
+                              );
+                            })
+                        )}
                       </>
                     )}
                   </div>
@@ -1059,7 +1046,7 @@ export function Mypage() {
                   <button className="p-1 hover:bg-[#F2F4F6] rounded-full transition-colors text-[#8B95A1] cursor-pointer">
                     <ChevronLeft className="w-5 h-5" />
                   </button>
-                  <span className="text-[15px] font-bold text-[#191F28]">2023년 11월</span>
+                  <span className="text-[15px] font-bold text-[#191F28]">{calendarYear}년 {calendarMonth + 1}월</span>
                   <button className="p-1 hover:bg-[#F2F4F6] rounded-full transition-colors text-[#8B95A1] cursor-pointer">
                     <ChevronRight className="w-5 h-5" />
                   </button>
@@ -1082,7 +1069,7 @@ export function Mypage() {
                 ))}
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const date = i + 1;
-                  const hasData = MOCK_CALENDAR_DATA[date];
+                  const hasData = calendarData[date];
                   let dotHTML = null;
 
                   if (hasData) {
@@ -1109,10 +1096,10 @@ export function Mypage() {
                 })}
               </div>
 
-              {selectedDate && MOCK_CALENDAR_DATA[selectedDate] && (
+              {selectedDate && calendarData[selectedDate] && (
                 <div className="mt-4 p-4 bg-[#F9FAFB] rounded-2xl space-y-3 animate-in fade-in duration-300">
-                  <div className="text-[13px] font-bold text-[#6B7684]">11월 {selectedDate}일 내역</div>
-                  {MOCK_CALENDAR_DATA[selectedDate].map((log, index) => {
+                  <div className="text-[13px] font-bold text-[#6B7684]">{calendarMonth + 1}월 {selectedDate}일 내역</div>
+                  {calendarData[selectedDate].map((log, index) => {
                     const isUp = log.type === "buy";
                     const label = isUp ? "매수" : "매도";
                     return (

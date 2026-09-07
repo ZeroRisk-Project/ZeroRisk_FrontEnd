@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="" />
+    <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
+      <change beforePath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -10,7 +12,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="feature/stock-detail-real-data" />
+        <entry key="$PROJECT_DIR$" value="feature/header-banner-integration" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -44,11 +46,13 @@
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "feature/header-banner-integration",
+    "git-widget-placeholder": "fix/mypage-transactions-mock-fallback",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
+    "settings.editor.selected.configurable": "preferences.sourceCode.JAVA",
     "ts.external.directory.path": "C:\\Users\\dncls\\Desktop\\GitHub\\ZeroRisk_FrontEnd\\node_modules\\typescript\\lib"
   }
 }]]></component>
@@ -98,5 +102,9 @@
         </entry>
       </map>
     </option>
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
   </component>
 </project>
