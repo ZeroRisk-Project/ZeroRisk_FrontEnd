@@ -1105,9 +1105,9 @@ export function Mypage() {
                   let dotHTML = null;
 
                   if (hasData) {
-                    const hasBuyProf = hasData.some((d) => d.type === "buy" || d.type === "profit");
-                    const hasSellLoss = hasData.some((d) => d.type === "sell" || d.type === "loss");
-                    let dotColor = hasBuyProf && hasSellLoss ? "bg-purple-500" : hasBuyProf ? "bg-[#F04452]" : "bg-[#3182F6]";
+                    const hasBuy = hasData.some((d) => d.type === "buy");
+                    const hasSell = hasData.some((d) => d.type === "sell");
+                    let dotColor = hasBuy && hasSell ? "bg-purple-500" : hasBuy ? "bg-[#F04452]" : "bg-[#3182F6]";
                     dotHTML = <span className={cn("w-1.5 h-1.5 rounded-full absolute bottom-1.5", dotColor)}></span>;
                   }
 
@@ -1132,8 +1132,8 @@ export function Mypage() {
                 <div className="mt-4 p-4 bg-[#F9FAFB] rounded-2xl space-y-3 animate-in fade-in duration-300">
                   <div className="text-[13px] font-bold text-[#6B7684]">11월 {selectedDate}일 내역</div>
                   {MOCK_CALENDAR_DATA[selectedDate].map((log, index) => {
-                    const isUp = log.type === "buy" || log.type === "profit";
-                    const label = log.type === "buy" ? "매수" : log.type === "sell" ? "매도" : log.type === "profit" ? "수익" : "손실";
+                    const isUp = log.type === "buy";
+                    const label = isUp ? "매수" : "매도";
                     return (
                       <div key={index} className="flex items-center justify-between text-[14px]">
                         <span className="font-bold text-[#191F28]">{log.text}</span>
