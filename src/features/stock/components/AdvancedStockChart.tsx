@@ -1,118 +1,20 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { cn } from "@/src/shared/lib/utils";
 import type { ChartPoint } from "@/src/features/stock/lib/indicators";
-
-// Helper to generate mock candlestick data
-const generateData = () => {
-  const data = [];
-  let currentPrice = 280000;
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 60);
-
-  for (let i = 0; i < 60; i++) {
-    const isDownTrend = i < 20;
-    const isConsolidation = i >= 20 && i < 40;
-    const isUpTrend = i >= 40;
-
-    let volatility = 5000;
-    let trendMove = 0;
-    if (isDownTrend) {
-      trendMove = -3000;
-      volatility = 8000;
-    }
-    if (isConsolidation) {
-      trendMove = 0;
-      volatility = 3000;
-    }
-    if (isUpTrend) {
-      trendMove = 4000;
-      volatility = 6000;
-    }
-
-    const open = currentPrice + (Math.random() - 0.5) * volatility;
-    const close = open + trendMove + (Math.random() - 0.5) * volatility;
-    const minPrice = Math.min(open, close);
-    const maxPrice = Math.max(open, close);
-    const low = minPrice - Math.random() * (volatility * 0.5);
-    const high = maxPrice + Math.random() * (volatility * 0.5);
-    const volume = Math.max(
-      1000000,
-      Math.random() * 8000000 + (isUpTrend ? 2000000 : 0),
-    );
-
-    // MA simulation
-    const ma5 = close + (Math.random() - 0.5) * 2000;
-    const ma20 =
-      close +
-      (Math.random() - 0.5) * 5000 -
-      (isUpTrend ? 5000 : isDownTrend ? -5000 : 0);
-    const ma60 = 265000;
-
-    // Bollinger
-    const ub = ma20 + 8000;
-    const lb = ma20 - 8000;
-
-    // RSI
-    const rsi = isUpTrend
-      ? 60 + Math.random() * 20
-      : isDownTrend
-        ? 40 - Math.random() * 20
-        : 50 + (Math.random() * 10 - 5);
-
-    // MACD
-    const macd = isUpTrend
-      ? 2000 + Math.random() * 1000
-      : isDownTrend
-        ? -2000 - Math.random() * 1000
-        : Math.random() * 1000 - 500;
-    const signal = macd - (Math.random() * 500 - 250);
-
-    data.push({
-      date: new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000)
-        .toLocaleDateString("ko-KR", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        })
-        .replace(/\./g, "")
-        .replace(/ /g, "."),
-      open,
-      high,
-      low,
-      close,
-      volume,
-      ma5,
-      ma20,
-      ma60,
-      ub,
-      lb,
-      rsi,
-      macd,
-      signal,
-      hist: macd - signal,
-    });
-    currentPrice = close;
-  }
-  return data;
-};
-
-const MOCK_CHART_DATA = generateData();
-const MY_AVG_PRICE = 269250;
 
 export function AdvancedStockChart({
   hideControlsAndIndicators = false,
   noCardStyle = false,
   candles,
+  avgPrice,
 }: {
   hideControlsAndIndicators?: boolean;
   noCardStyle?: boolean;
   candles?: ChartPoint[];
+  avgPrice?: number | null;
 }) {
-  const CHART_DATA = useMemo(
-      () => (candles && candles.length > 0 ? candles : MOCK_CHART_DATA),
-      [candles],
-  );
+  const CHART_DATA = candles ?? [];
 
   const [activeIndicators, setActiveIndicators] = useState({
     ma: !hideControlsAndIndicators,
@@ -126,6 +28,23 @@ export function AdvancedStockChart({
   const toggleIndicator = (key: keyof typeof activeIndicators) => {
     setActiveIndicators((prev) => ({ ...prev, [key]: !prev[key] }));
   };
+
+  if (CHART_DATA.length === 0) {
+    return (
+        <Card
+            className={cn(
+                "overflow-hidden",
+                noCardStyle ? "border-0 shadow-none bg-transparent" : "",
+            )}
+        >
+          <CardContent
+              className={cn("p-10 text-center text-text-secondary text-sm", noCardStyle ? "" : "border-b border-border-color")}
+          >
+            차트 데이터가 없습니다.
+          </CardContent>
+        </Card>
+    );
+  }
 
   // Rendering helpers
   const maxPrice = Math.max(
@@ -142,6 +61,9 @@ export function AdvancedStockChart({
     (w / total) * index + w / total / 2;
 
   const maxVol = Math.max(...CHART_DATA.map((d) => d.volume));
+
+  const effectiveHoverIndex =
+      hoverIndex !== null ? Math.min(hoverIndex, CHART_DATA.length - 1) : null;
 
   return (
     <Card
@@ -242,11 +164,11 @@ export function AdvancedStockChart({
                 <polygon
                   points={
                     CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.ub, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.ub, 420)}`,
                     ).join(" ") +
                     " " +
                     CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.lb, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.lb, 420)}`,
                     )
                       .reverse()
                       .join(" ")
@@ -259,7 +181,7 @@ export function AdvancedStockChart({
                 <>
                   <polyline
                     points={CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.ub, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.ub, 420)}`,
                     ).join(" ")}
                     fill="none"
                     stroke="#8E8E93"
@@ -268,7 +190,7 @@ export function AdvancedStockChart({
                   />
                   <polyline
                     points={CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.lb, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.lb, 420)}`,
                     ).join(" ")}
                     fill="none"
                     stroke="#8E8E93"
@@ -283,7 +205,7 @@ export function AdvancedStockChart({
                 <>
                   <polyline
                     points={CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.ma5, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.ma5, 420)}`,
                     ).join(" ")}
                     fill="none"
                     stroke="#FF9500"
@@ -291,7 +213,7 @@ export function AdvancedStockChart({
                   />
                   <polyline
                     points={CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.ma20, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.ma20, 420)}`,
                     ).join(" ")}
                     fill="none"
                     stroke="#1CBC9A"
@@ -299,7 +221,7 @@ export function AdvancedStockChart({
                   />
                   <polyline
                     points={CHART_DATA.map(
-                      (d, i) => `${getX(i, 1000, 60)}%,${getY(d.ma60, 420)}`,
+                      (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${getY(d.ma60, 420)}`,
                     ).join(" ")}
                     fill="none"
                     stroke="#BF5AF2"
@@ -310,7 +232,7 @@ export function AdvancedStockChart({
 
               {/* Candles */}
               {CHART_DATA.map((d, i) => {
-                const x = getX(i, 100, 60);
+                const x = getX(i, 100, CHART_DATA.length);
                 const yOpen = getY(d.open, 420);
                 const yClose = getY(d.close, 420);
                 const yHigh = getY(d.high, 420);
@@ -347,32 +269,36 @@ export function AdvancedStockChart({
               })}
 
               {/* My Avg Price */}
-              <line
-                x1="0"
-                y1={getY(MY_AVG_PRICE, 420)}
-                x2="100%"
-                y2={getY(MY_AVG_PRICE, 420)}
-                stroke="#FF9500"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-              />
-              <foreignObject
-                x="10"
-                y={getY(MY_AVG_PRICE, 420) - 10}
-                width="150"
-                height="20"
-              >
-                <div className="bg-[#FF9500]/15 text-[#FF9500] text-[10px] font-bold px-2 py-0.5 rounded-[8px] inline-block">
-                  내 평단가 {MY_AVG_PRICE.toLocaleString()}
-                </div>
-              </foreignObject>
+              {avgPrice != null && (
+                  <>
+                    <line
+                        x1="0"
+                        y1={getY(avgPrice, 420)}
+                        x2="100%"
+                        y2={getY(avgPrice, 420)}
+                        stroke="#FF9500"
+                        strokeWidth="1"
+                        strokeDasharray="4 4"
+                    />
+                    <foreignObject
+                        x="10"
+                        y={getY(avgPrice, 420) - 10}
+                        width="150"
+                        height="20"
+                    >
+                      <div className="bg-[#FF9500]/15 text-[#FF9500] text-[10px] font-bold px-2 py-0.5 rounded-[8px] inline-block">
+                        내 평단가 {avgPrice.toLocaleString()}
+                      </div>
+                    </foreignObject>
+                  </>
+              )}
 
               {/* Crosshair */}
-              {hoverIndex !== null && (
+              {effectiveHoverIndex !== null && (
                 <line
-                  x1={`${getX(hoverIndex, 100, 60)}%`}
+                  x1={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                   y1="0"
-                  x2={`${getX(hoverIndex, 100, 60)}%`}
+                  x2={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                   y2="100%"
                   stroke="#8E8E93"
                   strokeWidth="1"
@@ -398,70 +324,75 @@ export function AdvancedStockChart({
 
             {/* X-Axis Date Labels inside chart area bottom */}
             <div className="absolute bottom-0 left-0 w-[calc(100%-65px)] flex justify-between text-[11px] text-text-secondary pt-1">
-              {["0", "14", "29", "44", "59"].map((i) => (
-                <span key={i} className="px-2">
-                  {CHART_DATA[Number(i)]?.date}
-                </span>
-              ))}
+              {[0, 0.25, 0.5, 0.75, 1].map((fraction, i) => {
+                const idx = Math.round(fraction * (CHART_DATA.length - 1));
+                return (
+                    <span key={i} className="px-2">
+                    {CHART_DATA[idx]?.date}
+                  </span>
+                );
+              })}
             </div>
 
             {/* Tooltip Hover Card */}
-            {hoverIndex !== null && (
+            {effectiveHoverIndex !== null && (
               <div
                 className="absolute z-20 pointer-events-none"
                 style={{
-                  left: `min(max(10px, calc(${getX(hoverIndex, 100, 60)}% + 15px)), calc(100% - 160px))`,
+                  left: `min(max(10px, calc(${getX(effectiveHoverIndex, 100, CHART_DATA.length)}% + 15px)), calc(100% - 160px))`,
                   top:
-                    getY(CHART_DATA[hoverIndex].close, 420) > 210
+                    getY(CHART_DATA[effectiveHoverIndex].close, 420) > 210
                       ? "20px"
                       : "auto",
                   bottom:
-                    getY(CHART_DATA[hoverIndex].close, 420) > 210
+                    getY(CHART_DATA[effectiveHoverIndex].close, 420) > 210
                       ? "auto"
                       : "20px",
                 }}
               >
                 <div className="bg-[#1C1C1E] text-white rounded-[12px] p-3 shadow-xl text-xs w-[140px]">
                   <div className="text-[#8E8E93] text-[11px] mb-2">
-                    {CHART_DATA[hoverIndex].date}
+                    {CHART_DATA[effectiveHoverIndex].date}
                   </div>
                   <div className="flex justify-between mb-1">
                     <span className="text-[#F5F5F7]">시가</span>{" "}
                     <span className="tabular-nums font-medium">
-                      {CHART_DATA[hoverIndex].open.toLocaleString()}
+                      {CHART_DATA[effectiveHoverIndex].open.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between mb-1">
                     <span className="text-[#FF3B30]">고가</span>{" "}
                     <span className="tabular-nums font-medium text-[#FF3B30]">
-                      {CHART_DATA[hoverIndex].high.toLocaleString()}
+                      {CHART_DATA[effectiveHoverIndex].high.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between mb-1">
                     <span className="text-[#007AFF]">저가</span>{" "}
                     <span className="tabular-nums font-medium text-[#007AFF]">
-                      {CHART_DATA[hoverIndex].low.toLocaleString()}
+                      {CHART_DATA[effectiveHoverIndex].low.toLocaleString()}
                     </span>
                   </div>
                   <div className="flex justify-between mb-3">
                     <span className="text-[#F5F5F7]">종가</span>{" "}
                     <span className="tabular-nums font-bold text-[#F5F5F7]">
-                      {CHART_DATA[hoverIndex].close.toLocaleString()}
+                      {CHART_DATA[effectiveHoverIndex].close.toLocaleString()}
                     </span>
                   </div>
 
-                  <div className="flex justify-between mb-1">
-                    <span className="text-[#FF9500]">내 평단가</span>{" "}
-                    <span className="tabular-nums text-[#FF9500]">
-                      {MY_AVG_PRICE.toLocaleString()}
-                    </span>
-                  </div>
+                  {avgPrice != null && (
+                      <div className="flex justify-between mb-1">
+                        <span className="text-[#FF9500]">내 평단가</span>{" "}
+                        <span className="tabular-nums text-[#FF9500]">
+                        {avgPrice.toLocaleString()}
+                      </span>
+                      </div>
+                  )}
                   {activeIndicators.ma && (
                     <div className="flex justify-between mb-1">
                       <span className="text-[#FF9500]">MA5</span>{" "}
                       <span className="tabular-nums text-[#FF9500]">
                         {Math.floor(
-                          CHART_DATA[hoverIndex].ma5,
+                          CHART_DATA[effectiveHoverIndex].ma5,
                         ).toLocaleString()}
                       </span>
                     </div>
@@ -470,7 +401,7 @@ export function AdvancedStockChart({
                     <div className="flex justify-between">
                       <span className="text-[#1CBC9A]">RSI(14)</span>{" "}
                       <span className="tabular-nums text-[#1CBC9A]">
-                        {CHART_DATA[hoverIndex].rsi.toFixed(2)}
+                        {CHART_DATA[effectiveHoverIndex].rsi.toFixed(2)}
                       </span>
                     </div>
                   )}
@@ -507,7 +438,7 @@ export function AdvancedStockChart({
               onMouseLeave={() => setHoverIndex(null)}
             >
               {CHART_DATA.map((d, i) => {
-                const x = getX(i, 100, 60);
+                const x = getX(i, 100, CHART_DATA.length);
                 const h = (d.volume / maxVol) * 80;
                 const isUp = d.close >= d.open;
                 const color =
@@ -527,11 +458,11 @@ export function AdvancedStockChart({
                   />
                 );
               })}
-              {hoverIndex !== null && (
+              {effectiveHoverIndex !== null && (
                 <line
-                  x1={`${getX(hoverIndex, 100, 60)}%`}
+                    x1={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                   y1="0"
-                  x2={`${getX(hoverIndex, 100, 60)}%`}
+                    x2={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                   y2="100%"
                   stroke="#8E8E93"
                   strokeWidth="1"
@@ -551,15 +482,15 @@ export function AdvancedStockChart({
                 className="absolute right-[70px] top-2 text-[11px] font-bold z-10"
                 style={{
                   color:
-                    CHART_DATA[hoverIndex || CHART_DATA.length - 1].rsi > 70
+                    CHART_DATA[effectiveHoverIndex ?? CHART_DATA.length - 1].rsi > 70
                       ? "#FF3B30"
-                      : CHART_DATA[hoverIndex || CHART_DATA.length - 1].rsi < 30
+                      : CHART_DATA[effectiveHoverIndex ?? CHART_DATA.length - 1].rsi < 30
                         ? "#007AFF"
                         : "#1CBC9A",
                 }}
               >
                 RSI{" "}
-                {CHART_DATA[hoverIndex || CHART_DATA.length - 1].rsi.toFixed(1)}
+                {CHART_DATA[effectiveHoverIndex ?? CHART_DATA.length - 1].rsi.toFixed(1)}
               </div>
 
               <div className="absolute right-0 top-0 bottom-0 w-[60px] flex flex-col justify-between text-[10px] text-text-secondary items-end z-0 h-full py-1">
@@ -625,18 +556,18 @@ export function AdvancedStockChart({
 
                 <polyline
                   points={CHART_DATA.map(
-                    (d, i) => `${getX(i, 1000, 60)}%,${100 - d.rsi}%`,
+                    (d, i) => `${getX(i, 1000, CHART_DATA.length)}%,${100 - d.rsi}%`,
                   ).join(" ")}
                   fill="none"
                   stroke="#BF5AF2"
                   strokeWidth="1.5"
                 />
 
-                {hoverIndex !== null && (
+                {effectiveHoverIndex !== null && (
                   <line
-                    x1={`${getX(hoverIndex, 100, 60)}%`}
+                    x1={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                     y1="0"
-                    x2={`${getX(hoverIndex, 100, 60)}%`}
+                    x2={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                     y2="100%"
                     stroke="#8E8E93"
                     strokeWidth="1"
@@ -690,7 +621,7 @@ export function AdvancedStockChart({
 
                 {/* Histogram */}
                 {CHART_DATA.map((d, i) => {
-                  const x = getX(i, 100, 60);
+                  const x = getX(i, 100, CHART_DATA.length);
                   const maxVal = 4000;
                   const rh = Math.abs((d.hist / maxVal) * 50);
                   const ry = d.hist > 0 ? 50 - rh : 50;
@@ -712,7 +643,7 @@ export function AdvancedStockChart({
                 <polyline
                   points={CHART_DATA.map(
                     (d, i) =>
-                      `${getX(i, 1000, 60)}%,${50 - (d.macd / 4000) * 50}%`,
+                      `${getX(i, 1000, CHART_DATA.length)}%,${50 - (d.macd / 4000) * 50}%`,
                   ).join(" ")}
                   fill="none"
                   stroke="#1CBC9A"
@@ -721,18 +652,18 @@ export function AdvancedStockChart({
                 <polyline
                   points={CHART_DATA.map(
                     (d, i) =>
-                      `${getX(i, 1000, 60)}%,${50 - (d.signal / 4000) * 50}%`,
+                      `${getX(i, 1000, CHART_DATA.length)}%,${50 - (d.signal / 4000) * 50}%`,
                   ).join(" ")}
                   fill="none"
                   stroke="#FF9500"
                   strokeWidth="1.5"
                 />
 
-                {hoverIndex !== null && (
+                {effectiveHoverIndex !== null && (
                   <line
-                    x1={`${getX(hoverIndex, 100, 60)}%`}
+                    x1={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                     y1="0"
-                    x2={`${getX(hoverIndex, 100, 60)}%`}
+                    x2={`${getX(effectiveHoverIndex, 100, CHART_DATA.length)}%`}
                     y2="100%"
                     stroke="#8E8E93"
                     strokeWidth="1"

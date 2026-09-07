@@ -28,6 +28,7 @@ import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
+import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
   createPriceAlert,
   type PriceAlertDirection,
@@ -208,6 +209,14 @@ export function Stocks() {
   const refreshAccountBalance = () => {
     void queryClient.invalidateQueries({ queryKey: ["stocks", "accounts"] });
   };
+
+  const holdingsQuery = useQuery({
+    queryKey: ["stocks", "holdings", basicAccountId],
+    queryFn: () => getHoldings(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+  const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
 
   const rankingType = RANKING_TYPE_BY_TAB[activeTab];
   const rankingsQuery = useQuery({
@@ -632,7 +641,7 @@ export function Stocks() {
 
                 {/* Chart Area */}
                 <div>
-                  <AdvancedStockChart noCardStyle={true} candles={chartPoints} />
+                  <AdvancedStockChart noCardStyle={true} candles={chartPoints} avgPrice={myAvgPrice} />
                 </div>
 
                 {/* Section F: 52-Week High/Low Bar */}
