@@ -25,6 +25,7 @@ import {
   type StockRankingResponse,
 } from "@/src/features/stock/api/stock";
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
+import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
 import {
@@ -282,6 +283,7 @@ export function Stocks() {
     retry: false,
   });
   const chartPoints = stockChartQuery.data ? toChartPoints(stockChartQuery.data) : undefined;
+  const diagnosis = chartPoints ? toDiagnosis(chartPoints) : null;
 
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);
