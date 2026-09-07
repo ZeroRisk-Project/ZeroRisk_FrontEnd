@@ -55,6 +55,15 @@ export async function getPosts(boardType: BoardType, page = 0, size = 20): Promi
     return response.data;
 }
 
+// 전체 게시판 대상 추천수 기준 인기글 조회 (boardType 미지정)
+export async function getPopularPosts(size = 4): Promise<PostResponse[]> {
+    const response = await api.get<PageResponse<PostResponse>>('/posts', {
+        params: { page: 0, size, sort: 'likeCount,desc' },
+    });
+
+    return response.data.content;
+}
+
 // 게시글 작성
 export async function createPost(request: PostCreateRequest): Promise<PostResponse> {
     const response = await api.post<PostResponse>('/posts', request);
@@ -84,4 +93,13 @@ export async function deletePost(postId: number): Promise<void> {
 // 추천/비추천. 같은 타입 다시 누르면 서버에서 취소 처리됨
 export async function votePost(postId: number, voteType: VoteType): Promise<void> {
     await api.post(`/posts/${postId}/votes`, { voteType });
+}
+
+// 내 게시글 목록 조회 (마이페이지)
+export async function getMyPosts(page = 0, size = 20): Promise<PageResponse<PostResponse>> {
+    const response = await api.get<PageResponse<PostResponse>>('/posts/me', {
+        params: { page, size },
+    });
+
+    return response.data;
 }

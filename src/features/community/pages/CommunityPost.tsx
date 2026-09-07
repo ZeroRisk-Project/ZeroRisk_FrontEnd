@@ -12,6 +12,7 @@ import {
   createComment,
   updateComment,
   deleteComment,
+  likeComment,
   CommentResponse,
 } from '@/src/features/community/api/comments';
 import { createReport } from '@/src/features/report/api/reports';
@@ -189,6 +190,26 @@ export function CommunityPost() {
     }
   };
 
+  const [likedCommentIds, setLikedCommentIds] = useState<Set<number>>(new Set());
+
+  const handleLikeComment = async (commentId: number) => {
+    try {
+      await likeComment(commentId);
+      await queryClient.invalidateQueries({ queryKey: ['community', 'comments', postId] });
+      setLikedCommentIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(commentId)) {
+          next.delete(commentId);
+        } else {
+          next.add(commentId);
+        }
+        return next;
+      });
+    } catch (error) {
+      console.error('댓글 추천 실패', error);
+    }
+  };
+
   if (loading || !post) {
     return (
       <div className="flex items-center justify-center py-40 text-text-secondary text-sm font-medium">
@@ -235,6 +256,18 @@ export function CommunityPost() {
         )}
 
         <div className="flex items-center gap-4 mt-2">
+          {!comment.isDeleted && (
+            <button
+              onClick={() => handleLikeComment(comment.id)}
+              className={cn(
+                'flex items-center gap-1 text-xs font-semibold transition-colors',
+                likedCommentIds.has(comment.id) ? 'text-brand' : 'text-text-secondary hover:text-brand',
+              )}
+            >
+              <ThumbsUp className={cn('w-3.5 h-3.5', likedCommentIds.has(comment.id) && 'fill-current')} />{' '}
+              {comment.likeCount}
+            </button>
+          )}
           {!comment.isDeleted && (
             <button
               onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}

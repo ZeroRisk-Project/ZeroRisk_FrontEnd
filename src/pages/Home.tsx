@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { getPopularPosts } from "@/src/features/community/api/posts";
+import { getStockRankings } from "@/src/features/stock/api/stock";
 import {
   Card,
   CardHeader,
@@ -19,20 +22,6 @@ import {
 import { formatPrice, formatPercent } from "@/src/shared/lib/utils";
 import { Badge } from "@/src/shared/components/ui/Badge";
 import api from "@/src/shared/lib/api";
-
-const POPULAR_STOCKS = [
-  { code: "005930", name: "삼성전자", price: 68400, change: -1.2 },
-  { code: "000660", name: "SK하이닉스", price: 164500, change: 2.4 },
-  { code: "373220", name: "LG에너지솔루션", price: 395000, change: -0.5 },
-  { code: "207940", name: "삼성바이오로직스", price: 825000, change: 1.1 },
-];
-
-const SURGING_STOCKS = [
-  { code: "005380", name: "현대차", price: 245000, change: 4.5 },
-  { code: "035420", name: "NAVER", price: 184500, change: 3.2 },
-  { code: "068270", name: "셀트리온", price: 178900, change: -1.8 },
-  { code: "035720", name: "카카오", price: 48900, change: 2.1 },
-];
 
 export function Home() {
   const [kospi, setKospi] = useState({ value: 2682.43, diff: 31.55, percent: 1.19 });
@@ -65,6 +54,43 @@ export function Home() {
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  const { data: popularStocks = [] } = useQuery({
+    queryKey: ["stocks", "rankings", "VOLUME"],
+    queryFn: () => getStockRankings("VOLUME", 4),
+    retry: false,
+  });
+
+  const { data: surgingStocks = [] } = useQuery({
+    queryKey: ["stocks", "rankings", "RISE"],
+    queryFn: () => getStockRankings("RISE", 4),
+    retry: false,
+  });
+
+  const { data: popularPosts = [] } = useQuery({
+    queryKey: ["community", "popular-posts"],
+    // 공지는 인기글 랭킹에서 제외하기 위해 넉넉히 가져온 뒤 상위 4개만 사용
+    queryFn: async () => {
+      const posts = await getPopularPosts(20);
+      return posts.filter((p) => p.boardType !== "NOTICE").slice(0, 4);
+    },
+    retry: false,
+  });
+
+  const formatRelativeTime = (isoString: string) => {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}시간 전`;
+    return `${Math.floor(diffMinutes / 1440)}일 전`;
+  };
+
+  const boardLabel = (post: { boardType: string; isProfitCert: boolean }) => {
+    if (post.isProfitCert) return "수익률 인증";
+    if (post.boardType === "STOCK") return "종목게시판";
+    return "자유게시판";
+  };
 
   const [upcomingCompetitions, setUpcomingCompetitions] = useState<any[]>([]);
 
@@ -168,7 +194,7 @@ export function Home() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {POPULAR_STOCKS.map((stock) => (
+              {popularStocks.map((stock) => (
                 <Link
                   key={stock.code}
                   to={`/stocks/${stock.code}`}
@@ -184,12 +210,12 @@ export function Home() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold tabular-nums text-lg">
-                          {formatPrice(stock.price)}원
+                          {formatPrice(stock.currentPrice)}원
                         </p>
                         <p
-                          className={`text-sm tabular-nums font-bold ${stock.change > 0 ? "text-up" : "text-down"}`}
+                          className={`text-sm tabular-nums font-bold ${stock.changeRate > 0 ? "text-up" : "text-down"}`}
                         >
-                          {formatPercent(stock.change)}
+                          {formatPercent(stock.changeRate)}
                         </p>
                       </div>
                     </div>
@@ -214,7 +240,7 @@ export function Home() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {SURGING_STOCKS.map((stock) => (
+              {surgingStocks.map((stock) => (
                 <Link
                   key={stock.code}
                   to={`/stocks/${stock.code}`}
@@ -230,12 +256,12 @@ export function Home() {
                       </div>
                       <div className="text-right">
                         <p className="font-semibold tabular-nums text-lg">
-                          {formatPrice(stock.price)}원
+                          {formatPrice(stock.currentPrice)}원
                         </p>
                         <p
-                          className={`text-sm tabular-nums font-bold ${stock.change > 0 ? "text-up" : "text-down"}`}
+                          className={`text-sm tabular-nums font-bold ${stock.changeRate > 0 ? "text-up" : "text-down"}`}
                         >
-                          {formatPercent(stock.change)}
+                          {formatPercent(stock.changeRate)}
                         </p>
                       </div>
                     </div>
@@ -261,86 +287,51 @@ export function Home() {
                 </Link>
               </div>
               <CardContent className="p-0 flex flex-col divide-y divide-border-color flex-1">
-                {[
-                  {
-                    id: 1,
-                    title: "삼성전자 오늘 진짜 가냐..?",
-                    author: "수익만보고감",
-                    level: "Lv.4",
-                    time: "10분 전",
-                    likes: 12,
-                    comments: 24,
-                    board: "국내주식",
-                  },
-                  {
-                    id: 3,
-                    title: "SK하이닉스 수익 인증합니다",
-                    author: "고수등장",
-                    level: "Lv.8",
-                    time: "1시간 전",
-                    likes: 58,
-                    comments: 13,
-                    board: "수익률 인증",
-                  },
-                  {
-                    id: 4,
-                    title: "테슬라 주주분들 지금 물타기 타이밍인가요",
-                    author: "일론이형믿어",
-                    level: "Lv.3",
-                    time: "2시간 전",
-                    likes: 34,
-                    comments: 45,
-                    board: "해외주식",
-                  },
-                  {
-                    id: 5,
-                    title: "초보자도 쉽게 따라하는 시드머니 관리법",
-                    author: "현금부자",
-                    level: "Lv.6",
-                    time: "3시간 전",
-                    likes: 102,
-                    comments: 18,
-                    board: "꿀팁",
-                  },
-                ].map((post, i) => (
-                  <Link
-                    key={post.id}
-                    to={`/community/${post.id}`}
-                    className="hover:bg-bg-main transition-colors block"
-                  >
-                    <div className="p-4 flex h-full items-center">
-                      <div className="flex-1 min-w-0 flex flex-col justify-center">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <h3 className="font-semibold text-text-primary truncate">
-                            {post.title}
-                          </h3>
-                          <span className="text-[10px] font-bold text-text-secondary shrink-0 bg-surface px-1.5 py-0.5 rounded-[4px] border border-border-color">
-                            {post.board}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-text-secondary">
-                          <span className="font-medium text-text-primary">
-                            {post.author}
-                          </span>
-                          <Badge className="bg-text-secondary/10 text-text-secondary py-0 text-[10px] h-4 px-1 border-transparent font-bold">
-                            {post.level}
-                          </Badge>
-                          <span className="w-1 h-1 rounded-full bg-border-color ml-1" />
-                          <span className="ml-1">{post.time}</span>
-                          <div className="flex items-center gap-3 ml-auto">
-                            <span className="flex items-center gap-1 font-bold text-up">
-                              <ThumbsUp className="w-3.5 h-3.5" /> {post.likes}
+                {popularPosts.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center py-10 text-sm text-text-secondary">
+                    아직 등록된 게시글이 없습니다.
+                  </div>
+                ) : (
+                  popularPosts.map((post) => (
+                    <Link
+                      key={post.id}
+                      to={`/community/${post.id}`}
+                      className="hover:bg-bg-main transition-colors block"
+                    >
+                      <div className="p-4 flex h-full items-center">
+                        <div className="flex-1 min-w-0 flex flex-col justify-center">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-text-primary truncate">
+                              {post.title}
+                            </h3>
+                            <span className="text-[10px] font-bold text-text-secondary shrink-0 bg-surface px-1.5 py-0.5 rounded-[4px] border border-border-color">
+                              {boardLabel(post)}
                             </span>
-                            <span className="flex items-center gap-1 font-bold text-emerald-500">
-                              <MessageSquare className="w-3.5 h-3.5" />{" "}
-                              {post.comments}
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-text-secondary">
+                            <span className="font-medium text-text-primary">
+                              {post.authorNickname}
                             </span>
+                            <Badge className="bg-text-secondary/10 text-text-secondary py-0 text-[10px] h-4 px-1 border-transparent font-bold">
+                              {`Lv.${post.authorLevel}`}
+                            </Badge>
+                            <span className="w-1 h-1 rounded-full bg-border-color ml-1" />
+                            <span className="ml-1">{formatRelativeTime(post.createdAt)}</span>
+                            <div className="flex items-center gap-3 ml-auto">
+                              <span className="flex items-center gap-1 font-bold text-up">
+                                <ThumbsUp className="w-3.5 h-3.5" /> {post.likeCount}
+                              </span>
+                              <span className="flex items-center gap-1 font-bold text-emerald-500">
+                                <MessageSquare className="w-3.5 h-3.5" />{" "}
+                                {post.commentCount}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  ))
+                )}
               </CardContent>
             </Card>
           </section>

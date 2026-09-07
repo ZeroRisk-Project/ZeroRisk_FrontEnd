@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getPosts } from "@/src/features/community/api/posts"; // 실제 경로로 수정
+import { getPosts, getPopularPosts } from "@/src/features/community/api/posts"; // 실제 경로로 수정
+import { getStockRankings } from "@/src/features/stock/api/stock";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -37,6 +38,30 @@ export function Community() {
   });
   const noticePosts = freeBoardData?.noticePosts ?? [];
   const freePosts = freeBoardData?.freePosts ?? [];
+
+  // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 종목으로 대체
+  const { data: stockBoardList = [] } = useQuery({
+    queryKey: ["stocks", "rankings", "VOLUME", 20],
+    queryFn: () => getStockRankings("VOLUME", 20),
+    enabled: activeTab === "종목게시판",
+    retry: false,
+  });
+
+  // 우측 사이드바는 탭과 무관하게 항상 노출되므로 별도로 조회
+  const { data: weeklyPopularPosts = [] } = useQuery({
+    queryKey: ["community", "popular-posts", "weekly"],
+    queryFn: async () => {
+      const posts = await getPopularPosts(20);
+      return posts.filter((p) => p.boardType !== "NOTICE").slice(0, 5);
+    },
+    retry: false,
+  });
+
+  const { data: hotStocks = [] } = useQuery({
+    queryKey: ["stocks", "rankings", "RISE", 4],
+    queryFn: () => getStockRankings("RISE", 4),
+    retry: false,
+  });
 
   // 백엔드가 내려주는 createdAt(ISO 문자열)을 "N분 전"/"N시간 전"/"N일 전"으로 변환
   const formatRelativeTime = (isoString: string) => {
@@ -109,7 +134,6 @@ export function Community() {
                     </div>
                   </div>
                 </div>
-                // 수정 후
                 {[
                   ...noticePosts.map((p) => ({
                     id: p.id,
@@ -278,16 +302,7 @@ export function Community() {
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {[
-                      { name: "삼성전자", code: "005930", change: 1.2 },
-                      { name: "SK하이닉스", code: "000660", change: 3.4 },
-                      { name: "LG에너지솔루션", code: "373220", change: -1.5 },
-                      { name: "현대차", code: "005380", change: 0.8 },
-                      { name: "기아", code: "000270", change: 2.1 },
-                      { name: "NAVER", code: "035420", change: -0.5 },
-                      { name: "카카오", code: "035720", change: -1.2 },
-                      { name: "셀트리온", code: "068270", change: 4.5 },
-                    ]
+                    {stockBoardList
                       .filter((stock) =>
                         searchQuery.trim() === ""
                           ? true
@@ -307,11 +322,11 @@ export function Community() {
                                 <span
                                   className={cn(
                                     "text-xs",
-                                    stock.change > 0 ? "text-up" : "text-down",
+                                    stock.changeRate > 0 ? "text-up" : "text-down",
                                   )}
                                 >
-                                  {stock.change > 0 ? "▲" : "▼"}{" "}
-                                  {Math.abs(stock.change)}%
+                                  {stock.changeRate > 0 ? "▲" : "▼"}{" "}
+                                  {Math.abs(stock.changeRate)}%
                                 </span>
                               </div>
                               <div className="text-xs text-text-secondary mt-1">
@@ -498,17 +513,22 @@ export function Community() {
                 <Flame className="w-5 h-5 text-up" /> 주간 인기글
               </h3>
               <div className="space-y-3">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 cursor-pointer group"
-                  >
-                    <span className="font-bold text-brand w-4">{i}</span>
-                    <p className="flex-1 text-sm font-medium text-text-secondary group-hover:text-text-primary truncate transition-colors">
-                      이 시장에서 살아남는 법 공유합니다. 무조건 읽으세요.
-                    </p>
-                  </div>
-                ))}
+                {weeklyPopularPosts.length === 0 ? (
+                  <p className="text-sm text-text-secondary">아직 등록된 게시글이 없습니다.</p>
+                ) : (
+                  weeklyPopularPosts.map((post, i) => (
+                    <Link
+                      key={post.id}
+                      to={`/community/${post.id}`}
+                      className="flex items-start gap-3 cursor-pointer group"
+                    >
+                      <span className="font-bold text-brand w-4">{i + 1}</span>
+                      <p className="flex-1 text-sm font-medium text-text-secondary group-hover:text-text-primary truncate transition-colors">
+                        {post.title}
+                      </p>
+                    </Link>
+                  ))
+                )}
               </div>
             </CardContent>
           </Card>
@@ -519,12 +539,7 @@ export function Community() {
                 <Flame className="w-5 h-5 text-up" /> HOT 주목 종목 토론방
               </h3>
               <div className="flex flex-col gap-3">
-                {[
-                  { name: "삼성전자", code: "005930", change: 1.2 },
-                  { name: "SK하이닉스", code: "000660", change: 3.4 },
-                  { name: "LG에너지솔루션", code: "373220", change: -1.5 },
-                  { name: "현대차", code: "005380", change: 0.8 },
-                ].map((stock) => (
+                {hotStocks.map((stock) => (
                   <Link key={stock.code} to={`/community/stock/${stock.code}`}>
                     <div className="bg-bg-main p-4 rounded-[16px] hover:border-text-secondary/50 border border-border-color transition-colors flex justify-between items-center group">
                       <div>
@@ -533,11 +548,11 @@ export function Community() {
                           <span
                             className={cn(
                               "text-xs",
-                              stock.change > 0 ? "text-up" : "text-down",
+                              stock.changeRate > 0 ? "text-up" : "text-down",
                             )}
                           >
-                            {stock.change > 0 ? "▲" : "▼"}{" "}
-                            {Math.abs(stock.change)}%
+                            {stock.changeRate > 0 ? "▲" : "▼"}{" "}
+                            {Math.abs(stock.changeRate)}%
                           </span>
                         </div>
                         <div className="text-xs text-text-secondary mt-1">

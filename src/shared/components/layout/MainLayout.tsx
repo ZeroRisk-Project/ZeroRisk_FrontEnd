@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { Bell, ChevronDown, Wallet, X } from "lucide-react";
 import { cn, formatPrice } from "@/src/shared/lib/utils";
@@ -13,7 +14,13 @@ import {
   NotificationResponse,
   AlertSettingsResponse,
 } from "@/src/features/notification/api/notifications";
-import { getRankings, RankingResponse } from "@/src/features/ranking/api/ranking";
+import { getAccounts, type AccountResponse } from "@/src/features/account/api/account";
+import {
+  getCompetitionDetail,
+  getCompetitionRankings,
+  getMyJoinedCompetitionIds,
+} from "@/src/features/competition/api/competition";
+import { getRankings, type RankingResponse } from "@/src/features/ranking/api/ranking";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -33,36 +40,53 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
+interface AccountOption {
+  accountId: number;
+  name: string;
+  balance: number;
+}
+
+const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
+
+interface OngoingCompetition {
+  id: number;
+  title: string;
+  myRank: number | null;
+  participantCount: number;
+}
+
+async function toAccountOption(account: AccountResponse): Promise<AccountOption> {
+  if (account.accountType !== "COMPETITION" || account.competitionId === null) {
+    return { accountId: account.accountId, name: "기본 계좌", balance: account.balance };
+  }
+
+  try {
+    const competition = await getCompetitionDetail(account.competitionId);
+    return { accountId: account.accountId, name: competition.title, balance: account.balance };
+  } catch {
+    return { accountId: account.accountId, name: "대회 계좌", balance: account.balance };
+  }
+}
+
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  // 닫기(X)를 누르면 그 시점의 내용을 localStorage에 남겨두고, 다음에 조회했을 때 내용이
-  // 그대로면(같은 대회+같은 순위, 같은 1위+같은 수익률) 다시 안 띄운다. 내용이 바뀌면 다시 노출.
   const ACCOUNT_LINK_DISMISS_KEY = "dismiss_account_link_banner";
   const COMPETITION_DISMISS_KEY = "dismissed_competition_alert";
   const RANKING_DISMISS_KEY = "dismissed_ranking_alert";
 
   const [showAccountAlert, setShowAccountAlert] = useState(
-    () => localStorage.getItem(ACCOUNT_LINK_DISMISS_KEY) !== "true",
+      () => localStorage.getItem(ACCOUNT_LINK_DISMISS_KEY) !== "true",
   );
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
-  const [accounts, setAccounts] = useState([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
+  const [accounts, setAccounts] = useState<AccountOption[]>([]);
+  const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
-
-  // 계좌 연동 여부 - true(연동됨)를 기본값으로 둬서, 로그아웃 상태나 조회 전엔 배너가 안 보임
   const [accountLinked, setAccountLinked] = useState(true);
-  // 내가 참가 중인 "진행중" 대회 + 그 대회에서의 실제 순위. 없으면 null -> 배너 자체를 숨김
-  const [myOngoingCompetition, setMyOngoingCompetition] = useState<{
-    id: number;
-    title: string;
-    rank: number;
-    totalParticipants: number;
-  } | null>(null);
-  // 전체 랭킹 1위의 실제 수익률. 없으면 null -> 배너 자체를 숨김
+  const [ongoingCompetition, setOngoingCompetition] = useState<OngoingCompetition | null>(null);
   const [topRanking, setTopRanking] = useState<RankingResponse | null>(null);
 
   const fetchAccountLinked = async () => {
@@ -74,48 +98,10 @@ export function MainLayout() {
     }
   };
 
-  const fetchMyOngoingCompetition = async (myUserId: number) => {
-    try {
-      const [myResponse, listResponse] = await Promise.all([
-        api.get("/competitions/my"),
-        api.get("/competitions", { params: { page: 0, size: 100 } }),
-      ]);
-      const joinedIds: number[] = myResponse.data.competitionIds;
-      const ongoing = listResponse.data.content.find(
-        (c: any) => joinedIds.includes(c.id) && c.status === "ONGOING",
-      );
-      if (!ongoing) {
-        setMyOngoingCompetition(null);
-        return;
-      }
-
-      const rankingsResponse = await api.get(`/competitions/${ongoing.id}/rankings`);
-      const myEntry = rankingsResponse.data.find((r: any) => r.userId === myUserId);
-      if (!myEntry) {
-        setMyOngoingCompetition(null);
-        return;
-      }
-
-      const current = {
-        id: ongoing.id,
-        title: ongoing.title,
-        rank: myEntry.rank,
-        totalParticipants: rankingsResponse.data.length,
-      };
-      setMyOngoingCompetition(current);
-
-      const dismissedFingerprint = localStorage.getItem(COMPETITION_DISMISS_KEY);
-      const currentFingerprint = JSON.stringify({ id: current.id, rank: current.rank });
-      setShowCompAlert(dismissedFingerprint !== currentFingerprint);
-    } catch {
-      setMyOngoingCompetition(null);
-    }
-  };
-
   const fetchTopRanking = async () => {
     try {
-      const top = await getRankings("WEEKLY", 0, 1);
-      const first = top[0] ?? null;
+      const rankings = await getRankings("ALL", 0, 1);
+      const first = rankings[0] ?? null;
       setTopRanking(first);
 
       if (first) {
@@ -128,35 +114,48 @@ export function MainLayout() {
     }
   };
 
-  const fetchMainAccountBalance = async () => {
+  const fetchOngoingCompetition = async (userId: number) => {
     try {
-      const response = await api.get("/accounts");
-      const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
-      const mainAccount = { id: "main", name: "웹 메인 계좌", balance: basicAccount ? basicAccount.balance : 0 };
-      setActiveAccount(mainAccount);
-
-      // 종료된 대회의 계좌는 백엔드에서 이미 비활성화되어 이 목록에서 빠지므로 별도 필터링이 필요 없다.
-      const competitionAccounts = response.data.filter((acc: any) => acc.accountType === "COMPETITION");
-      if (competitionAccounts.length === 0) {
-        setAccounts([mainAccount]);
+      const competitionIds = await getMyJoinedCompetitionIds();
+      const details = await Promise.all(
+          competitionIds.map((competitionId) => getCompetitionDetail(competitionId).catch(() => null)),
+      );
+      const ongoing = details.find((detail) => detail !== null && detail.status === "ONGOING");
+      if (!ongoing) {
+        setOngoingCompetition(null);
         return;
       }
 
-      const listResponse = await api.get("/competitions", { params: { page: 0, size: 100 } });
-      const titleById = new Map<number, string>(
-        listResponse.data.content.map((c: any) => [c.id, c.title]),
-      );
-      setAccounts([
-        mainAccount,
-        ...competitionAccounts.map((acc: any) => ({
-          id: `comp-${acc.accountId}`,
-          name: titleById.get(acc.competitionId) ?? "대회 전용 계좌",
-          balance: acc.balance,
-        })),
-      ]);
+      const rankings = await getCompetitionRankings(ongoing.id).catch(() => []);
+      const myRanking = rankings.find((ranking) => ranking.userId === userId);
+      const current: OngoingCompetition = {
+        id: ongoing.id,
+        title: ongoing.title,
+        myRank: myRanking?.rank ?? null,
+        participantCount: rankings.length,
+      };
+      setOngoingCompetition(current);
+
+      const dismissedFingerprint = localStorage.getItem(COMPETITION_DISMISS_KEY);
+      const currentFingerprint = JSON.stringify({ id: current.id, rank: current.myRank });
+      setShowCompAlert(dismissedFingerprint !== currentFingerprint);
     } catch {
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
-      setAccounts([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
+      setOngoingCompetition(null);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await getAccounts();
+      const options = await Promise.all(response.map(toAccountOption));
+      setAccounts(options);
+
+      const basicAccount = response.find((account) => account.accountType === "BASIC");
+      const defaultOption = options.find((option) => option.accountId === basicAccount?.accountId);
+      setActiveAccount(defaultOption ?? options[0] ?? EMPTY_ACCOUNT);
+    } catch {
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
     }
   };
 
@@ -168,7 +167,7 @@ export function MainLayout() {
       const admin = response.data.userRole === "ADMIN";
       setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
-      await fetchMainAccountBalance();
+      await fetchAccounts();
 
       if (admin) {
         return;
@@ -183,17 +182,17 @@ export function MainLayout() {
       }
 
       await Promise.all([
-        fetchMyOngoingCompetition(response.data.userId),
+        fetchOngoingCompetition(response.data.userId),
         fetchTopRanking(),
       ]);
     } catch (error) {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
       setIsAdmin(false);
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
-      setAccounts([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
       setAccountLinked(true);
-      setMyOngoingCompetition(null);
+      setOngoingCompetition(null);
       setTopRanking(null);
     }
   };
@@ -421,28 +420,28 @@ export function MainLayout() {
                     <div className="max-h-[300px] overflow-y-auto">
                       {accounts.map((acc) => (
                         <button
-                          key={acc.id}
+                          key={acc.accountId}
                           onClick={() => {
                             setActiveAccount(acc);
                             setIsAccountMenuOpen(false);
                           }}
                           className={cn(
                             "w-full text-left px-4 py-3 hover:bg-bg-main transition-colors flex flex-col gap-1",
-                            activeAccount.id === acc.id ? "bg-brand/5" : "",
+                            activeAccount.accountId === acc.accountId ? "bg-brand/5" : "",
                           )}
                         >
                           <div className="flex items-center justify-between w-full">
                             <span
                               className={cn(
                                 "text-sm font-medium",
-                                activeAccount.id === acc.id
+                                activeAccount.accountId === acc.accountId
                                   ? "text-brand"
                                   : "text-text-primary",
                               )}
                             >
                               {acc.name}
                             </span>
-                            {activeAccount.id === acc.id && (
+                            {activeAccount.accountId === acc.accountId && (
                               <span className="w-2 h-2 rounded-full bg-brand" />
                             )}
                           </div>
@@ -521,7 +520,7 @@ export function MainLayout() {
                 )}
               </div>
 
-              {isSettingsModalOpen && (
+              {isSettingsModalOpen && createPortal(
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
                   <div className="bg-white rounded-[24px] max-w-sm w-full p-6 shadow-[0_10px_40px_rgba(0,0,0,0.12)] border border-border-color flex flex-col gap-4">
                     <div className="flex justify-between items-center">
@@ -561,7 +560,8 @@ export function MainLayout() {
                       </div>
                     )}
                   </div>
-                </div>
+                </div>,
+                document.body
               )}
 
               <div className="relative" ref={userMenuRef}>
@@ -614,7 +614,7 @@ export function MainLayout() {
       </header>
 
       {/* Dismissible Alerts Area - absolutely positioned so it overlaps/layers over the main content instead of pushing it down */}
-      {((showAccountAlert && !accountLinked) || (showCompAlert && myOngoingCompetition) || (showRankAlert && topRanking)) && (
+      {((showAccountAlert && !accountLinked) || (showCompAlert && ongoingCompetition) || (showRankAlert && topRanking)) && (
         <div className="absolute top-[80px] left-0 right-0 z-30 py-3 px-6 select-none pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="max-w-7xl mx-auto flex flex-col items-end gap-3 pointer-events-auto w-full md:max-w-[600px] md:ml-auto">
             {showAccountAlert && !accountLinked && (
@@ -654,17 +654,19 @@ export function MainLayout() {
               </div>
             )}
 
-            {showCompAlert && myOngoingCompetition && (
+            {showCompAlert && ongoingCompetition && (
               <div
-                onClick={() => navigate(`/competitions/${myOngoingCompetition.id}`)}
+                onClick={() => navigate(`/competitions/${ongoingCompetition.id}`)}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
                 <div className="flex items-center gap-3">
                   <div className="text-2xl bg-yellow-50 w-10 h-10 flex items-center justify-center rounded-full">🏆</div>
                   <div>
-                    <div className="text-[15px] font-bold text-slate-800">[{myOngoingCompetition.title}] 진행 중</div>
+                    <div className="text-[15px] font-bold text-slate-800">[{ongoingCompetition.title}] 진행 중</div>
                     <div className="text-[13px] font-medium text-slate-500 mt-0.5">
-                      현재 내 순위: {myOngoingCompetition.rank}위 / {myOngoingCompetition.totalParticipants}명
+                      {ongoingCompetition.myRank !== null
+                          ? `현재 내 순위: ${ongoingCompetition.myRank}위 / ${ongoingCompetition.participantCount}명`
+                          : `참가자 ${ongoingCompetition.participantCount}명`}
                     </div>
                   </div>
                 </div>
@@ -672,7 +674,7 @@ export function MainLayout() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/competitions/${myOngoingCompetition.id}`);
+                      navigate(`/competitions/${ongoingCompetition.id}`);
                     }}
                     className="text-[14px] font-bold text-slate-800 bg-gray-100 px-4 py-2 rounded-[10px] hover:bg-gray-200 transition-colors"
                   >
@@ -683,8 +685,8 @@ export function MainLayout() {
                       e.stopPropagation();
                       setShowCompAlert(false);
                       localStorage.setItem(
-                        COMPETITION_DISMISS_KEY,
-                        JSON.stringify({ id: myOngoingCompetition.id, rank: myOngoingCompetition.rank }),
+                          COMPETITION_DISMISS_KEY,
+                          JSON.stringify({ id: ongoingCompetition.id, rank: ongoingCompetition.myRank }),
                       );
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
@@ -706,8 +708,7 @@ export function MainLayout() {
                   <div className="text-2xl bg-amber-50 w-10 h-10 flex items-center justify-center rounded-full">👑</div>
                   <div>
                     <div className="text-[15px] font-bold text-slate-800">
-                      지금 1위는 {topRanking.returnRate >= 0 ? "+" : ""}
-                      {topRanking.returnRate}% 수익 중
+                      지금 1위는 {topRanking.returnRate >= 0 ? "+" : ""}{topRanking.returnRate.toFixed(1)}% 수익 중
                     </div>
                     <div className="text-[13px] font-medium text-slate-500 mt-0.5">실시간 투자 고수들의 포트폴리오를 구경해보세요</div>
                   </div>
@@ -716,7 +717,11 @@ export function MainLayout() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate("/ranking");
+                      setShowRankAlert(false);
+                      localStorage.setItem(
+                          RANKING_DISMISS_KEY,
+                          JSON.stringify({ userId: topRanking.userId, returnRate: topRanking.returnRate }),
+                      );
                     }}
                     className="text-[14px] font-bold text-up bg-[#F2F4F6]/60 px-4 py-2 rounded-[10px] hover:bg-[#F2F4F6] transition-colors"
                   >
@@ -726,10 +731,6 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowRankAlert(false);
-                      localStorage.setItem(
-                        RANKING_DISMISS_KEY,
-                        JSON.stringify({ userId: topRanking.userId, returnRate: topRanking.returnRate }),
-                      );
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >

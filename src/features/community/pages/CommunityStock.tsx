@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { getStockDetail } from "@/src/features/stock/api/stock";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -24,20 +26,24 @@ export function CommunityStock() {
   const [activeTab, setActiveTab] = useState("게시글");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // mock data
+  const stockCode = code || "005930";
+  const { data: stockDetail } = useQuery({
+    queryKey: ["stock", "detail", stockCode],
+    queryFn: () => getStockDetail(stockCode),
+    retry: false,
+  });
+
   const stockInfo = {
-    name: "삼성전자",
-    code: code || "005930",
-    price: 68400,
-    change: -1.2,
-    participants: 1205,
+    name: stockDetail?.name ?? stockCode,
+    code: stockCode,
+    price: stockDetail?.currentPrice ?? 0,
+    change: stockDetail?.changeRate ?? 0,
   };
 
   const [message, setMessage] = useState("");
   const [myUserId, setMyUserId] = useState<number | null>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  const stockCode = stockInfo.code;
   const historyQuery = useChatMessages("STOCK", stockCode);
   const { liveMessages, connected, sendMessage, disconnectReason } = useChatSocket("STOCK", stockCode);
 
