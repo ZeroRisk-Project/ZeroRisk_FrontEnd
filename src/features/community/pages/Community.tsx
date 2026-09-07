@@ -134,7 +134,6 @@ export function Community() {
                     </div>
                   </div>
                 </div>
-                // 수정 후
                 {[
                   ...noticePosts.map((p) => ({
                     id: p.id,
