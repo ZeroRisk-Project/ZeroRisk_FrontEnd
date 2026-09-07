@@ -94,3 +94,12 @@ export async function deletePost(postId: number): Promise<void> {
 export async function votePost(postId: number, voteType: VoteType): Promise<void> {
     await api.post(`/posts/${postId}/votes`, { voteType });
 }
+
+// 내 게시글 목록 조회 (마이페이지)
+export async function getMyPosts(page = 0, size = 20): Promise<PageResponse<PostResponse>> {
+    const response = await api.get<PageResponse<PostResponse>>('/posts/me', {
+        params: { page, size },
+    });
+
+    return response.data;
+}
