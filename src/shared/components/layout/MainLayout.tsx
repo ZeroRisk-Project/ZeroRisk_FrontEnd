@@ -90,7 +90,7 @@ export function MainLayout() {
       const admin = response.data.userRole === "ADMIN";
       setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
-      await fetchMainAccountBalance();
+      await fetchAccounts();
 
       if (!admin && !response.data.hasClaimedPracticeCredit) {
         let accountLinked = true;
@@ -107,7 +107,8 @@ export function MainLayout() {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
       setIsAdmin(false);
-      setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([]);
+      setActiveAccount(EMPTY_ACCOUNT);
     }
   };
 
@@ -332,30 +333,30 @@ export function MainLayout() {
                       계좌 선택
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      {MOCK_ACCOUNTS.map((acc) => (
+                      {accounts.map((acc) => (
                         <button
-                          key={acc.id}
+                          key={acc.accountId}
                           onClick={() => {
                             setActiveAccount(acc);
                             setIsAccountMenuOpen(false);
                           }}
                           className={cn(
                             "w-full text-left px-4 py-3 hover:bg-bg-main transition-colors flex flex-col gap-1",
-                            activeAccount.id === acc.id ? "bg-brand/5" : "",
+                            activeAccount.accountId === acc.accountId ? "bg-brand/5" : "",
                           )}
                         >
                           <div className="flex items-center justify-between w-full">
                             <span
                               className={cn(
                                 "text-sm font-medium",
-                                activeAccount.id === acc.id
+                                activeAccount.accountId === acc.accountId
                                   ? "text-brand"
                                   : "text-text-primary",
                               )}
                             >
                               {acc.name}
                             </span>
-                            {activeAccount.id === acc.id && (
+                            {activeAccount.accountId === acc.accountId && (
                               <span className="w-2 h-2 rounded-full bg-brand" />
                             )}
                           </div>
