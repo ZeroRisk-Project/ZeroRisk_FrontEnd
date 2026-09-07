@@ -55,6 +55,15 @@ export async function getPosts(boardType: BoardType, page = 0, size = 20): Promi
     return response.data;
 }
 
+// 전체 게시판 대상 추천수 기준 인기글 조회 (boardType 미지정)
+export async function getPopularPosts(size = 4): Promise<PostResponse[]> {
+    const response = await api.get<PageResponse<PostResponse>>('/posts', {
+        params: { page: 0, size, sort: 'likeCount,desc' },
+    });
+
+    return response.data.content;
+}
+
 // 게시글 작성
 export async function createPost(request: PostCreateRequest): Promise<PostResponse> {
     const response = await api.post<PostResponse>('/posts', request);
