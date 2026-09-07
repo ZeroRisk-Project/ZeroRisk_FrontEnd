@@ -9,6 +9,7 @@ export interface CommentResponse {
     content: string;
     isDeleted: boolean;
     isMine: boolean;
+    likeCount: number;
     createdAt: string;
     replies: CommentResponse[];
 }
@@ -46,4 +47,9 @@ export async function updateComment(commentId: number, request: CommentUpdateReq
 // 댓글 삭제 (본인만 가능, 소프트 삭제)
 export async function deleteComment(commentId: number): Promise<void> {
     await api.delete(`/comments/${commentId}`);
+}
+
+// 댓글 추천. 이미 추천한 상태에서 다시 누르면 서버에서 취소 처리됨
+export async function likeComment(commentId: number): Promise<void> {
+    await api.post(`/comments/${commentId}/likes`);
 }
