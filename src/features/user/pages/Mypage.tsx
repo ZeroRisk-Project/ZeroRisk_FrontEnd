@@ -36,6 +36,8 @@ import {
 } from "@/src/features/order/api/order";
 import { getComposition, getHoldings } from "@/src/features/portfolio/api/portfolio";
 
+const TRADES_PAGE_SIZE = 100;
+
 function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
 }
@@ -85,7 +87,7 @@ export function Mypage() {
 
   const tradesQuery = useQuery({
     queryKey: ["mypage", "trades", basicAccountId],
-    queryFn: () => getTrades(basicAccountId as number),
+    queryFn: () => getTrades(basicAccountId as number, 0, TRADES_PAGE_SIZE),
     enabled: basicAccountId !== null,
     retry: false,
   });
@@ -302,9 +304,31 @@ export function Mypage() {
     { id: 2, content: "성투하세요!", postTitle: "오늘 카카오 진입했습니다", date: "2023.10.29", boardName: "수익인증 게시판", likes: 12, replies: 3 }
   ];
 
-  // November 2023 Calendar Grid (starts on Wednesday)
-  const daysInMonth = 30;
-  const firstDayOffset = 3; // 0=Sun, 1=Mon, 2=Tue, 3=Wed
+  const calendarYear = new Date().getFullYear();
+  const calendarMonth = new Date().getMonth();
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDayOffset = new Date(calendarYear, calendarMonth, 1).getDay();
+
+  const calendarData = useMemo(() => {
+    const grouped: Record<number, { type: "buy" | "sell"; text: string }[]> = {};
+
+    for (const trade of trades ?? []) {
+      const tradedAt = new Date(trade.tradedAt);
+      if (tradedAt.getFullYear() !== calendarYear || tradedAt.getMonth() !== calendarMonth) {
+        continue;
+      }
+
+      const type = trade.side === "BUY" ? "buy" : "sell";
+      const day = tradedAt.getDate();
+      grouped[day] = grouped[day] ?? [];
+      grouped[day].push({
+        type,
+        text: `${trade.stockName} ${trade.quantity}주 ${type === "buy" ? "매수" : "매도"}`,
+      });
+    }
+
+    return grouped;
+  }, [trades, calendarYear, calendarMonth]);
 
   return (
     <>
