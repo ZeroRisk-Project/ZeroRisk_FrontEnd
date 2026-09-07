@@ -13,6 +13,7 @@ import {
   NotificationResponse,
   AlertSettingsResponse,
 } from "@/src/features/notification/api/notifications";
+import { getRankings, RankingResponse } from "@/src/features/ranking/api/ranking";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -32,32 +33,130 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
-const MOCK_ACCOUNTS = [
-  { id: "main", name: "웹 메인 계좌", balance: 50000000 },
-  { id: "comp1", name: "제1회 제로리스크 대회", balance: 12500000 },
-  { id: "comp2", name: "대학생 투자 챔피언십", balance: 5200000 },
-];
-
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [showAccountAlert, setShowAccountAlert] = useState(true);
+  // 닫기(X)를 누르면 그 시점의 내용을 localStorage에 남겨두고, 다음에 조회했을 때 내용이
+  // 그대로면(같은 대회+같은 순위, 같은 1위+같은 수익률) 다시 안 띄운다. 내용이 바뀌면 다시 노출.
+  const ACCOUNT_LINK_DISMISS_KEY = "dismiss_account_link_banner";
+  const COMPETITION_DISMISS_KEY = "dismissed_competition_alert";
+  const RANKING_DISMISS_KEY = "dismissed_ranking_alert";
+
+  const [showAccountAlert, setShowAccountAlert] = useState(
+    () => localStorage.getItem(ACCOUNT_LINK_DISMISS_KEY) !== "true",
+  );
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [activeAccount, setActiveAccount] = useState({ id: "main", name: "웹 메인 계좌", balance: 0 });
+  const [accounts, setAccounts] = useState([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
+
+  // 계좌 연동 여부 - true(연동됨)를 기본값으로 둬서, 로그아웃 상태나 조회 전엔 배너가 안 보임
+  const [accountLinked, setAccountLinked] = useState(true);
+  // 내가 참가 중인 "진행중" 대회 + 그 대회에서의 실제 순위. 없으면 null -> 배너 자체를 숨김
+  const [myOngoingCompetition, setMyOngoingCompetition] = useState<{
+    id: number;
+    title: string;
+    rank: number;
+    totalParticipants: number;
+  } | null>(null);
+  // 전체 랭킹 1위의 실제 수익률. 없으면 null -> 배너 자체를 숨김
+  const [topRanking, setTopRanking] = useState<RankingResponse | null>(null);
+
+  const fetchAccountLinked = async () => {
+    try {
+      await api.get("/openbanking/auths");
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const fetchMyOngoingCompetition = async (myUserId: number) => {
+    try {
+      const [myResponse, listResponse] = await Promise.all([
+        api.get("/competitions/my"),
+        api.get("/competitions", { params: { page: 0, size: 100 } }),
+      ]);
+      const joinedIds: number[] = myResponse.data.competitionIds;
+      const ongoing = listResponse.data.content.find(
+        (c: any) => joinedIds.includes(c.id) && c.status === "ONGOING",
+      );
+      if (!ongoing) {
+        setMyOngoingCompetition(null);
+        return;
+      }
+
+      const rankingsResponse = await api.get(`/competitions/${ongoing.id}/rankings`);
+      const myEntry = rankingsResponse.data.find((r: any) => r.userId === myUserId);
+      if (!myEntry) {
+        setMyOngoingCompetition(null);
+        return;
+      }
+
+      const current = {
+        id: ongoing.id,
+        title: ongoing.title,
+        rank: myEntry.rank,
+        totalParticipants: rankingsResponse.data.length,
+      };
+      setMyOngoingCompetition(current);
+
+      const dismissedFingerprint = localStorage.getItem(COMPETITION_DISMISS_KEY);
+      const currentFingerprint = JSON.stringify({ id: current.id, rank: current.rank });
+      setShowCompAlert(dismissedFingerprint !== currentFingerprint);
+    } catch {
+      setMyOngoingCompetition(null);
+    }
+  };
+
+  const fetchTopRanking = async () => {
+    try {
+      const top = await getRankings("WEEKLY", 0, 1);
+      const first = top[0] ?? null;
+      setTopRanking(first);
+
+      if (first) {
+        const dismissedFingerprint = localStorage.getItem(RANKING_DISMISS_KEY);
+        const currentFingerprint = JSON.stringify({ userId: first.userId, returnRate: first.returnRate });
+        setShowRankAlert(dismissedFingerprint !== currentFingerprint);
+      }
+    } catch {
+      setTopRanking(null);
+    }
+  };
 
   const fetchMainAccountBalance = async () => {
     try {
       const response = await api.get("/accounts");
       const basicAccount = response.data.find((acc: any) => acc.accountType === "BASIC");
-      if (basicAccount) {
-        setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: basicAccount.balance });
+      const mainAccount = { id: "main", name: "웹 메인 계좌", balance: basicAccount ? basicAccount.balance : 0 };
+      setActiveAccount(mainAccount);
+
+      // 종료된 대회의 계좌는 백엔드에서 이미 비활성화되어 이 목록에서 빠지므로 별도 필터링이 필요 없다.
+      const competitionAccounts = response.data.filter((acc: any) => acc.accountType === "COMPETITION");
+      if (competitionAccounts.length === 0) {
+        setAccounts([mainAccount]);
+        return;
       }
+
+      const listResponse = await api.get("/competitions", { params: { page: 0, size: 100 } });
+      const titleById = new Map<number, string>(
+        listResponse.data.content.map((c: any) => [c.id, c.title]),
+      );
+      setAccounts([
+        mainAccount,
+        ...competitionAccounts.map((acc: any) => ({
+          id: `comp-${acc.accountId}`,
+          name: titleById.get(acc.competitionId) ?? "대회 전용 계좌",
+          balance: acc.balance,
+        })),
+      ]);
     } catch {
       setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
     }
   };
 
@@ -71,22 +170,31 @@ export function MainLayout() {
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
       await fetchMainAccountBalance();
 
-      if (!admin && !response.data.hasClaimedPracticeCredit) {
-        let accountLinked = true;
-        try {
-          await api.get("/openbanking/auths");
-        } catch {
-          accountLinked = false;
-        }
-        if (!accountLinked) {
-          navigate("/start", { replace: true });
-        }
+      if (admin) {
+        return;
       }
+
+      const linked = await fetchAccountLinked();
+      setAccountLinked(linked);
+
+      if (!linked && !response.data.hasClaimedPracticeCredit) {
+        navigate("/start", { replace: true });
+        return;
+      }
+
+      await Promise.all([
+        fetchMyOngoingCompetition(response.data.userId),
+        fetchTopRanking(),
+      ]);
     } catch (error) {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
       setIsAdmin(false);
       setActiveAccount({ id: "main", name: "웹 메인 계좌", balance: 0 });
+      setAccounts([{ id: "main", name: "웹 메인 계좌", balance: 0 }]);
+      setAccountLinked(true);
+      setMyOngoingCompetition(null);
+      setTopRanking(null);
     }
   };
 
@@ -311,7 +419,7 @@ export function MainLayout() {
                       계좌 선택
                     </div>
                     <div className="max-h-[300px] overflow-y-auto">
-                      {MOCK_ACCOUNTS.map((acc) => (
+                      {accounts.map((acc) => (
                         <button
                           key={acc.id}
                           onClick={() => {
@@ -506,10 +614,10 @@ export function MainLayout() {
       </header>
 
       {/* Dismissible Alerts Area - absolutely positioned so it overlaps/layers over the main content instead of pushing it down */}
-      {(showAccountAlert || showCompAlert || showRankAlert) && (
+      {((showAccountAlert && !accountLinked) || (showCompAlert && myOngoingCompetition) || (showRankAlert && topRanking)) && (
         <div className="absolute top-[80px] left-0 right-0 z-30 py-3 px-6 select-none pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="max-w-7xl mx-auto flex flex-col items-end gap-3 pointer-events-auto w-full md:max-w-[600px] md:ml-auto">
-            {showAccountAlert && (
+            {showAccountAlert && !accountLinked && (
               <div
                 onClick={() => navigate("/mypage")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
@@ -534,7 +642,7 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowAccountAlert(false);
-                      localStorage.setItem("dismiss_account_link_banner", "true");
+                      localStorage.setItem(ACCOUNT_LINK_DISMISS_KEY, "true");
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
@@ -546,23 +654,25 @@ export function MainLayout() {
               </div>
             )}
 
-            {showCompAlert && (
+            {showCompAlert && myOngoingCompetition && (
               <div
-                onClick={() => navigate("/competitions")}
+                onClick={() => navigate(`/competitions/${myOngoingCompetition.id}`)}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
                 <div className="flex items-center gap-3">
                   <div className="text-2xl bg-yellow-50 w-10 h-10 flex items-center justify-center rounded-full">🏆</div>
                   <div>
-                    <div className="text-[15px] font-bold text-slate-800">[제2회 단타 마스터] 진행 중</div>
-                    <div className="text-[13px] font-medium text-slate-500 mt-0.5">현재 내 순위: 12위 / 45명</div>
+                    <div className="text-[15px] font-bold text-slate-800">[{myOngoingCompetition.title}] 진행 중</div>
+                    <div className="text-[13px] font-medium text-slate-500 mt-0.5">
+                      현재 내 순위: {myOngoingCompetition.rank}위 / {myOngoingCompetition.totalParticipants}명
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 shrink-0">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate("/competitions");
+                      navigate(`/competitions/${myOngoingCompetition.id}`);
                     }}
                     className="text-[14px] font-bold text-slate-800 bg-gray-100 px-4 py-2 rounded-[10px] hover:bg-gray-200 transition-colors"
                   >
@@ -572,7 +682,10 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowCompAlert(false);
-                      localStorage.setItem("dismiss_competition_banner", "true");
+                      localStorage.setItem(
+                        COMPETITION_DISMISS_KEY,
+                        JSON.stringify({ id: myOngoingCompetition.id, rank: myOngoingCompetition.rank }),
+                      );
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
@@ -584,7 +697,7 @@ export function MainLayout() {
               </div>
             )}
 
-            {showRankAlert && (
+            {showRankAlert && topRanking && (
               <div
                 onClick={() => navigate("/ranking")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
@@ -592,7 +705,10 @@ export function MainLayout() {
                 <div className="flex items-center gap-3">
                   <div className="text-2xl bg-amber-50 w-10 h-10 flex items-center justify-center rounded-full">👑</div>
                   <div>
-                    <div className="text-[15px] font-bold text-slate-800">지금 1위는 +47.3% 수익 중</div>
+                    <div className="text-[15px] font-bold text-slate-800">
+                      지금 1위는 {topRanking.returnRate >= 0 ? "+" : ""}
+                      {topRanking.returnRate}% 수익 중
+                    </div>
                     <div className="text-[13px] font-medium text-slate-500 mt-0.5">실시간 투자 고수들의 포트폴리오를 구경해보세요</div>
                   </div>
                 </div>
@@ -610,6 +726,10 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowRankAlert(false);
+                      localStorage.setItem(
+                        RANKING_DISMISS_KEY,
+                        JSON.stringify({ userId: topRanking.userId, returnRate: topRanking.returnRate }),
+                      );
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
