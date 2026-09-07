@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Routes, Route, useNavigate, Link, useLocation } from "react-router-dom";
-import { 
-  ArrowLeft, X, Check, Shovel as Shield, CreditCard, 
-  RefreshCw, ChevronRight, AlertTriangle, TrendingDown, Clock, Building2, Coins 
+import {
+  ArrowLeft, X, Check, Shovel as Shield, CreditCard,
+  RefreshCw, ChevronRight, AlertTriangle, TrendingDown, Clock, Building2, Coins
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { formatPrice } from "@/src/shared/lib/utils";
@@ -88,11 +88,11 @@ export function AccountLinkFlow() {
 
       {/* Main Form Container */}
       <div className="w-full max-w-[480px] min-h-screen md:min-h-[820px] bg-white md:rounded-[30px] md:shadow-[0_16px_40px_rgba(0,0,0,0.06)] flex flex-col justify-between overflow-hidden relative border-0 md:border border-neutral-100">
-        
+
         {/* Absolute overlay loading */}
         <AnimatePresence>
           {isLinking && (
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -104,7 +104,7 @@ export function AccountLinkFlow() {
                   🏦
                 </div>
               </div>
-              <motion.h3 
+              <motion.h3
                 key={loadingText}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -145,12 +145,6 @@ export function AccountLinkFlow() {
           } />
         </Routes>
       </div>
-
-      {/* Floating Simulator Info Bar for Desktop */}
-      <div className="w-full max-w-[480px] mt-4 text-center text-xs text-neutral-400 font-medium px-4 leading-relaxed hidden md:block">
-        🔒 금융결제원 오퍼레이션 API 연동 완료 (상업 인증서 및 OAuth 권한 체크 완료)<br />
-        Toss 스타일의 풀스크린 UX이며, 임의 변경이 가능합니다.
-      </div>
     </div>
   );
 }
@@ -169,15 +163,15 @@ function IntroStep({ onNext }: IntroStepProps) {
       {/* Top Header */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={() => navigate("/mypage")}
             className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
             aria-label="닫기"
           >
             <X className="w-6 h-6 text-neutral-700" />
           </button>
-          
+
           <div className="flex items-center gap-1.5">
             <span className="text-[12px] font-bold text-neutral-400">1/3</span>
             <div className="w-16 h-1 w-20 bg-neutral-100 rounded-full overflow-hidden">
@@ -188,7 +182,7 @@ function IntroStep({ onNext }: IntroStepProps) {
 
         {/* Brand Shield Label */}
         <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-[#3182F6] rounded-full text-xs font-bold mb-4">
-          <span className="text-xs">🔒</span> 금융결제원 공식 인증
+          금융결제원 API 기반
         </div>
 
         {/* Large Heading */}
@@ -250,25 +244,18 @@ function IntroStep({ onNext }: IntroStepProps) {
             </div>
           </div>
         </div>
-
-        {/* Badges */}
-        <div className="flex flex-wrap gap-2 mt-8">
-          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🔒 출금 걱정 없음</span>
-          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🏦 금결원 공식 제휴</span>
-          <span className="text-[10px] sm:text-xs font-semibold bg-neutral-100 text-neutral-600 px-3 py-1.5 rounded-lg">🔐 AES-256 암호화</span>
-        </div>
       </div>
 
       {/* Footer Area */}
       <div className="mt-12">
-        <button 
+        <button
           onClick={onNext}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-500/10"
         >
-          <span>🏦</span> 금융결제원으로 인증하기
+          금융결제원으로 인증하기
         </button>
         <p className="text-[11px] text-text-secondary mt-3 text-center">
-          금융결제원 공동 오픈뱅킹 마이크로 서비스를 안전하게 이용합니다
+          금융결제원 API 명세서를 기반으로 시드머니를 안전하게 충전합니다
         </p>
       </div>
     </div>
@@ -464,10 +451,10 @@ function CompleteStep() {
 
   return (
     <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-400">
-      
+
       {/* Top Header */}
       <div className="flex items-center justify-end">
-        <button 
+        <button
           onClick={() => navigate("/mypage")}
           className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
           aria-label="닫기"
@@ -488,7 +475,7 @@ function CompleteStep() {
           ₩{formatPrice(state.amount)}<br />
           시드머니가 충전됐어요!
         </h2>
-        
+
         <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-8">
           리스크 없이 실전처럼 안전하게 진짜 실력을 겨뤄보세요.<br />
           이제 바로 투자할 자금이 준비 완료되었습니다.
@@ -519,14 +506,14 @@ function CompleteStep() {
 
       {/* Action triggers bottom screen */}
       <div className="space-y-3">
-        <button 
+        <button
           onClick={() => navigate("/stocks")}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
         >
           지금 바로 투자하기
         </button>
 
-        <button 
+        <button
           type="button"
           onClick={() => navigate("/mypage")}
           className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer"
@@ -585,11 +572,11 @@ function RechargeConfirmPage() {
 
   return (
     <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 animate-in fade-in duration-300">
-      
+
       <div>
         {/* Top Header */}
         <div className="flex items-center justify-between mb-4">
-          <button 
+          <button
             type="button"
             onClick={() => navigate("/mypage")}
             className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-sm font-semibold text-neutral-500"
@@ -597,7 +584,7 @@ function RechargeConfirmPage() {
             <ArrowLeft className="w-5 h-5 text-neutral-700" />
             <span>뒤로</span>
           </button>
-          
+
           <span className="text-[13px] font-black text-[#3182F6] bg-blue-50 px-2.5 py-1 rounded-full uppercase tracking-wider">잔액 재충전</span>
         </div>
 
@@ -680,10 +667,10 @@ function RechargeCompletePage() {
 
   return (
     <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-400">
-      
+
       {/* Top Header */}
       <div className="flex items-center justify-end">
-        <button 
+        <button
           onClick={() => navigate("/mypage")}
           className="p-1 hover:bg-neutral-100 rounded-full transition-colors cursor-pointer"
           aria-label="닫기"
@@ -694,7 +681,7 @@ function RechargeCompletePage() {
 
       {/* Center success content */}
       <div className="my-auto py-10">
-        
+
         <div className="w-16 h-16 bg-blue-50 text-[#3182F6] rounded-full flex items-center justify-center text-2.5xl mx-auto mb-6 shadow-xs">
           ⚡
         </div>
@@ -726,14 +713,14 @@ function RechargeCompletePage() {
 
       {/* Button footer controls */}
       <div className="space-y-3">
-        <button 
+        <button
           onClick={() => navigate("/stocks")}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
         >
           투자하러 가기
         </button>
 
-        <button 
+        <button
           type="button"
           onClick={() => navigate("/mypage")}
           className="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer"
@@ -763,7 +750,7 @@ function ErrorApiPage() {
         <div className="w-16 h-16 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center text-3xl mx-auto mb-6">
           ⚠️
         </div>
-        
+
         <h2 className="text-[23px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
           연결에 실패했어요
         </h2>
@@ -774,14 +761,14 @@ function ErrorApiPage() {
       </div>
 
       <div className="space-y-3">
-        <button 
+        <button
           onClick={() => navigate("/account-link/intro")}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition cursor-pointer"
         >
           다시 시도하기
         </button>
 
-        <button 
+        <button
           type="button"
           onClick={() => navigate("/mypage")}
           className="w-full text-xs font-bold text-neutral-400 hover:text-neutral-600 transition tracking-wide text-center"

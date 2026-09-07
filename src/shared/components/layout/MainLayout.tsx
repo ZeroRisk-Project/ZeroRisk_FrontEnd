@@ -20,7 +20,7 @@ import {
   getCompetitionRankings,
   getMyJoinedCompetitionIds,
 } from "@/src/features/competition/api/competition";
-import { getRankings } from "@/src/features/ranking/api/ranking";
+import { getRankings, type RankingResponse } from "@/src/features/ranking/api/ranking";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -49,6 +49,7 @@ interface AccountOption {
 const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
 
 interface OngoingCompetition {
+  id: number;
   title: string;
   myRank: number | null;
   participantCount: number;
@@ -70,7 +71,13 @@ async function toAccountOption(account: AccountResponse): Promise<AccountOption>
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [showAccountAlert, setShowAccountAlert] = useState(true);
+  const ACCOUNT_LINK_DISMISS_KEY = "dismiss_account_link_banner";
+  const COMPETITION_DISMISS_KEY = "dismissed_competition_alert";
+  const RANKING_DISMISS_KEY = "dismissed_ranking_alert";
+
+  const [showAccountAlert, setShowAccountAlert] = useState(
+      () => localStorage.getItem(ACCOUNT_LINK_DISMISS_KEY) !== "true",
+  );
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -78,15 +85,32 @@ export function MainLayout() {
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
+  const [accountLinked, setAccountLinked] = useState(true);
   const [ongoingCompetition, setOngoingCompetition] = useState<OngoingCompetition | null>(null);
-  const [topReturnRate, setTopReturnRate] = useState<number | null>(null);
+  const [topRanking, setTopRanking] = useState<RankingResponse | null>(null);
+
+  const fetchAccountLinked = async () => {
+    try {
+      await api.get("/openbanking/auths");
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const fetchTopRanking = async () => {
     try {
       const rankings = await getRankings("ALL", 0, 1);
-      setTopReturnRate(rankings.length > 0 ? rankings[0].returnRate : null);
+      const first = rankings[0] ?? null;
+      setTopRanking(first);
+
+      if (first) {
+        const dismissedFingerprint = localStorage.getItem(RANKING_DISMISS_KEY);
+        const currentFingerprint = JSON.stringify({ userId: first.userId, returnRate: first.returnRate });
+        setShowRankAlert(dismissedFingerprint !== currentFingerprint);
+      }
     } catch {
-      setTopReturnRate(null);
+      setTopRanking(null);
     }
   };
 
@@ -104,11 +128,17 @@ export function MainLayout() {
 
       const rankings = await getCompetitionRankings(ongoing.id).catch(() => []);
       const myRanking = rankings.find((ranking) => ranking.userId === userId);
-      setOngoingCompetition({
+      const current: OngoingCompetition = {
+        id: ongoing.id,
         title: ongoing.title,
         myRank: myRanking?.rank ?? null,
         participantCount: rankings.length,
-      });
+      };
+      setOngoingCompetition(current);
+
+      const dismissedFingerprint = localStorage.getItem(COMPETITION_DISMISS_KEY);
+      const currentFingerprint = JSON.stringify({ id: current.id, rank: current.myRank });
+      setShowCompAlert(dismissedFingerprint !== currentFingerprint);
     } catch {
       setOngoingCompetition(null);
     }
@@ -138,28 +168,32 @@ export function MainLayout() {
       setIsAdmin(admin);
       setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
       await fetchAccounts();
-      await fetchOngoingCompetition(response.data.userId);
-      await fetchTopRanking();
 
-      if (!admin && !response.data.hasClaimedPracticeCredit) {
-        let accountLinked = true;
-        try {
-          await api.get("/openbanking/auths");
-        } catch {
-          accountLinked = false;
-        }
-        if (!accountLinked) {
-          navigate("/start", { replace: true });
-        }
+      if (admin) {
+        return;
       }
+
+      const linked = await fetchAccountLinked();
+      setAccountLinked(linked);
+
+      if (!linked && !response.data.hasClaimedPracticeCredit) {
+        navigate("/start", { replace: true });
+        return;
+      }
+
+      await Promise.all([
+        fetchOngoingCompetition(response.data.userId),
+        fetchTopRanking(),
+      ]);
     } catch (error) {
       console.log("users/me 실패:", error);
       setIsLoggedIn(false);
       setIsAdmin(false);
       setAccounts([]);
       setActiveAccount(EMPTY_ACCOUNT);
+      setAccountLinked(true);
       setOngoingCompetition(null);
-      setTopReturnRate(null);
+      setTopRanking(null);
     }
   };
 
@@ -580,10 +614,10 @@ export function MainLayout() {
       </header>
 
       {/* Dismissible Alerts Area - absolutely positioned so it overlaps/layers over the main content instead of pushing it down */}
-      {(showAccountAlert || showCompAlert || showRankAlert) && (
+      {((showAccountAlert && !accountLinked) || (showCompAlert && ongoingCompetition) || (showRankAlert && topRanking)) && (
         <div className="absolute top-[80px] left-0 right-0 z-30 py-3 px-6 select-none pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="max-w-7xl mx-auto flex flex-col items-end gap-3 pointer-events-auto w-full md:max-w-[600px] md:ml-auto">
-            {showAccountAlert && (
+            {showAccountAlert && !accountLinked && (
               <div
                 onClick={() => navigate("/mypage")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
@@ -608,7 +642,7 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowAccountAlert(false);
-                      localStorage.setItem("dismiss_account_link_banner", "true");
+                      localStorage.setItem(ACCOUNT_LINK_DISMISS_KEY, "true");
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
@@ -622,7 +656,7 @@ export function MainLayout() {
 
             {showCompAlert && ongoingCompetition && (
               <div
-                onClick={() => navigate("/competitions")}
+                onClick={() => navigate(`/competitions/${ongoingCompetition.id}`)}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
               >
                 <div className="flex items-center gap-3">
@@ -640,7 +674,7 @@ export function MainLayout() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate("/competitions");
+                      navigate(`/competitions/${ongoingCompetition.id}`);
                     }}
                     className="text-[14px] font-bold text-slate-800 bg-gray-100 px-4 py-2 rounded-[10px] hover:bg-gray-200 transition-colors"
                   >
@@ -650,7 +684,10 @@ export function MainLayout() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setShowCompAlert(false);
-                      localStorage.setItem("dismiss_competition_banner", "true");
+                      localStorage.setItem(
+                          COMPETITION_DISMISS_KEY,
+                          JSON.stringify({ id: ongoingCompetition.id, rank: ongoingCompetition.myRank }),
+                      );
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors p-1"
                   >
@@ -662,7 +699,7 @@ export function MainLayout() {
               </div>
             )}
 
-            {showRankAlert && topReturnRate !== null && (
+            {showRankAlert && topRanking && (
               <div
                 onClick={() => navigate("/ranking")}
                 className="w-full bg-white rounded-[20px] p-4 shadow-[0_8px_24px_rgba(0,0,0,0.12)] flex items-center justify-between group cursor-pointer hover:bg-gray-50 transition-colors border border-slate-100 hover:border-slate-200"
@@ -671,7 +708,7 @@ export function MainLayout() {
                   <div className="text-2xl bg-amber-50 w-10 h-10 flex items-center justify-center rounded-full">👑</div>
                   <div>
                     <div className="text-[15px] font-bold text-slate-800">
-                      지금 1위는 {topReturnRate > 0 ? "+" : ""}{topReturnRate.toFixed(1)}% 수익 중
+                      지금 1위는 {topRanking.returnRate >= 0 ? "+" : ""}{topRanking.returnRate.toFixed(1)}% 수익 중
                     </div>
                     <div className="text-[13px] font-medium text-slate-500 mt-0.5">실시간 투자 고수들의 포트폴리오를 구경해보세요</div>
                   </div>
@@ -680,7 +717,11 @@ export function MainLayout() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate("/ranking");
+                      setShowRankAlert(false);
+                      localStorage.setItem(
+                          RANKING_DISMISS_KEY,
+                          JSON.stringify({ userId: topRanking.userId, returnRate: topRanking.returnRate }),
+                      );
                     }}
                     className="text-[14px] font-bold text-up bg-[#F2F4F6]/60 px-4 py-2 rounded-[10px] hover:bg-[#F2F4F6] transition-colors"
                   >

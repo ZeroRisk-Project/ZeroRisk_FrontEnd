@@ -86,6 +86,7 @@ export function Mypage() {
   const basicAccountFromAccounts = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
   const mainAccountBalance = basicAccountFromAccounts ? basicAccountFromAccounts.balance : 0;
   const basicAccountId = basicAccountFromAccounts ? basicAccountFromAccounts.accountId : null;
+  const competitionAccounts = accountsQuery.data?.filter((account) => account.accountType === "COMPETITION") ?? [];
 
   const tradesQuery = useQuery({
     queryKey: ["mypage", "trades", basicAccountId],
@@ -389,44 +390,20 @@ export function Mypage() {
                 </div>
                 <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(mainAccountBalance)}원</p>
               </div>
-              <div className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
-                <div>
-                  <span className="inline-flex items-center justify-center text-center leading-none text-[10px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-1 rounded-md mb-2">대회 전용</span>
-                  <h4 className="font-semibold text-sm text-[#4E5968] truncate">제1회 제로리스크 대회</h4>
-                </div>
-                <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(12500000)}원</p>
-              </div>
-              <div className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
-                <div>
-                  <span className="inline-flex items-center justify-center text-center leading-none text-[10px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-1 rounded-md mb-2">대회 전용</span>
-                  <h4 className="font-semibold text-sm text-[#4E5968] truncate">대학생 투자 챔피언십</h4>
-                </div>
-                <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(5200000)}원</p>
-              </div>
-            </div>
-
-            {prizeHistory.length > 0 && (
-              <div className="mt-6 pt-6 border-t border-[#F2F4F6]">
-                <h4 className="font-semibold text-sm text-[#4E5968] mb-3">받은 상금 내역</h4>
-                <div className="space-y-2">
-                  {prizeHistory.map((prize, idx) => (
-                    <div key={idx} className="flex items-center justify-between bg-[#F9FAFB] rounded-xl p-4">
-                      <div>
-                        <span className="text-[11px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-0.5 rounded-md">
-                          {prize.rankPosition}위
-                        </span>
-                        <p className="text-sm font-semibold text-[#191F28] mt-1">
-                          {prize.competitionTitle}
-                        </p>
-                      </div>
-                      <p className="font-bold text-[#191F28]">
-                        +{formatPrice(prize.prizeAmount)}원
-                      </p>
+              {competitionAccounts.map((acc) => {
+                const competitionTitle =
+                  myCompetitions.find((c: any) => c.competitionId === acc.competitionId)?.title ?? "대회 전용 계좌";
+                return (
+                  <div key={acc.accountId} className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
+                    <div>
+                      <span className="inline-flex items-center justify-center text-center leading-none text-[10px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-1 rounded-md mb-2">대회 전용</span>
+                      <h4 className="font-semibold text-sm text-[#4E5968] truncate">{competitionTitle}</h4>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                    <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(acc.balance)}원</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           {/* Bottom Filters & Content Row */}
@@ -943,9 +920,11 @@ export function Mypage() {
                             <td className="py-4 px-6 text-center font-bold text-[#191F28]">
                               {item.status === "SCHEDULED"
                                 ? "-"
+                                : prizeHistory.some((p: any) => p.competitionId === item.competitionId)
+                                ? "수령완료"
                                 : item.rankPosition
                                 ? `${item.rankPosition}위`
-                                : item.status === "ONGOING"
+                                : item.status === "ONGOING" || item.status === "CALCULATING"
                                 ? "집계중"
                                 : "-"}
                             </td>
