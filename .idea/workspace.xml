@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/shared/components/layout/MainLayout.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/shared/components/layout/MainLayout.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -79,7 +78,7 @@
       <workItem from="1788071493682" duration="3612000" />
       <workItem from="1788158452314" duration="2173000" />
       <workItem from="1788179218856" duration="3543000" />
-      <workItem from="1788751744867" duration="1286000" />
+      <workItem from="1788751744867" duration="1599000" />
     </task>
     <servers />
   </component>

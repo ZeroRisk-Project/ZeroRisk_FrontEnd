@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -34,6 +34,7 @@ import {
   getOrders,
   getTrades,
 } from "@/src/features/order/api/order";
+import { getComposition, getHoldings } from "@/src/features/portfolio/api/portfolio";
 
 function formatTransactionDate(isoDateTime: string): string {
   return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
@@ -223,28 +224,36 @@ export function Mypage() {
     }
   }, [groups, selectedGroupId]);
 
-  const MY_HOLDINGS = [
-    {
-      stockCode: "005930",
-      stockName: "삼성전자",
-      avgPrice: 65000,
-      currentPrice: 68400,
-      qty: 110,
-      ratio: 60,
-      returnRate: 5.4,
-      evalAmount: 7524000,
-    },
-    {
-      stockCode: "000660",
-      stockName: "SK하이닉스",
-      avgPrice: 166500,
-      currentPrice: 164500,
-      qty: 30,
-      ratio: 40,
-      returnRate: -1.2,
-      evalAmount: 4935000,
-    },
-  ];
+  const holdingsQuery = useQuery({
+    queryKey: ["mypage", "holdings", basicAccountId],
+    queryFn: () => getHoldings(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+
+  const compositionQuery = useQuery({
+    queryKey: ["mypage", "composition", basicAccountId],
+    queryFn: () => getComposition(basicAccountId as number),
+    enabled: basicAccountId !== null,
+    retry: false,
+  });
+
+  const MY_HOLDINGS = useMemo(() => {
+    const weightByCode = new Map(
+        (compositionQuery.data?.stocks ?? []).map((stock) => [stock.stockCode, stock.weight]),
+    );
+
+    return (holdingsQuery.data ?? []).map((holding) => ({
+      stockCode: holding.stockCode,
+      stockName: holding.stockName,
+      avgPrice: holding.averagePrice,
+      currentPrice: holding.currentPrice,
+      qty: holding.quantity,
+      ratio: weightByCode.get(holding.stockCode) ?? 0,
+      returnRate: holding.profitRate,
+      evalAmount: holding.evaluationAmount,
+    }));
+  }, [holdingsQuery.data, compositionQuery.data]);
 
   const MOCK_TRANSACTIONS_DONE = [
     { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
@@ -821,6 +830,11 @@ export function Mypage() {
 
                 {mainFilter === "보유종목" && (
                   <div className="p-6 space-y-3">
+                    {MY_HOLDINGS.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
+                          <p>보유 중인 종목이 없습니다.</p>
+                        </div>
+                    )}
                     {MY_HOLDINGS.map((stock, idx) => {
                       const isUp = stock.returnRate >= 0;
                       return (
