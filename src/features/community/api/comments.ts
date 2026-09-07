@@ -53,3 +53,30 @@ export async function deleteComment(commentId: number): Promise<void> {
 export async function likeComment(commentId: number): Promise<void> {
     await api.post(`/comments/${commentId}/likes`);
 }
+
+// 백엔드 MyCommentResponse record와 필드명·타입을 그대로 맞춘 타입
+export interface MyCommentResponse {
+    id: number;
+    postId: number;
+    postTitle: string;
+    boardType: 'FREE' | 'STOCK' | 'NOTICE';
+    content: string;
+    likeCount: number;
+    createdAt: string;
+}
+
+interface PageResponse<T> {
+    content: T[];
+    totalPages: number;
+    totalElements: number;
+    number: number;
+}
+
+// 내 댓글 목록 조회 (마이페이지)
+export async function getMyComments(page = 0, size = 20): Promise<PageResponse<MyCommentResponse>> {
+    const response = await api.get<PageResponse<MyCommentResponse>>('/comments/me', {
+        params: { page, size },
+    });
+
+    return response.data;
+}
