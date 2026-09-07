@@ -16,7 +16,25 @@ export interface CompetitionDetailResponse {
     maxParticipants: number | null;
 }
 
+export interface CompetitionRankingResponse {
+    rank: number | null;
+    userId: number;
+    nickname: string;
+    returnRate: number;
+    totalAsset: number;
+}
+
 export async function getCompetitionDetail(competitionId: number): Promise<CompetitionDetailResponse> {
     const response = await api.get<CompetitionDetailResponse>(`/competitions/${competitionId}`);
+    return response.data;
+}
+
+export async function getMyJoinedCompetitionIds(): Promise<number[]> {
+    const response = await api.get<{ competitionIds: number[] }>('/competitions/my');
+    return response.data.competitionIds;
+}
+
+export async function getCompetitionRankings(competitionId: number): Promise<CompetitionRankingResponse[]> {
+    const response = await api.get<CompetitionRankingResponse[]>(`/competitions/${competitionId}/rankings`);
     return response.data;
 }
