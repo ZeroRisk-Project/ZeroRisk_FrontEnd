@@ -260,12 +260,6 @@ export function Mypage() {
     }));
   }, [holdingsQuery.data, compositionQuery.data]);
 
-  const MOCK_TRANSACTIONS_DONE = [
-    { type: "buy", stock: "삼성전자", date: "23.11.02 14:30", price: 68400, qty: 10 },
-    { type: "sell", stock: "SK하이닉스", date: "23.11.01 09:12", price: 162000, qty: 5 },
-    { type: "buy", stock: "LG에너지솔루션", date: "23.10.28 10:15", price: 395000, qty: 2 }
-  ];
-
   const TRANSACTIONS_DONE = trades
       ? trades.map((trade) => ({
         type: trade.side === "BUY" ? "buy" : "sell",
@@ -274,12 +268,7 @@ export function Mypage() {
         price: trade.price,
         qty: trade.quantity,
       }))
-      : MOCK_TRANSACTIONS_DONE;
-
-  const MOCK_TRANSACTIONS_PENDING = [
-    { type: "buy", stock: "LG에너지솔루션", date: "23.11.03 10:05", price: 390000, qty: 2 },
-    { type: "sell", stock: "카카오", date: "23.11.03 10:10", price: 54900, qty: 10 }
-  ];
+      : [];
 
   const TRANSACTIONS_PENDING = pendingOrders
       ? pendingOrders.map((order) => ({
@@ -290,7 +279,7 @@ export function Mypage() {
         price: order.limitPrice ?? 0,
         qty: order.quantity,
       }))
-      : MOCK_TRANSACTIONS_PENDING.map((tx) => ({ ...tx, orderId: null as number | null }));
+      : [];
 
   const myPostsQuery = useQuery({
     queryKey: ["mypage", "posts"],
