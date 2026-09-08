@@ -21,14 +21,15 @@ import {
   getStockChart,
   getStockDetail,
   getStockRankings,
+  searchStocks,
   type RankingType,
   type StockRankingResponse,
+  type StockSummaryResponse,
 } from "@/src/features/stock/api/stock";
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { useStockPriceSocket } from "@/src/features/stock/lib/useStockPriceSocket";
 import { getAccounts } from "@/src/features/account/api/account";
-import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import { createOrder } from "@/src/features/order/api/order";
 import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
@@ -40,8 +41,8 @@ import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
 export interface StockListItem {
   code: string;
   name: string;
-  price: number;
-  change: number;
+  price: number | null;
+  change: number | null;
   volume: string;
   isFav?: boolean;
 }
@@ -81,72 +82,13 @@ const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
   volume: formatVolume(ranking.volume),
 });
 
-export const STOCKS_DATA = [
-  {
-    code: "005930",
-    name: "삼성전자",
-    price: 68400,
-    change: -1.2,
-    volume: "12M",
-    isFav: true,
-  },
-  {
-    code: "000660",
-    name: "SK하이닉스",
-    price: 164500,
-    change: 2.4,
-    volume: "4.5M",
-    isFav: false,
-  },
-  {
-    code: "373220",
-    name: "LG에너지솔루션",
-    price: 395000,
-    change: -0.5,
-    volume: "800K",
-    isFav: true,
-  },
-  {
-    code: "207940",
-    name: "삼성바이오로직스",
-    price: 825000,
-    change: 1.1,
-    volume: "150K",
-    isFav: false,
-  },
-  {
-    code: "005380",
-    name: "현대차",
-    price: 234000,
-    change: 0.8,
-    volume: "1.2M",
-    isFav: false,
-  },
-  {
-    code: "000270",
-    name: "기아",
-    price: 114500,
-    change: -0.3,
-    volume: "2M",
-    isFav: true,
-  },
-  {
-    code: "035420",
-    name: "NAVER",
-    price: 189000,
-    change: 3.5,
-    volume: "3M",
-    isFav: true,
-  },
-  {
-    code: "035720",
-    name: "카카오",
-    price: 54300,
-    change: -2.1,
-    volume: "4M",
-    isFav: false,
-  },
-];
+const toSearchListItem = (summary: StockSummaryResponse): StockListItem => ({
+  code: summary.code,
+  name: summary.name,
+  price: null,
+  change: null,
+  volume: "-",
+});
 
 export function Stocks() {
   const { code } = useParams();
@@ -220,14 +162,28 @@ export function Stocks() {
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
 
-  const rankingType = RANKING_TYPE_BY_TAB[activeTab];
+  const rankingType = RANKING_TYPE_BY_TAB[activeTab] ?? "VOLUME";
   const rankingsQuery = useQuery({
     queryKey: ["stocks", "rankings", rankingType],
-    queryFn: () => getStockRankings(rankingType as RankingType),
-    enabled: !!rankingType,
+    queryFn: () => getStockRankings(rankingType),
     retry: false,
   });
-  const rankingStocks = rankingType && rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : null;
+  const rankingStocks = rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : [];
+
+  const [searchKeyword, setSearchKeyword] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchKeyword(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const searchResultsQuery = useQuery({
+    queryKey: ["stocks", "search", searchKeyword],
+    queryFn: () => searchStocks(searchKeyword, 30),
+    enabled: searchKeyword.length > 0,
+    retry: false,
+  });
+  const isSearching = searchKeyword.length > 0;
+  const searchStocksList = searchResultsQuery.data ? searchResultsQuery.data.map(toSearchListItem) : [];
 
   const parseVolume = (vol: string): number => {
     const num = parseFloat(vol);
@@ -237,36 +193,23 @@ export function Stocks() {
   };
 
   const getFilteredAndSortedStocks = () => {
-    const isServerRanked = rankingStocks !== null;
-    let list: StockListItem[] = isServerRanked ? [...rankingStocks] : [...STOCKS_DATA];
+    let list: StockListItem[] = isSearching ? [...searchStocksList] : [...rankingStocks];
 
-    // 1. Search Query filtering
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      list = list.filter((s) => s.name.toLowerCase().includes(query) || s.code.includes(query));
-    }
-
-    // 2. Sub-filter (보통주 / 우선주)
+    // 1. Sub-filter (보통주 / 우선주)
     if (activeFilter === "보통주") {
       list = list.filter((s) => !s.name.endsWith("우"));
     } else if (activeFilter === "우선주") {
       list = list.filter((s) => s.name.endsWith("우"));
     }
 
-    // 서버 랭킹 응답은 이미 서버가 정한 순서를 따르므로 탭 기준 정렬을 건너뛴다
-    if (isServerRanked) {
+    // 검색 결과와 서버 랭킹(거래량/급상승/급하락)은 서버가 정한 순서를 그대로 따른다
+    if (isSearching || RANKING_TYPE_BY_TAB[activeTab]) {
       return list;
     }
 
-    // 3. Tab-based sorting/filtering
-    if (activeTab === "거래량") {
-      list.sort((a, b) => parseVolume(b.volume) - parseVolume(a.volume));
-    } else if (activeTab === "거래대금") {
-      list.sort((a, b) => (b.price * parseVolume(b.volume)) - (a.price * parseVolume(a.volume)));
-    } else if (activeTab === "급상승") {
-      list.sort((a, b) => b.change - a.change);
-    } else if (activeTab === "급하락") {
-      list.sort((a, b) => a.change - b.change);
+    // 2. 전용 랭킹 API가 없는 탭은 거래량 랭킹 응답을 기준으로 클라이언트에서 정렬한다
+    if (activeTab === "거래대금") {
+      list.sort((a, b) => (b.price ?? 0) * parseVolume(b.volume) - (a.price ?? 0) * parseVolume(a.volume));
     } else if (activeTab === "인기") {
       list.sort((a, b) => {
         const aFav = isFav(a.code) ? 1 : 0;
@@ -299,8 +242,8 @@ export function Stocks() {
   // 상세 조회는 진입 시점 가격이라, 이후 변동은 WebSocket 실시간 체결가로 덮어쓴다
   const livePrice = useStockPriceSocket(code);
 
-  // User might not select any stock initially
-  const activeStockData = STOCKS_DATA.find((s) => s.code === code);
+  // 거래량은 상세 API 응답에 없어, 랭킹 목록에 있으면 그 값을 빌려 쓴다
+  const rankedStock = rankingStocks.find((s) => s.code === code);
 
   const stock = stockDetail
       ? {
@@ -309,24 +252,12 @@ export function Stocks() {
         price: livePrice ? livePrice.currentPrice : stockDetail.currentPrice,
         change: livePrice ? livePrice.changeAmount : stockDetail.changeAmount,
         changeRate: livePrice ? livePrice.changeRate : stockDetail.changeRate,
-        volume: activeStockData?.volume ?? "-",
+        volume: rankedStock?.volume ?? "-",
         isFav: isFav(stockDetail.code),
         week52High: stockDetail.week52High,
         week52Low: stockDetail.week52Low,
       }
-      : activeStockData
-          ? {
-            code: activeStockData.code,
-            name: activeStockData.name,
-            price: activeStockData.price,
-            change: activeStockData.price * (activeStockData.change / 100),
-            changeRate: activeStockData.change,
-            volume: activeStockData.volume,
-            isFav: isFav(activeStockData.code),
-            week52High: null,
-            week52Low: null,
-          }
-          : null;
+  : null;
 
   // 지정가 입력 기본값은 종목이 바뀔 때만 채운다.
   // 실시간 체결가에 맞춰 매번 다시 채우면 사용자가 입력하던 주문 가격이 덮어써진다.
@@ -493,6 +424,17 @@ export function Stocks() {
                 <div className="text-right">등락률</div>
                 <div className="text-center">비교</div>
               </div>
+              {getFilteredAndSortedStocks().length === 0 && (
+                <div className="p-10 text-center text-text-secondary text-[13px]">
+                  {isSearching
+                    ? searchResultsQuery.isFetching
+                      ? "검색 중..."
+                      : "검색 결과가 없습니다."
+                    : rankingsQuery.isFetching
+                      ? "불러오는 중..."
+                      : "표시할 종목이 없습니다."}
+                </div>
+              )}
               {getFilteredAndSortedStocks().map((s, index) => (
                   <div
                       key={s.code}
@@ -541,17 +483,17 @@ export function Stocks() {
                     </div>
                     <div className="text-right min-w-0 pr-1">
                   <span className="font-semibold tabular-nums text-[13px]">
-                    {formatPrice(s.price)}
+                    {s.price !== null ? formatPrice(s.price) : "-"}
                   </span>
                     </div>
                     <div className="text-right min-w-0 pr-1">
                   <span
                       className={cn(
                           "font-semibold tabular-nums text-[13px] flex items-center justify-end gap-0.5",
-                          s.change > 0 ? "text-up" : "text-down",
+                          s.change !== null && s.change > 0 ? "text-up" : "text-down",
                       )}
                   >
-                    {formatPercent(s.change)}
+                    {s.change !== null ? formatPercent(s.change) : "-"}
                   </span>
                     </div>
                     <div className="text-center">
