@@ -13,8 +13,7 @@ export interface PostResponse {
     stockId: number | null;
     title: string;
     content: string;
-    isProfitCert: boolean;
-    certImageUrl: string | null;
+    imageUrls: string[];
     viewCount: number;
     likeCount: number;
     dislikeCount: number;
@@ -29,6 +28,7 @@ export interface PostCreateRequest {
     stockId?: number | null;
     title: string;
     content: string;
+    imageUrls?: string[];
 }
 
 export interface PostUpdateRequest {
@@ -102,4 +102,16 @@ export async function getMyPosts(page = 0, size = 20): Promise<PageResponse<Post
     });
 
     return response.data;
+}
+
+// 이미지 업로드. 성공 시 게시글 작성 요청의 imageUrls에 넣을 URL을 반환
+export async function uploadImage(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await api.post<{ imageUrl: string }>('/images', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    return response.data.imageUrl;
 }
