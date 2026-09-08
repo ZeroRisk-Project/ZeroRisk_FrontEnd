@@ -26,7 +26,9 @@ import {
 } from "@/src/features/stock/api/stock";
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
+import { useStockPriceSocket } from "@/src/features/stock/lib/useStockPriceSocket";
 import { getAccounts } from "@/src/features/account/api/account";
+import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import { createOrder } from "@/src/features/order/api/order";
 import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
@@ -169,8 +171,8 @@ export function Stocks() {
   const toggleCompare = (stockCode: string) => {
     setCompareStocks((prev) => {
       const next = prev.includes(stockCode)
-        ? prev.filter((c) => c !== stockCode)
-        : [...prev, stockCode];
+          ? prev.filter((c) => c !== stockCode)
+          : [...prev, stockCode];
       localStorage.setItem("compare_stocks", JSON.stringify(next));
       return next;
     });
@@ -294,16 +296,19 @@ export function Stocks() {
   const chartPoints = stockChartQuery.data ? toChartPoints(stockChartQuery.data) : undefined;
   const diagnosis = chartPoints ? toDiagnosis(chartPoints) : null;
 
+  // 상세 조회는 진입 시점 가격이라, 이후 변동은 WebSocket 실시간 체결가로 덮어쓴다
+  const livePrice = useStockPriceSocket(code);
+
   // User might not select any stock initially
   const activeStockData = STOCKS_DATA.find((s) => s.code === code);
 
   const stock = stockDetail
-    ? {
+      ? {
         code: stockDetail.code,
         name: stockDetail.name,
-        price: stockDetail.currentPrice,
-        change: stockDetail.changeAmount,
-        changeRate: stockDetail.changeRate,
+        price: livePrice ? livePrice.currentPrice : stockDetail.currentPrice,
+        change: livePrice ? livePrice.changeAmount : stockDetail.changeAmount,
+        changeRate: livePrice ? livePrice.changeRate : stockDetail.changeRate,
         volume: activeStockData?.volume ?? "-",
         isFav: isFav(stockDetail.code),
         week52High: stockDetail.week52High,
@@ -323,9 +328,11 @@ export function Stocks() {
           }
           : null;
 
+  // 지정가 입력 기본값은 종목이 바뀔 때만 채운다.
+  // 실시간 체결가에 맞춰 매번 다시 채우면 사용자가 입력하던 주문 가격이 덮어써진다.
   useEffect(() => {
     setLimitPrice(stock ? String(stock.price) : "");
-  }, [stock?.code, stock?.price]);
+  }, [stock?.code]);
 
   const stepLimitPrice = (direction: 1 | -1) => {
     const current = Number(limitPrice || 0);
@@ -407,623 +414,623 @@ export function Stocks() {
   };
 
   return (
-    <div className="flex gap-6 relative animate-in fade-in duration-500">
-      {/* Left List Area */}
-      <Card className="hidden lg:flex lg:w-[350px] xl:w-[400px] flex-col h-[calc(100vh-8rem)] sticky top-[80px] p-5 bg-white">
-        {/* Top Filters */}
-        <div className="space-y-4 mb-4">
-          <div className="flex flex-col gap-2 border-b border-[#F2F4F6] -mx-5 px-5">
-            <div className="flex justify-end">
-              <select
-                value={activeFilter}
-                onChange={(e) => setActiveFilter(e.target.value as any)}
-                className="text-[12px] font-semibold px-2.5 py-1 rounded-[6px] border border-border-color bg-white text-text-secondary hover:border-text-secondary hover:text-text-primary focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer h-[28px] transition-all duration-200"
-              >
-                <option value="전체">전체</option>
-                <option value="보통주">보통주</option>
-                <option value="우선주">우선주</option>
-              </select>
-            </div>
-            <div className="flex w-full justify-between gap-x-1">
-              {["전체보기", "거래량", "거래대금", "급상승", "급하락", "인기"].map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={cn(
-                    "pb-2 text-[14px] font-semibold transition-colors flex-1 text-center whitespace-nowrap border-b-2 -mb-[1px] cursor-pointer",
-                    activeTab === tab
-                      ? "text-brand font-bold border-brand"
-                      : "text-text-secondary hover:text-text-primary border-transparent hover:border-border-color/40",
-                  )}
+      <div className="flex gap-6 relative animate-in fade-in duration-500">
+        {/* Left List Area */}
+        <Card className="hidden lg:flex lg:w-[350px] xl:w-[400px] flex-col h-[calc(100vh-8rem)] sticky top-[80px] p-5 bg-white">
+          {/* Top Filters */}
+          <div className="space-y-4 mb-4">
+            <div className="flex flex-col gap-2 border-b border-[#F2F4F6] -mx-5 px-5">
+              <div className="flex justify-end">
+                <select
+                    value={activeFilter}
+                    onChange={(e) => setActiveFilter(e.target.value as any)}
+                    className="text-[12px] font-semibold px-2.5 py-1 rounded-[6px] border border-border-color bg-white text-text-secondary hover:border-text-secondary hover:text-text-primary focus:outline-none focus:ring-1 focus:ring-brand cursor-pointer h-[28px] transition-all duration-200"
                 >
-                  {tab}
-                </button>
-              ))}
+                  <option value="전체">전체</option>
+                  <option value="보통주">보통주</option>
+                  <option value="우선주">우선주</option>
+                </select>
+              </div>
+              <div className="flex w-full justify-between gap-x-1">
+                {["전체보기", "거래량", "거래대금", "급상승", "급하락", "인기"].map((tab) => (
+                    <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={cn(
+                            "pb-2 text-[14px] font-semibold transition-colors flex-1 text-center whitespace-nowrap border-b-2 -mb-[1px] cursor-pointer",
+                            activeTab === tab
+                                ? "text-brand font-bold border-brand"
+                                : "text-text-secondary hover:text-text-primary border-transparent hover:border-border-color/40",
+                        )}
+                    >
+                      {tab}
+                    </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          <div className="flex gap-2 -mx-5 px-5">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636C7D]" />
-              <Input
-                placeholder="종목명 또는 종목코드"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 h-12 bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
-              />
-            </div>
-            <Link to="/stocks/compare">
-              <Button className="h-12 w-12 p-0 flex-shrink-0 bg-brand text-white border-transparent hover:bg-brand/90">
-                <BarChart2 className="w-5 h-5" />
-              </Button>
-            </Link>
-            <Button
-              variant={compareStocks.length > 0 ? "outline" : "secondary"}
-              className={cn(
-                "h-12 w-12 p-0 flex-shrink-0 transition-colors",
-                compareStocks.length > 0 
-                  ? "border-border-color" 
-                  : "border-transparent bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:bg-bg-main"
-              )}
-              onClick={() => {
-                setCompareStocks([]);
-                localStorage.removeItem("compare_stocks");
-                setActionToast("비교 체크가 모두 초기화되었습니다.");
-                setTimeout(() => setActionToast(""), 3000);
-              }}
-            >
-              <RefreshCw className={cn("w-5 h-5", compareStocks.length > 0 ? "text-text-primary" : "text-text-secondary")} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Stock List Scrollable */}
-        <div className="flex-1 overflow-y-auto -mx-5 w-[calc(100%+2.5rem)] pr-1">
-          <div className="rounded-none border-y border-[#F2F4F6] border-x-0 overflow-hidden divide-y divide-[#F2F4F6] flex flex-col bg-white">
-            <div className="grid grid-cols-[10fr_6fr_5fr_3fr] text-[13px] font-semibold text-text-secondary bg-white border-b border-[#F2F4F6] items-center px-5 py-2.5">
-              <div className="text-left pl-8">종목</div>
-              <div className="text-right">현재가</div>
-              <div className="text-right">등락률</div>
-              <div className="text-center">비교</div>
-            </div>
-            {getFilteredAndSortedStocks().map((s, index) => (
-              <div
-                key={s.code}
-                onClick={() => {
-                  if (!stock || s.code !== stock.code) {
-                    navigate(`/stocks/${s.code}`);
-                  }
-                }}
-                className={cn(
-                  "block cursor-pointer py-2 px-5 grid grid-cols-[10fr_6fr_5fr_3fr] items-center transition-colors",
-                  stock?.code === s.code
-                    ? "bg-brand/10"
-                    : index % 2 === 0
-                      ? "bg-surface"
-                      : "bg-[#F9FAFB]", // 연한 회색 (light gray)
-                  "hover:bg-[#F0F1F5]",
-                )}
+            <div className="flex gap-2 -mx-5 px-5">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636C7D]" />
+                <Input
+                    placeholder="종목명 또는 종목코드"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-12 bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                />
+              </div>
+              <Link to="/stocks/compare">
+                <Button className="h-12 w-12 p-0 flex-shrink-0 bg-brand text-white border-transparent hover:bg-brand/90">
+                  <BarChart2 className="w-5 h-5" />
+                </Button>
+              </Link>
+              <Button
+                  variant={compareStocks.length > 0 ? "outline" : "secondary"}
+                  className={cn(
+                      "h-12 w-12 p-0 flex-shrink-0 transition-colors",
+                      compareStocks.length > 0
+                          ? "border-border-color"
+                          : "border-transparent bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:bg-bg-main"
+                  )}
+                  onClick={() => {
+                    setCompareStocks([]);
+                    localStorage.removeItem("compare_stocks");
+                    setActionToast("비교 체크가 모두 초기화되었습니다.");
+                    setTimeout(() => setActionToast(""), 3000);
+                  }}
               >
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <button
-                    className="flex-shrink-0 p-1 rounded-full hover:bg-bg-main transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation(); /* toggle fav */
-                      const currentlyFav = isFav(s.code);
-                      toggleFav(s.code);
-                      setActionToast(
-                        currentlyFav
-                          ? "관심종목에서 해제되었습니다."
-                          : "관심종목에 추가되었습니다."
-                      );
-                      setTimeout(() => setActionToast(""), 3000);
-                    }}
-                  >
-                    <Heart
+                <RefreshCw className={cn("w-5 h-5", compareStocks.length > 0 ? "text-text-primary" : "text-text-secondary")} />
+              </Button>
+            </div>
+          </div>
+
+          {/* Stock List Scrollable */}
+          <div className="flex-1 overflow-y-auto -mx-5 w-[calc(100%+2.5rem)] pr-1">
+            <div className="rounded-none border-y border-[#F2F4F6] border-x-0 overflow-hidden divide-y divide-[#F2F4F6] flex flex-col bg-white">
+              <div className="grid grid-cols-[10fr_6fr_5fr_3fr] text-[13px] font-semibold text-text-secondary bg-white border-b border-[#F2F4F6] items-center px-5 py-2.5">
+                <div className="text-left pl-8">종목</div>
+                <div className="text-right">현재가</div>
+                <div className="text-right">등락률</div>
+                <div className="text-center">비교</div>
+              </div>
+              {getFilteredAndSortedStocks().map((s, index) => (
+                  <div
+                      key={s.code}
+                      onClick={() => {
+                        if (!stock || s.code !== stock.code) {
+                          navigate(`/stocks/${s.code}`);
+                        }
+                      }}
                       className={cn(
-                        "w-4 h-4 transition-all duration-300",
-                        isFav(s.code) ? "fill-up text-up scale-110" : "text-text-secondary hover:scale-105",
+                          "block cursor-pointer py-2 px-5 grid grid-cols-[10fr_6fr_5fr_3fr] items-center transition-colors",
+                          stock?.code === s.code
+                              ? "bg-brand/10"
+                              : index % 2 === 0
+                                  ? "bg-surface"
+                                  : "bg-[#F9FAFB]", // 연한 회색 (light gray)
+                          "hover:bg-[#F0F1F5]",
                       )}
-                    />
-                  </button>
-                  <div className="flex flex-col min-w-0 overflow-hidden">
+                  >
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <button
+                          className="flex-shrink-0 p-1 rounded-full hover:bg-bg-main transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation(); /* toggle fav */
+                            const currentlyFav = isFav(s.code);
+                            toggleFav(s.code);
+                            setActionToast(
+                                currentlyFav
+                                    ? "관심종목에서 해제되었습니다."
+                                    : "관심종목에 추가되었습니다."
+                            );
+                            setTimeout(() => setActionToast(""), 3000);
+                          }}
+                      >
+                        <Heart
+                            className={cn(
+                                "w-4 h-4 transition-all duration-300",
+                                isFav(s.code) ? "fill-up text-up scale-110" : "text-text-secondary hover:scale-105",
+                            )}
+                        />
+                      </button>
+                      <div className="flex flex-col min-w-0 overflow-hidden">
                     <span className="font-semibold text-text-primary text-[13px] whitespace-nowrap truncate">
                       {s.name}
                     </span>
-                  </div>
-                </div>
-                <div className="text-right min-w-0 pr-1">
+                      </div>
+                    </div>
+                    <div className="text-right min-w-0 pr-1">
                   <span className="font-semibold tabular-nums text-[13px]">
                     {formatPrice(s.price)}
                   </span>
-                </div>
-                <div className="text-right min-w-0 pr-1">
+                    </div>
+                    <div className="text-right min-w-0 pr-1">
                   <span
-                    className={cn(
-                      "font-semibold tabular-nums text-[13px] flex items-center justify-end gap-0.5",
-                      s.change > 0 ? "text-up" : "text-down",
-                    )}
+                      className={cn(
+                          "font-semibold tabular-nums text-[13px] flex items-center justify-end gap-0.5",
+                          s.change > 0 ? "text-up" : "text-down",
+                      )}
                   >
                     {formatPercent(s.change)}
                   </span>
-                </div>
-                <div className="text-center">
-                  <button
-                    className={cn(
-                      "p-1 rounded-[6px] text-[10px] font-medium border mx-auto w-[28px] h-[24px] flex items-center justify-center transition-colors",
-                      isCompared(s.code)
-                        ? "border-brand bg-brand text-white"
-                        : "border-border-color bg-white text-text-secondary hover:bg-black/5",
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleCompare(s.code);
-                    }}
-                  >
-                    {isCompared(s.code) ? (
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    ) : (
-                      <Plus className="w-3 h-3" />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
+                    </div>
+                    <div className="text-center">
+                      <button
+                          className={cn(
+                              "p-1 rounded-[6px] text-[10px] font-medium border mx-auto w-[28px] h-[24px] flex items-center justify-center transition-colors",
+                              isCompared(s.code)
+                                  ? "border-brand bg-brand text-white"
+                                  : "border-border-color bg-white text-text-secondary hover:bg-black/5",
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleCompare(s.code);
+                          }}
+                      >
+                        {isCompared(s.code) ? (
+                            <Check className="w-3 h-3 stroke-[3]" />
+                        ) : (
+                            <Plus className="w-3 h-3" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <div className="flex-1 flex flex-col gap-4 min-w-0">
-        {stock ? (
-          <div className="flex flex-col xl:flex-row gap-6 h-full">
-            {/* Left side: Chart and Info */}
-            <div className="flex-1 flex flex-col gap-6 h-full">
-              {/* Unified Stock Info & Chart Card */}
-              <Card className="bg-white overflow-hidden divide-y divide-[#F2F4F6] flex flex-col shadow-sm border border-[#F2F4F6]">
-                {/* Header */}
-                <div className="p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-2xl font-bold flex items-center gap-2">
-                        {stock.name}{" "}
-                        <span className="text-sm font-medium text-text-secondary">
+        <div className="flex-1 flex flex-col gap-4 min-w-0">
+          {stock ? (
+              <div className="flex flex-col xl:flex-row gap-6 h-full">
+                {/* Left side: Chart and Info */}
+                <div className="flex-1 flex flex-col gap-6 h-full">
+                  {/* Unified Stock Info & Chart Card */}
+                  <Card className="bg-white overflow-hidden divide-y divide-[#F2F4F6] flex flex-col shadow-sm border border-[#F2F4F6]">
+                    {/* Header */}
+                    <div className="p-6">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h1 className="text-2xl font-bold flex items-center gap-2">
+                            {stock.name}{" "}
+                            <span className="text-sm font-medium text-text-secondary">
                           {stock.code}
                         </span>
-                      </h1>
-                      <div className="mt-2 flex items-baseline gap-3">
+                          </h1>
+                          <div className="mt-2 flex items-baseline gap-3">
                         <span className="text-[32px] font-bold tabular-nums text-text-primary">
                           {formatPrice(stock.price)}원
                         </span>
-                        <span
-                          className={cn(
-                            "text-lg font-semibold tabular-nums flex items-center gap-1",
-                            stock.change > 0 ? "text-up" : "text-down",
-                          )}
-                        >
+                            <span
+                                className={cn(
+                                    "text-lg font-semibold tabular-nums flex items-center gap-1",
+                                    stock.change > 0 ? "text-up" : "text-down",
+                                )}
+                            >
                           {stock.change > 0 ? "▲" : "▼"}{" "}
-                          {formatPrice(Math.abs(stock.change))} (
-                          {formatPercent(stock.changeRate)})
+                              {formatPrice(Math.abs(stock.change))} (
+                              {formatPercent(stock.changeRate)})
                         </span>
+                          </div>
+                          <p className="text-sm text-text-secondary mt-1">
+                            거래량 {stock.volume}
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                              variant="secondary"
+                              size="icon"
+                              className="rounded-full"
+                              onClick={() => {
+                                const currentlyFav = isFav(stock.code);
+                                toggleFav(stock.code);
+                                setActionToast(
+                                    currentlyFav
+                                        ? "관심종목에서 해제되었습니다."
+                                        : "관심종목에 추가되었습니다."
+                                );
+                                setTimeout(() => setActionToast(""), 3000);
+                              }}
+                          >
+                            <Heart
+                                className={cn(
+                                    "w-5 h-5 transition-all duration-300",
+                                    isFav(stock.code) ? "fill-up text-up scale-110" : "text-text-secondary hover:scale-105",
+                                )}
+                            />
+                          </Button>
+                          <Link to="/stocks/compare">
+                            <Button variant="outline">비교</Button>
+                          </Link>
+                        </div>
                       </div>
-                      <p className="text-sm text-text-secondary mt-1">
-                        거래량 {stock.volume}
-                      </p>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="secondary"
-                        size="icon"
-                        className="rounded-full"
-                        onClick={() => {
-                          const currentlyFav = isFav(stock.code);
-                          toggleFav(stock.code);
-                          setActionToast(
-                            currentlyFav
-                              ? "관심종목에서 해제되었습니다."
-                              : "관심종목에 추가되었습니다."
-                          );
-                          setTimeout(() => setActionToast(""), 3000);
-                        }}
-                      >
-                        <Heart
-                          className={cn(
-                            "w-5 h-5 transition-all duration-300",
-                            isFav(stock.code) ? "fill-up text-up scale-110" : "text-text-secondary hover:scale-105",
-                          )}
-                        />
-                      </Button>
-                      <Link to="/stocks/compare">
-                        <Button variant="outline">비교</Button>
-                      </Link>
+
+                    {/* Chart Area */}
+                    <div>
+                      <AdvancedStockChart noCardStyle={true} candles={chartPoints} avgPrice={myAvgPrice} />
                     </div>
-                  </div>
-                </div>
 
-                {/* Chart Area */}
-                <div>
-                  <AdvancedStockChart noCardStyle={true} candles={chartPoints} avgPrice={myAvgPrice} />
-                </div>
-
-                {/* Section F: 52-Week High/Low Bar */}
-                {stock.week52High !== null && stock.week52Low !== null && (
-                    <div className="p-6">
-                      <div className="relative h-[48px] flex items-center w-full">
+                    {/* Section F: 52-Week High/Low Bar */}
+                    {stock.week52High !== null && stock.week52Low !== null && (
+                        <div className="p-6">
+                          <div className="relative h-[48px] flex items-center w-full">
                       <span className="text-[11px] text-text-secondary mr-3 w-[100px]">
                         52주 최저 <span className="tabular-nums">{formatPrice(stock.week52Low)}</span>
                       </span>
 
-                      <div className="flex-1 h-[6px] bg-[#F2F2F7] rounded-[16px] relative flex shadow-inner">
-                        <div
-                          className="bg-[#1CBC9A] h-full rounded-[16px]"
-                          style={{ width: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
-                        ></div>
+                            <div className="flex-1 h-[6px] bg-[#F2F2F7] rounded-[16px] relative flex shadow-inner">
+                              <div
+                                  className="bg-[#1CBC9A] h-full rounded-[16px]"
+                                  style={{ width: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
+                              ></div>
 
-                        {/* Current Price Dot */}
-                        <div
-                            className="absolute top-1/2 -translate-y-1/2"
-                            style={{ left: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
-                        >
-                          <div className="w-[14px] h-[14px] rounded-full bg-[#1CBC9A] border-[3px] border-white shadow-[0_2px_6px_rgba(28,188,154,0.4)] -ml-[7px]"></div>
-                          <div className="absolute top-[16px] left-1/2 -translate-x-1/2 text-[12px] font-bold text-[#1C1C1E] tabular-nums">
-                            {formatPrice(stock.price)}
-                          </div>
-                          <div className="absolute bottom-[16px] left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1CBC9A]/10 text-[#1CBC9A] text-[10px] font-bold px-2 py-0.5 rounded-[16px]">
-                            52주 최고 대비 {stock.week52High > 0 ? ((stock.price / stock.week52High) * 100).toFixed(1) : "0.0"}%
-                          </div>
-                        </div>
-                      </div>
+                              {/* Current Price Dot */}
+                              <div
+                                  className="absolute top-1/2 -translate-y-1/2"
+                                  style={{ left: `${toWeek52Position(stock.price, stock.week52Low, stock.week52High)}%` }}
+                              >
+                                <div className="w-[14px] h-[14px] rounded-full bg-[#1CBC9A] border-[3px] border-white shadow-[0_2px_6px_rgba(28,188,154,0.4)] -ml-[7px]"></div>
+                                <div className="absolute top-[16px] left-1/2 -translate-x-1/2 text-[12px] font-bold text-[#1C1C1E] tabular-nums">
+                                  {formatPrice(stock.price)}
+                                </div>
+                                <div className="absolute bottom-[16px] left-1/2 -translate-x-1/2 whitespace-nowrap bg-[#1CBC9A]/10 text-[#1CBC9A] text-[10px] font-bold px-2 py-0.5 rounded-[16px]">
+                                  52주 최고 대비 {stock.week52High > 0 ? ((stock.price / stock.week52High) * 100).toFixed(1) : "0.0"}%
+                                </div>
+                              </div>
+                            </div>
 
-                      <span className="text-[11px] text-text-secondary ml-3 w-[100px] text-right">
+                            <span className="text-[11px] text-text-secondary ml-3 w-[100px] text-right">
                         52주 최고 <span className="tabular-nums">{formatPrice(stock.week52High)}</span>
                       </span>
-                    </div>
-                  </div>
-                )}
-              </Card>
+                          </div>
+                        </div>
+                    )}
+                  </Card>
 
-              {/* Technical Analysis Panel */}
-              <Card>
-                <CardContent className="p-0">
-                  <div className="p-6 border-b border-border-color">
-                    <h3 className="font-bold">기술적 분석 진단</h3>
-                  </div>
-                  <div className="p-6 flex flex-col gap-6">
-                    <div className="flex justify-center">
-                      <div className="bg-[#1CBC9A]/12 text-[#1CBC9A] font-bold text-[16px] px-6 py-2.5 rounded-[16px]">
-                        관망 +1점
+                  {/* Technical Analysis Panel */}
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="p-6 border-b border-border-color">
+                        <h3 className="font-bold">기술적 분석 진단</h3>
                       </div>
-                    </div>
-                    <div className="space-y-0">
-                      {[
-                        {
-                          label: "RSI",
-                          value: "과매수권 (75)",
-                          score: "-2점",
-                          scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                        },
-                        {
-                          label: "MACD",
-                          value: "0선 위 (중기 상승 구조)",
-                          score: "+1점",
-                          scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                        },
-                        {
-                          label: "이평선",
-                          value: "완전 정배열",
-                          score: "+3점",
-                          scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                        },
-                        {
-                          label: "볼린저(%B)",
-                          value: "%B 상단 이탈 (1.05)",
-                          score: "-2점",
-                          scoreClass: "bg-[#007AFF]/10 text-[#007AFF]",
-                        },
-                        {
-                          label: "볼린저(추세)",
-                          value: "중심선 위 지지",
-                          score: "+1점",
-                          scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                        },
-                      ].map((item, i) => (
-                        <div
-                          key={i}
-                          className="flex grid grid-cols-[80px_1fr_60px] items-center py-4 border-b border-border-color last:border-0 last:pb-0"
-                        >
+                      <div className="p-6 flex flex-col gap-6">
+                        <div className="flex justify-center">
+                          <div className="bg-[#1CBC9A]/12 text-[#1CBC9A] font-bold text-[16px] px-6 py-2.5 rounded-[16px]">
+                            관망 +1점
+                          </div>
+                        </div>
+                        <div className="space-y-0">
+                          {[
+                            {
+                              label: "RSI",
+                              value: "과매수권 (75)",
+                              score: "-2점",
+                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
+                            },
+                            {
+                              label: "MACD",
+                              value: "0선 위 (중기 상승 구조)",
+                              score: "+1점",
+                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
+                            },
+                            {
+                              label: "이평선",
+                              value: "완전 정배열",
+                              score: "+3점",
+                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
+                            },
+                            {
+                              label: "볼린저(%B)",
+                              value: "%B 상단 이탈 (1.05)",
+                              score: "-2점",
+                              scoreClass: "bg-[#007AFF]/10 text-[#007AFF]",
+                            },
+                            {
+                              label: "볼린저(추세)",
+                              value: "중심선 위 지지",
+                              score: "+1점",
+                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
+                            },
+                          ].map((item, i) => (
+                              <div
+                                  key={i}
+                                  className="flex grid grid-cols-[80px_1fr_60px] items-center py-4 border-b border-border-color last:border-0 last:pb-0"
+                              >
                           <span className="text-sm font-medium text-text-secondary">
                             {item.label}
                           </span>
-                          <span className="text-sm font-semibold">
+                                <span className="text-sm font-semibold">
                             {item.value}
                           </span>
-                          <div className="flex justify-end">
+                                <div className="flex justify-end">
                             <span
-                              className={cn(
-                                "text-[12px] font-bold rounded-[16px] px-2 py-0.5",
-                                item.scoreClass,
-                              )}
+                                className={cn(
+                                    "text-[12px] font-bold rounded-[16px] px-2 py-0.5",
+                                    item.scoreClass,
+                                )}
                             >
                               {item.score}
                             </span>
+                                </div>
+                              </div>
+                          ))}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Right side: Order Panel */}
+                <div className="w-full xl:w-[360px] 2xl:w-[400px] flex-shrink-0 flex flex-col gap-6">
+                  {/* Order Card */}
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="flex w-full border-b border-border-color">
+                        <button
+                            onClick={() => setOrderType("buy")}
+                            className={cn(
+                                "flex-1 py-4 font-bold text-center border-b-2 transition-colors",
+                                orderType === "buy"
+                                    ? "border-up text-up"
+                                    : "border-transparent text-text-secondary hover:text-text-primary",
+                            )}
+                        >
+                          매수
+                        </button>
+                        <button
+                            onClick={() => setOrderType("sell")}
+                            className={cn(
+                                "flex-1 py-4 font-bold text-center border-b-2 transition-colors",
+                                orderType === "sell"
+                                    ? "border-down text-down"
+                                    : "border-transparent text-text-secondary hover:text-text-primary",
+                            )}
+                        >
+                          매도
+                        </button>
+                      </div>
+
+                      <div className="p-6 flex flex-col h-full space-y-6">
+                        <div className="flex bg-bg-main p-1 rounded-[16px] border border-border-color">
+                          {["시장가", "지정가"].map((t) => (
+                              <button
+                                  key={t}
+                                  onClick={() => setPriceType(t)}
+                                  className={cn(
+                                      "flex-1 py-2 text-sm font-semibold rounded-[12px] transition-colors",
+                                      priceType === t
+                                          ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-[#636C7D] border border-border-color/50"
+                                          : "text-text-secondary hover:text-text-primary border border-transparent",
+                                  )}
+                              >
+                                {t}
+                              </button>
+                          ))}
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 text-sm font-bold text-text-secondary">
+                              가격
+                            </div>
+                            <div className="flex-1 flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                                  onClick={() => stepLimitPrice(-1)}
+                                  disabled={priceType === "시장가"}
+                              >
+                                -
+                              </Button>
+                              <input
+                                  className="flex-1 h-12 bg-transparent text-center font-bold tabular-nums outline-none w-full"
+                                  value={
+                                    priceType === "시장가"
+                                        ? "시장가"
+                                        : Number(limitPrice || 0).toLocaleString()
+                                  }
+                                  onChange={(e) =>
+                                      setLimitPrice(e.target.value.replace(/[^0-9]/g, ""))
+                                  }
+                                  readOnly={priceType === "시장가"}
+                              />
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                                  onClick={() => stepLimitPrice(1)}
+                                  disabled={priceType === "시장가"}
+                              >
+                                +
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <div className="w-16 text-sm font-bold text-text-secondary">
+                              수량
+                            </div>
+                            <div className="flex-1 flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                                  onClick={() =>
+                                      setQuantity(
+                                          String(Math.max(0, Number(quantity || 0) - 1)),
+                                      )
+                                  }
+                              >
+                                -
+                              </Button>
+                              <input
+                                  className="flex-1 h-12 bg-transparent text-center font-bold tabular-nums outline-none w-full"
+                                  placeholder="0"
+                                  value={quantity}
+                                  onChange={(e) =>
+                                      setQuantity(e.target.value.replace(/[^0-9]/g, ""))
+                                  }
+                              />
+                              <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
+                                  onClick={() =>
+                                      setQuantity(String(Number(quantity || 0) + 1))
+                                  }
+                              >
+                                +
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pl-20 w-full">
+                            {["10%", "25%", "50%", "최대"].map((pct) => (
+                                <button
+                                    key={pct}
+                                    onClick={() =>
+                                        setQuantity(
+                                            pct === "10%"
+                                                ? "10"
+                                                : pct === "25%"
+                                                    ? "25"
+                                                    : pct === "50%"
+                                                        ? "50"
+                                                        : "100",
+                                        )
+                                    }
+                                    className="flex-1 bg-bg-main hover:bg-border-color transition-colors py-2 rounded-[16px] text-xs font-semibold text-text-secondary hover:text-text-primary"
+                                >
+                                  {pct}
+                                </button>
+                            ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
 
-            {/* Right side: Order Panel */}
-            <div className="w-full xl:w-[360px] 2xl:w-[400px] flex-shrink-0 flex flex-col gap-6">
-              {/* Order Card */}
-              <Card>
-                <CardContent className="p-0">
-                  <div className="flex w-full border-b border-border-color">
-                    <button
-                      onClick={() => setOrderType("buy")}
-                      className={cn(
-                        "flex-1 py-4 font-bold text-center border-b-2 transition-colors",
-                        orderType === "buy"
-                          ? "border-up text-up"
-                          : "border-transparent text-text-secondary hover:text-text-primary",
-                      )}
-                    >
-                      매수
-                    </button>
-                    <button
-                      onClick={() => setOrderType("sell")}
-                      className={cn(
-                        "flex-1 py-4 font-bold text-center border-b-2 transition-colors",
-                        orderType === "sell"
-                          ? "border-down text-down"
-                          : "border-transparent text-text-secondary hover:text-text-primary",
-                      )}
-                    >
-                      매도
-                    </button>
-                  </div>
-
-                  <div className="p-6 flex flex-col h-full space-y-6">
-                    <div className="flex bg-bg-main p-1 rounded-[16px] border border-border-color">
-                      {["시장가", "지정가"].map((t) => (
-                        <button
-                          key={t}
-                          onClick={() => setPriceType(t)}
-                          className={cn(
-                            "flex-1 py-2 text-sm font-semibold rounded-[12px] transition-colors",
-                            priceType === t
-                              ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-[#636C7D] border border-border-color/50"
-                              : "text-text-secondary hover:text-text-primary border border-transparent",
-                          )}
-                        >
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 text-sm font-bold text-text-secondary">
-                          가격
-                        </div>
-                        <div className="flex-1 flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
-                            onClick={() => stepLimitPrice(-1)}
-                            disabled={priceType === "시장가"}
-                          >
-                            -
-                          </Button>
-                          <input
-                            className="flex-1 h-12 bg-transparent text-center font-bold tabular-nums outline-none w-full"
-                            value={
-                              priceType === "시장가"
-                                ? "시장가"
-                                : Number(limitPrice || 0).toLocaleString()
-                            }
-                            onChange={(e) =>
-                                setLimitPrice(e.target.value.replace(/[^0-9]/g, ""))
-                            }
-                            readOnly={priceType === "시장가"}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
-                            onClick={() => stepLimitPrice(1)}
-                            disabled={priceType === "시장가"}
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="w-16 text-sm font-bold text-text-secondary">
-                          수량
-                        </div>
-                        <div className="flex-1 flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
-                            onClick={() =>
-                              setQuantity(
-                                String(Math.max(0, Number(quantity || 0) - 1)),
-                              )
-                            }
-                          >
-                            -
-                          </Button>
-                          <input
-                            className="flex-1 h-12 bg-transparent text-center font-bold tabular-nums outline-none w-full"
-                            placeholder="0"
-                            value={quantity}
-                            onChange={(e) =>
-                              setQuantity(e.target.value.replace(/[^0-9]/g, ""))
-                            }
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-none hover:bg-black/5 flex-shrink-0 text-text-secondary"
-                            onClick={() =>
-                              setQuantity(String(Number(quantity || 0) + 1))
-                            }
-                          >
-                            +
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 pl-20 w-full">
-                        {["10%", "25%", "50%", "최대"].map((pct) => (
-                          <button
-                            key={pct}
-                            onClick={() =>
-                              setQuantity(
-                                pct === "10%"
-                                  ? "10"
-                                  : pct === "25%"
-                                    ? "25"
-                                    : pct === "50%"
-                                      ? "50"
-                                      : "100",
-                              )
-                            }
-                            className="flex-1 bg-bg-main hover:bg-border-color transition-colors py-2 rounded-[16px] text-xs font-semibold text-text-secondary hover:text-text-primary"
-                          >
-                            {pct}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="pt-4 border-t border-border-color space-y-4">
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center text-sm">
+                        <div className="pt-4 border-t border-border-color space-y-4">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center text-sm">
                           <span className="text-text-secondary font-medium">
                             주문 가능 금액
                           </span>
-                          <span className="font-bold tabular-nums">
+                              <span className="font-bold tabular-nums">
                             {formatPrice(basicAccountBalance)}원
                           </span>
-                        </div>
-                        <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
-                          <span className="font-bold">총 주문 금액</span>
-                          <span
-                            className={cn(
-                              "text-xl font-bold tabular-nums",
-                              orderType === "buy" ? "text-up" : "text-down",
-                            )}
-                          >
+                            </div>
+                            <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
+                              <span className="font-bold">총 주문 금액</span>
+                              <span
+                                  className={cn(
+                                      "text-xl font-bold tabular-nums",
+                                      orderType === "buy" ? "text-up" : "text-down",
+                                  )}
+                              >
                             {formatPrice(
-                              Number(quantity || 0) *
+                                Number(quantity || 0) *
                                 (priceType === "시장가"
-                                  ? stock.price
-                                  : Number(limitPrice || 0)),
+                                    ? stock.price
+                                    : Number(limitPrice || 0)),
                             )}
-                            원
+                                원
                           </span>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 relative">
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                className="flex-1 shrink-1 min-w-0 border-border-color text-text-primary hover:bg-bg-main"
+                                onClick={handleBooking}
+                                disabled={isSubmittingOrder}
+                            >
+                              예약
+                            </Button>
+                            <Button
+                                variant={orderType === "buy" ? "buy" : "sell"}
+                                size="lg"
+                                className="flex-[3] text-base"
+                                onClick={handleOrder}
+                                disabled={isSubmittingOrder}
+                            >
+                              {orderType === "buy" ? "매수하기" : "매도하기"}
+                            </Button>
+                            {actionToast && (
+                                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-[#1C1C1E] text-white px-4 py-2 rounded-[16px] text-sm whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-bottom-2 z-10">
+                                  {actionToast}
+                                </div>
+                            )}
+                          </div>
                         </div>
                       </div>
+                    </CardContent>
+                  </Card>
 
-                      <div className="flex gap-2 relative">
-                        <Button
-                          variant="outline"
-                          size="lg"
-                          className="flex-1 shrink-1 min-w-0 border-border-color text-text-primary hover:bg-bg-main"
-                          onClick={handleBooking}
-                          disabled={isSubmittingOrder}
-                        >
-                          예약
-                        </Button>
-                        <Button
-                          variant={orderType === "buy" ? "buy" : "sell"}
-                          size="lg"
-                          className="flex-[3] text-base"
-                          onClick={handleOrder}
-                          disabled={isSubmittingOrder}
-                        >
-                          {orderType === "buy" ? "매수하기" : "매도하기"}
-                        </Button>
-                        {actionToast && (
-                          <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-[#1C1C1E] text-white px-4 py-2 rounded-[16px] text-sm whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-bottom-2 z-10">
-                            {actionToast}
-                          </div>
-                        )}
+                  {/* Price Alert Panel */}
+                  <Card>
+                    <CardContent className="p-0">
+                      <div className="p-6 border-b border-border-color">
+                        <h3 className="font-bold">목표가 알림</h3>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      <div className="p-6 flex flex-col gap-4">
+                        <div className="flex bg-bg-main p-1 rounded-[16px]">
+                          {(["ABOVE", "BELOW"] as const).map((direction) => (
+                              <button
+                                  key={direction}
+                                  onClick={() => setAlertDirection(direction)}
+                                  className={cn(
+                                      "flex-1 py-2 text-[13px] font-bold rounded-[12px] transition-colors",
+                                      alertDirection === direction
+                                          ? "bg-surface text-text-primary shadow-sm"
+                                          : "text-text-secondary hover:text-text-primary",
+                                  )}
+                              >
+                                {direction === "ABOVE" ? "이상일 때" : "이하일 때"}
+                              </button>
+                          ))}
+                        </div>
+                        <div className="flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
+                          <input
+                              className="flex-1 h-12 px-4 bg-transparent text-right font-bold tabular-nums outline-none w-full"
+                              placeholder={String(stock.price)}
+                              value={alertPrice}
+                              onChange={(e) => setAlertPrice(e.target.value.replace(/[^0-9]/g, ""))}
+                          />
+                          <span className="pr-4 text-sm font-bold text-text-secondary">원</span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            className="w-full border-border-color text-text-primary hover:bg-bg-main"
+                            onClick={handleCreateAlert}
+                            disabled={isSubmittingAlert}
+                        >
+                          알림 등록
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
 
-              {/* Price Alert Panel */}
-              <Card>
-                <CardContent className="p-0">
-                  <div className="p-6 border-b border-border-color">
-                    <h3 className="font-bold">목표가 알림</h3>
-                  </div>
-                  <div className="p-6 flex flex-col gap-4">
-                    <div className="flex bg-bg-main p-1 rounded-[16px]">
-                      {(["ABOVE", "BELOW"] as const).map((direction) => (
-                          <button
-                              key={direction}
-                              onClick={() => setAlertDirection(direction)}
-                              className={cn(
-                                  "flex-1 py-2 text-[13px] font-bold rounded-[12px] transition-colors",
-                                  alertDirection === direction
-                                      ? "bg-surface text-text-primary shadow-sm"
-                                      : "text-text-secondary hover:text-text-primary",
-                              )}
-                          >
-                            {direction === "ABOVE" ? "이상일 때" : "이하일 때"}
-                          </button>
-                      ))}
-                    </div>
-                    <div className="flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
-                      <input
-                          className="flex-1 h-12 px-4 bg-transparent text-right font-bold tabular-nums outline-none w-full"
-                          placeholder={String(stock.price)}
-                          value={alertPrice}
-                          onChange={(e) => setAlertPrice(e.target.value.replace(/[^0-9]/g, ""))}
-                      />
-                      <span className="pr-4 text-sm font-bold text-text-secondary">원</span>
-                    </div>
-                    <Button
-                        variant="outline"
-                        size="lg"
-                        className="w-full border-border-color text-text-primary hover:bg-bg-main"
-                        onClick={handleCreateAlert}
-                        disabled={isSubmittingAlert}
-                    >
-                      알림 등록
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Order Book Panel */}
-              <OrderBook />
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center border-dashed border-2 border-border-color rounded-[32px]">
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-brand/10 mx-auto flex items-center justify-center text-brand">
-                <BarChart2 className="w-8 h-8" />
+                  {/* Order Book Panel */}
+                  <OrderBook />
+                </div>
               </div>
-              <h3 className="text-xl font-semibold">종목을 선택하세요</h3>
-              <p className="text-text-secondary">
-                좌측 리스트에서 종목을 선택하면 상세 정보가 표시됩니다.
-              </p>
-            </div>
-          </div>
-        )}
+          ) : (
+              <div className="flex-1 flex items-center justify-center border-dashed border-2 border-border-color rounded-[32px]">
+                <div className="text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-brand/10 mx-auto flex items-center justify-center text-brand">
+                    <BarChart2 className="w-8 h-8" />
+                  </div>
+                  <h3 className="text-xl font-semibold">종목을 선택하세요</h3>
+                  <p className="text-text-secondary">
+                    좌측 리스트에서 종목을 선택하면 상세 정보가 표시됩니다.
+                  </p>
+                </div>
+              </div>
+          )}
+        </div>
       </div>
-    </div>
   );
 }

@@ -50,11 +50,11 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "fix/stock-chart-mock-and-index",
+    "git-widget-placeholder": "feature/stock-realtime-price-ws",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "preferences.sourceCode.JAVA",
+    "settings.editor.selected.configurable": "sql.code.style.group",
     "ts.external.directory.path": "C:\\Users\\dncls\\Desktop\\GitHub\\ZeroRisk_FrontEnd\\node_modules\\typescript\\lib"
   }
 }]]></component>
@@ -88,6 +88,8 @@
       <workItem from="1788158452314" duration="2173000" />
       <workItem from="1788179218856" duration="3543000" />
       <workItem from="1788751744867" duration="3155000" />
+      <workItem from="1788783509364" duration="2273000" />
+      <workItem from="1788839844401" duration="1152000" />
     </task>
     <servers />
   </component>
