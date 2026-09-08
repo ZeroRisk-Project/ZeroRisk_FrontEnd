@@ -2,17 +2,29 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { cn } from "@/src/shared/lib/utils";
 import type { ChartPoint } from "@/src/features/stock/lib/indicators";
+import type { ChartInterval } from "@/src/features/stock/api/stock";
+
+export const CHART_TIME_UNITS: { label: string; interval: ChartInterval }[] = [
+  { label: "분", interval: "MINUTE" },
+  { label: "일", interval: "DAY" },
+  { label: "주", interval: "WEEK" },
+  { label: "월", interval: "MONTH" },
+];
 
 export function AdvancedStockChart({
   hideControlsAndIndicators = false,
   noCardStyle = false,
   candles,
   avgPrice,
+  interval = "DAY",
+  onIntervalChange,
 }: {
   hideControlsAndIndicators?: boolean;
   noCardStyle?: boolean;
   candles?: ChartPoint[];
   avgPrice?: number | null;
+  interval?: ChartInterval;
+  onIntervalChange?: (interval: ChartInterval) => void;
 }) {
   const CHART_DATA = candles ?? [];
 
