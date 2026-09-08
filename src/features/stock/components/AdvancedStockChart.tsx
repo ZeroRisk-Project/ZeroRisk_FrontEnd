@@ -112,18 +112,18 @@ export function AdvancedStockChart({
               ))}
             </div>
             <div className="flex gap-4">
-              {["분", "일", "주", "월"].map((t) => (
+              {CHART_TIME_UNITS.map((unit) => (
                 <button
-                  key={t}
-                  onClick={() => setTimeUnit(t)}
+                  key={unit.interval}
+                  onClick={() => onIntervalChange?.(unit.interval)}
                   className={cn(
                     "pb-1 text-sm transition-colors font-medium relative border-b-2",
-                    timeUnit === t
+                    interval === unit.interval
                       ? "text-[#636C7D] border-[#636C7D] font-bold"
                       : "text-text-secondary border-transparent hover:text-text-primary",
                   )}
                 >
-                  {t}
+                  {unit.label}
                 </button>
               ))}
             </div>
