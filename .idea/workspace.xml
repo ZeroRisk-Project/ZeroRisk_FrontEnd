@@ -2,8 +2,6 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/features/stock/components/AdvancedStockChart.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/components/AdvancedStockChart.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -50,7 +48,7 @@
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
     "SHARE_PROJECT_CONFIGURATION_FILES": "true",
     "codeWithMe.voiceChat.enabledByDefault": "false",
-    "git-widget-placeholder": "feature/stock-realtime-price-ws",
+    "git-widget-placeholder": "feature/stock-search-integration",
     "ignore.virus.scanning.warn.message": "true",
     "kotlin-language-version-configured": "true",
     "nodejs_package_manager_path": "npm",
@@ -89,7 +87,7 @@
       <workItem from="1788179218856" duration="3543000" />
       <workItem from="1788751744867" duration="3155000" />
       <workItem from="1788783509364" duration="2273000" />
-      <workItem from="1788839844401" duration="1152000" />
+      <workItem from="1788839844401" duration="1527000" />
     </task>
     <servers />
   </component>
