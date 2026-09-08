@@ -39,10 +39,11 @@ export function Community() {
   const noticePosts = freeBoardData?.noticePosts ?? [];
   const freePosts = freeBoardData?.freePosts ?? [];
 
-  // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 종목으로 대체
+  // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 10개 종목으로 자동 구성
+  // (KIS 실시간 시세 API 부하 및 AWS 크레딧 고려하여 10개로 제한)
   const { data: stockBoardList = [] } = useQuery({
-    queryKey: ["stocks", "rankings", "VOLUME", 20],
-    queryFn: () => getStockRankings("VOLUME", 20),
+    queryKey: ["stocks", "rankings", "VOLUME", 10],
+    queryFn: () => getStockRankings("VOLUME", 10),
     enabled: activeTab === "종목게시판",
     retry: false,
   });
