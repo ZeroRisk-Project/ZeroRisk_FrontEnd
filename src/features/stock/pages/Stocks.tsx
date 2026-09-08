@@ -41,8 +41,8 @@ import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
 export interface StockListItem {
   code: string;
   name: string;
-  price: number;
-  change: number;
+  price: number | null;
+  change: number | null;
   volume: string;
   isFav?: boolean;
 }
