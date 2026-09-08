@@ -593,7 +593,13 @@ export function Stocks() {
 
                     {/* Chart Area */}
                     <div>
-                      <AdvancedStockChart noCardStyle={true} candles={chartPoints} avgPrice={myAvgPrice} />
+                      <AdvancedStockChart
+                        noCardStyle={true}
+                        candles={chartPoints}
+                        avgPrice={myAvgPrice}
+                        interval={chartInterval}
+                        onIntervalChange={setChartInterval}
+                      />
                     </div>
 
                     {/* Section F: 52-Week High/Low Bar */}
