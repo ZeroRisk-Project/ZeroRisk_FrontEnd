@@ -9,7 +9,8 @@ export interface ChatMessageResponse {
     channelId: string;
     authorId: number;
     authorNickname: string;
-    message: string;
+    message: string | null;
+    imageUrl: string | null;
     createdAt: string;
 }
 
