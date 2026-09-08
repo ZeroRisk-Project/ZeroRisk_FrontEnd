@@ -242,8 +242,8 @@ export function Stocks() {
   // 상세 조회는 진입 시점 가격이라, 이후 변동은 WebSocket 실시간 체결가로 덮어쓴다
   const livePrice = useStockPriceSocket(code);
 
-  // User might not select any stock initially
-  const activeStockData = STOCKS_DATA.find((s) => s.code === code);
+  // 거래량은 상세 API 응답에 없어, 랭킹 목록에 있으면 그 값을 빌려 쓴다
+  const rankedStock = rankingStocks.find((s) => s.code === code);
 
   const stock = stockDetail
       ? {
@@ -252,24 +252,12 @@ export function Stocks() {
         price: livePrice ? livePrice.currentPrice : stockDetail.currentPrice,
         change: livePrice ? livePrice.changeAmount : stockDetail.changeAmount,
         changeRate: livePrice ? livePrice.changeRate : stockDetail.changeRate,
-        volume: activeStockData?.volume ?? "-",
+        volume: rankedStock?.volume ?? "-",
         isFav: isFav(stockDetail.code),
         week52High: stockDetail.week52High,
         week52Low: stockDetail.week52Low,
       }
-      : activeStockData
-          ? {
-            code: activeStockData.code,
-            name: activeStockData.name,
-            price: activeStockData.price,
-            change: activeStockData.price * (activeStockData.change / 100),
-            changeRate: activeStockData.change,
-            volume: activeStockData.volume,
-            isFav: isFav(activeStockData.code),
-            week52High: null,
-            week52Low: null,
-          }
-          : null;
+  : null;
 
   // 지정가 입력 기본값은 종목이 바뀔 때만 채운다.
   // 실시간 체결가에 맞춰 매번 다시 채우면 사용자가 입력하던 주문 가격이 덮어써진다.

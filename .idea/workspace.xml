@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
-      <change beforePath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" afterDir="false" />
-    </list>
+    <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -87,7 +85,7 @@
       <workItem from="1788179218856" duration="3543000" />
       <workItem from="1788751744867" duration="3155000" />
       <workItem from="1788783509364" duration="2273000" />
-      <workItem from="1788839844401" duration="1527000" />
+      <workItem from="1788839844401" duration="1837000" />
     </task>
     <servers />
   </component>
