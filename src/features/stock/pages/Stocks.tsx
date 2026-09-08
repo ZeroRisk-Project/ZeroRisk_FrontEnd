@@ -234,8 +234,8 @@ export function Stocks() {
   const stockDetail = stockDetailQuery.data ?? null;
 
   const stockChartQuery = useQuery({
-    queryKey: ["stocks", "chart", code],
-    queryFn: () => getStockChart(code as string, "DAY"),
+    queryKey: ["stocks", "chart", code, chartInterval],
+    queryFn: () => getStockChart(code as string, chartInterval),
     enabled: !!code,
     retry: false,
   });
