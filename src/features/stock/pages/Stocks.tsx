@@ -22,6 +22,7 @@ import {
   getStockDetail,
   getStockRankings,
   searchStocks,
+  type ChartInterval,
   type RankingType,
   type StockRankingResponse,
   type StockSummaryResponse,
@@ -132,6 +133,8 @@ export function Stocks() {
 
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [limitPrice, setLimitPrice] = useState("");
+
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("DAY");
 
   const [alertDirection, setAlertDirection] = useState<PriceAlertDirection>("ABOVE");
   const [alertPrice, setAlertPrice] = useState("");
