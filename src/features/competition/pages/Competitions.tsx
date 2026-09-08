@@ -8,6 +8,14 @@ import { cn, formatPrice } from "@/src/shared/lib/utils";
 import { Search } from "lucide-react";
 import api from "@/src/shared/lib/api";
 
+// 정렬 우선순위: 예정 > 진행중 > 결과 집계중 > 종료. 같은 상태 안에서는 최신순(id 내림차순).
+const STATUS_SORT_PRIORITY: Record<string, number> = {
+  SCHEDULED: 0,
+  ONGOING: 1,
+  CALCULATING: 2,
+  ENDED: 3,
+};
+
 export function Competitions() {
   const [activeTab, setActiveTab] = useState("전체");
   const [searchQuery, setSearchQuery] = useState("");
@@ -26,7 +34,7 @@ export function Competitions() {
     const fetchCompetitions = async () => {
       try {
         const response = await api.get("/competitions", { params: { page: 0, size: 100 } });
-        setCompetitions(response.data.content.map((c: any) => ({
+        const mapped = response.data.content.map((c: any) => ({
           id: c.id,
           title: c.title,
           startDate: c.startAt?.slice(0, 10),
@@ -34,7 +42,12 @@ export function Competitions() {
           seedMoney: c.seedMoney,
           participants: c.participantCount,
           status: c.status,
-        })));
+        }));
+        mapped.sort((a: any, b: any) => {
+          const statusDiff = (STATUS_SORT_PRIORITY[a.status] ?? 99) - (STATUS_SORT_PRIORITY[b.status] ?? 99);
+          return statusDiff !== 0 ? statusDiff : b.id - a.id;
+        });
+        setCompetitions(mapped);
       } catch {
         setCompetitions([]);
       }
@@ -277,12 +290,6 @@ export function Competitions() {
             </Card>
           ))}
       </div>
-
-      {toastMsg && (
-        <div className="fixed bottom-6 right-6 bg-[#1C1C1E] text-white py-2.5 px-4 rounded-[12px] shadow-lg text-sm font-semibold z-[9999] animate-in fade-in slide-in-from-bottom-2 duration-300">
-          {toastMsg}
-        </div>
-      )}
     </div>
   );
 }

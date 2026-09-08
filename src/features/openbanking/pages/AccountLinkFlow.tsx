@@ -331,7 +331,7 @@ function AmountStep({ onNext }: AmountStepProps) {
           onClick={() => setInputAmount(String(availableAmount))}
           className="text-sm font-bold text-[#3182F6] mt-3"
         >
-          전액 입력 (₩{formatPrice(availableAmount)})
+          전액 입력 ({formatPrice(availableAmount)} 원)
         </button>
       </div>
 
@@ -393,7 +393,7 @@ function ConfirmStep({ onNext }: ConfirmStepProps) {
         <div className="bg-neutral-50 border border-neutral-100 rounded-[28px] p-6 text-center my-6">
           <p className="text-[11px] font-bold text-neutral-400 uppercase tracking-wide">지급될 시드머니</p>
           <div className="text-3xl font-black text-neutral-900 tabular-nums my-3 block font-mono">
-            ₩{formatPrice(amount)}
+            {formatPrice(amount)} 원
           </div>
           <p className="text-xs font-semibold text-neutral-400">직접 입력하신 금액입니다</p>
         </div>
@@ -413,7 +413,7 @@ function ConfirmStep({ onNext }: ConfirmStepProps) {
         {/* Notice Info Box */}
         <div className="bg-yellow-50 text-amber-800 rounded-xl p-4 text-xs font-bold leading-relaxed text-left mt-6 border border-amber-100 flex gap-2">
           <span>💡</span>
-          <div>상업 계좌 연동 시 실제 잔액과 모의 투자 잔고는 무리스크 연동이 진행되고, 내 계좌의 돈이 줄어들더라도 지급 받은 모의 투자는 소멸되지 않고 유지됩니다.</div>
+          <div>실제 잔액과 모의 투자 잔고는 다르게 진행되고, 내 계좌의 돈이 줄어들더라도 지급 받은 모의 투자는 소멸되지 않고 유지됩니다.</div>
         </div>
       </div>
 
@@ -472,7 +472,7 @@ function CompleteStep() {
 
         {/* Large Heading */}
         <h2 className="text-[25px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
-          ₩{formatPrice(state.amount)}<br />
+          {formatPrice(state.amount)} 원<br />
           시드머니가 충전됐어요!
         </h2>
 
@@ -485,22 +485,22 @@ function CompleteStep() {
         <div className="bg-neutral-50/70 border border-neutral-100 rounded-[24px] p-5 text-left max-w-sm mx-auto space-y-3.5">
           <div className="flex justify-between items-center text-xs">
             <span className="font-bold text-neutral-400">충전된 시드머니</span>
-            <span className="font-extrabold text-neutral-800">₩{formatPrice(state.amount)} (전액 즉시가용)</span>
+            <span className="font-extrabold text-neutral-800">{formatPrice(state.amount)} 원</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-neutral-400">연동 실체계좌</span>
+            <span className="font-bold text-neutral-400">연동된 계좌</span>
             <span className="font-extrabold text-neutral-800">{state.bank} {state.num ? state.num.slice(0, 7) + "***" : "110-***"}</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-neutral-400">다음 가용 재충전</span>
-            <span className="font-extrabold text-[#3182F6]">내일 이후 (잔액 상승 시 가능)</span>
+            <span className="font-bold text-neutral-400">재충전 가능 조건</span>
+            <span className="font-extrabold text-[#3182F6]">계좌 잔액이 남았거나, 잔액 상승 시 가능</span>
           </div>
         </div>
 
         {/* Advice Panel info card */}
         <div className="bg-blue-50/50 text-[#3182F6] rounded-2xl p-4 text-[11px] font-bold leading-relaxed text-left max-w-sm mx-auto border border-blue-50 mt-5 flex gap-2">
           <span>💡</span>
-          <div>앞으로 월급이 들어오거나 저축 예금 잔액이 추가로 늘어날 때 <strong>재충전</strong> 메뉴를 통해 늘어난 증가 갭만큼 한도 포인트를 언제든지 추가 수령 가능합니다!</div>
+          <div>앞으로 월급이 들어오거나 잔액이 추가로 늘어날 때 <strong>재충전</strong> 메뉴를 통해 늘어난 증가 갭만큼 한도 포인트를 언제든지 추가 수령 가능합니다.</div>
         </div>
       </div>
 
@@ -689,7 +689,7 @@ function RechargeCompletePage() {
         {/* Title */}
         <p className="text-xs font-extrabold text-[#3182F6] uppercase tracking-wider mb-1.5">RECHARGE COMPLETED</p>
         <h2 className="text-[25px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
-          ₩{formatPrice(state.amount)}<br />
+          {formatPrice(state.amount)} 원<br />
           추가 충전됐어요!
         </h2>
 
