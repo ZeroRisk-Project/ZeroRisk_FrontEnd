@@ -82,72 +82,13 @@ const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
   volume: formatVolume(ranking.volume),
 });
 
-export const STOCKS_DATA = [
-  {
-    code: "005930",
-    name: "삼성전자",
-    price: 68400,
-    change: -1.2,
-    volume: "12M",
-    isFav: true,
-  },
-  {
-    code: "000660",
-    name: "SK하이닉스",
-    price: 164500,
-    change: 2.4,
-    volume: "4.5M",
-    isFav: false,
-  },
-  {
-    code: "373220",
-    name: "LG에너지솔루션",
-    price: 395000,
-    change: -0.5,
-    volume: "800K",
-    isFav: true,
-  },
-  {
-    code: "207940",
-    name: "삼성바이오로직스",
-    price: 825000,
-    change: 1.1,
-    volume: "150K",
-    isFav: false,
-  },
-  {
-    code: "005380",
-    name: "현대차",
-    price: 234000,
-    change: 0.8,
-    volume: "1.2M",
-    isFav: false,
-  },
-  {
-    code: "000270",
-    name: "기아",
-    price: 114500,
-    change: -0.3,
-    volume: "2M",
-    isFav: true,
-  },
-  {
-    code: "035420",
-    name: "NAVER",
-    price: 189000,
-    change: 3.5,
-    volume: "3M",
-    isFav: true,
-  },
-  {
-    code: "035720",
-    name: "카카오",
-    price: 54300,
-    change: -2.1,
-    volume: "4M",
-    isFav: false,
-  },
-];
+const toSearchListItem = (summary: StockSummaryResponse): StockListItem => ({
+  code: summary.code,
+  name: summary.name,
+  price: null,
+  change: null,
+  volume: "-",
+});
 
 export function Stocks() {
   const { code } = useParams();
