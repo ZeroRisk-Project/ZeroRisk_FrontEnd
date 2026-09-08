@@ -424,6 +424,17 @@ export function Stocks() {
                 <div className="text-right">등락률</div>
                 <div className="text-center">비교</div>
               </div>
+              {getFilteredAndSortedStocks().length === 0 && (
+                <div className="p-10 text-center text-text-secondary text-[13px]">
+                  {isSearching
+                    ? searchResultsQuery.isFetching
+                      ? "검색 중..."
+                      : "검색 결과가 없습니다."
+                    : rankingsQuery.isFetching
+                      ? "불러오는 중..."
+                      : "표시할 종목이 없습니다."}
+                </div>
+              )}
               {getFilteredAndSortedStocks().map((s, index) => (
                   <div
                       key={s.code}
@@ -472,17 +483,17 @@ export function Stocks() {
                     </div>
                     <div className="text-right min-w-0 pr-1">
                   <span className="font-semibold tabular-nums text-[13px]">
-                    {formatPrice(s.price)}
+                    {s.price !== null ? formatPrice(s.price) : "-"}
                   </span>
                     </div>
                     <div className="text-right min-w-0 pr-1">
                   <span
                       className={cn(
                           "font-semibold tabular-nums text-[13px] flex items-center justify-end gap-0.5",
-                          s.change > 0 ? "text-up" : "text-down",
+                          s.change !== null && s.change > 0 ? "text-up" : "text-down",
                       )}
                   >
-                    {formatPercent(s.change)}
+                    {s.change !== null ? formatPercent(s.change) : "-"}
                   </span>
                     </div>
                     <div className="text-center">
