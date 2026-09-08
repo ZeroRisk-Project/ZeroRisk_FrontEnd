@@ -104,10 +104,12 @@ export function AdvancedStockChart({
   hideControlsAndIndicators = false,
   noCardStyle = false,
   candles,
-}: {
+  avgPrice,
+  }: {
   hideControlsAndIndicators?: boolean;
   noCardStyle?: boolean;
   candles?: ChartPoint[];
+  avgPrice?: number | null;
 }) {
   const CHART_DATA = useMemo(
       () => (candles && candles.length > 0 ? candles : MOCK_CHART_DATA),
