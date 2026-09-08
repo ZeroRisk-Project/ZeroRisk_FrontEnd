@@ -168,7 +168,7 @@ export function Stocks() {
   const rankingType = RANKING_TYPE_BY_TAB[activeTab] ?? "VOLUME";
   const rankingsQuery = useQuery({
     queryKey: ["stocks", "rankings", rankingType],
-    queryFn: () => getStockRankings(rankingType),
+    queryFn: () => getStockRankings(rankingType, 100),
     retry: false,
   });
   const rankingStocks = rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : [];

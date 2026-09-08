@@ -118,15 +118,21 @@ export function Compare() {
 
   useEffect(() => {
     let ignore = false;
-    Promise.all(
-        displayCodesKey.split(',').filter(Boolean).map(code =>
-            getStockDetail(code)
-                .then(detail => ({ code: detail.code, name: detail.name }))
-                .catch(() => null),
-        ),
-    ).then(results => {
-      if (!ignore) setActiveCompareStocks(results.filter(stock => stock !== null));
-    });
+
+    // 여러 종목 상세를 동시에 요청하면 KIS가 일부만 실패시켜 목록에서 빠지는 경우가 있어,
+    // 순차적으로 요청해 선택한 종목이 누락되지 않게 한다.
+    (async () => {
+      const results: CompareStock[] = [];
+      for (const code of displayCodesKey.split(',').filter(Boolean)) {
+        try {
+          const detail = await getStockDetail(code);
+          results.push({ code: detail.code, name: detail.name });
+        } catch {
+          // 조회 실패한 종목은 목록에서 제외
+        }
+      }
+      if (!ignore) setActiveCompareStocks(results);
+    })();
 
     return () => {
       ignore = true;
@@ -171,15 +177,23 @@ export function Compare() {
     const { interval, points } = PERIOD_CONFIG[activePeriod];
 
     let ignore = false;
-    Promise.all(
-        activeCompareStocks.map(stock =>
-            getStockChart(stock.code, interval)
-                .then(candles => ({ stock, candles: sliceRecent(candles, points) }))
-                .catch(() => ({ stock, candles: [] as ChartCandleResponse[] })),
-        ),
-    ).then(series => {
+
+    // 비교 종목이 늘어날수록 차트 API를 동시에 여러 건 호출하게 되는데, KIS 쪽이 짧은 시간에
+    // 몰린 요청 일부를 실패시켜서(500) 일부 종목 라인이 누락되는 문제가 있었다.
+    // 병렬 호출 대신 순차 호출로 바꿔서 항상 선택한 종목 수만큼 라인이 그려지도록 한다.
+    (async () => {
+      const series: { stock: CompareStock; candles: ChartCandleResponse[] }[] = [];
+      for (const stock of activeCompareStocks) {
+        try {
+          const candles = await getStockChart(stock.code, interval);
+          series.push({ stock, candles: sliceRecent(candles, points) });
+        } catch {
+          series.push({ stock, candles: [] });
+        }
+      }
       if (!ignore) setChartRows(toReturnRows(series));
-    });
+    })();
+
     return () => {
       ignore = true;
     };
@@ -217,8 +231,8 @@ export function Compare() {
         <CardContent className="p-6 space-y-6">
           {/* Controls */}
           <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto md:flex-1 md:min-w-0">
+              <div className="relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636C7D]" />
                 <Input 
                   placeholder="종목 추가 검색..." 
@@ -283,14 +297,14 @@ export function Compare() {
               </div>
             </div>
 
-            <div className="flex bg-bg-main p-1 rounded-[16px] border border-border-color self-end md:self-auto">
+            <div className="flex shrink-0 bg-bg-main p-1 rounded-[16px] border border-border-color self-end md:self-auto">
               {['1개월', '3개월', '6개월', '1년'].map(t => (
-                <button 
+                <button
                   key={t}
                   onClick={() => setActivePeriod(t)}
                   className={cn(
-                    "px-3 py-1.5 text-sm font-semibold rounded-[12px] transition-colors",
-                    activePeriod === t 
+                    "px-3 py-1.5 text-sm font-semibold rounded-[12px] transition-colors whitespace-nowrap",
+                    activePeriod === t
                       ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-brand border border-border-color/50" 
                       : "text-text-secondary hover:text-text-primary border border-transparent"
                   )}
