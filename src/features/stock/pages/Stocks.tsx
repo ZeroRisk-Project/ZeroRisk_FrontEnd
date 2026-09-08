@@ -193,36 +193,23 @@ export function Stocks() {
   };
 
   const getFilteredAndSortedStocks = () => {
-    const isServerRanked = rankingStocks !== null;
-    let list: StockListItem[] = isServerRanked ? [...rankingStocks] : [...STOCKS_DATA];
+    let list: StockListItem[] = isSearching ? [...searchStocksList] : [...rankingStocks];
 
-    // 1. Search Query filtering
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      list = list.filter((s) => s.name.toLowerCase().includes(query) || s.code.includes(query));
-    }
-
-    // 2. Sub-filter (보통주 / 우선주)
+    // 1. Sub-filter (보통주 / 우선주)
     if (activeFilter === "보통주") {
       list = list.filter((s) => !s.name.endsWith("우"));
     } else if (activeFilter === "우선주") {
       list = list.filter((s) => s.name.endsWith("우"));
     }
 
-    // 서버 랭킹 응답은 이미 서버가 정한 순서를 따르므로 탭 기준 정렬을 건너뛴다
-    if (isServerRanked) {
+    // 검색 결과와 서버 랭킹(거래량/급상승/급하락)은 서버가 정한 순서를 그대로 따른다
+    if (isSearching || RANKING_TYPE_BY_TAB[activeTab]) {
       return list;
     }
 
-    // 3. Tab-based sorting/filtering
-    if (activeTab === "거래량") {
-      list.sort((a, b) => parseVolume(b.volume) - parseVolume(a.volume));
-    } else if (activeTab === "거래대금") {
-      list.sort((a, b) => (b.price * parseVolume(b.volume)) - (a.price * parseVolume(a.volume)));
-    } else if (activeTab === "급상승") {
-      list.sort((a, b) => b.change - a.change);
-    } else if (activeTab === "급하락") {
-      list.sort((a, b) => a.change - b.change);
+    // 2. 전용 랭킹 API가 없는 탭은 거래량 랭킹 응답을 기준으로 클라이언트에서 정렬한다
+    if (activeTab === "거래대금") {
+      list.sort((a, b) => (b.price ?? 0) * parseVolume(b.volume) - (a.price ?? 0) * parseVolume(a.volume));
     } else if (activeTab === "인기") {
       list.sort((a, b) => {
         const aFav = isFav(a.code) ? 1 : 0;
