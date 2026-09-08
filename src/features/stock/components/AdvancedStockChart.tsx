@@ -34,7 +34,6 @@ export function AdvancedStockChart({
     rsi: !hideControlsAndIndicators,
     macd: !hideControlsAndIndicators,
   });
-  const [timeUnit, setTimeUnit] = useState("일");
   const [hoverIndex, setHoverIndex] = useState<number | null>(15);
 
   const toggleIndicator = (key: keyof typeof activeIndicators) => {
