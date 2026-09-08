@@ -23,7 +23,6 @@ export function Community() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("자유게시판");
   const [searchQuery, setSearchQuery] = useState("");
-  const [likedProfits, setLikedProfits] = useState<Record<number, boolean>>({});
 
   // 공지(NOTICE)와 일반 자유글(FREE)을 따로 조회해서 공지를 목록 상단에 얹는 구조 -
   // 두 응답이 한 세트로 같이 갱신돼야 해서 하나의 쿼리로 묶었다. 자유게시판 탭일 때만 조회.
@@ -78,7 +77,7 @@ export function Community() {
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end border-b border-border-color pb-2 gap-4">
         <div className="flex gap-6">
-          {["자유게시판", "종목게시판", "수익률인증"].map((tab) => (
+          {["자유게시판", "종목게시판"].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -344,165 +343,6 @@ export function Community() {
                 </div>
               </CardContent>
             </Card>
-          )}
-
-          {activeTab === "수익률인증" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="font-bold flex items-center gap-2">
-                  수익률인증
-                </h3>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <div className="relative w-full sm:w-auto">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#636C7D]" />
-                    <Input
-                      placeholder="제목 또는 내용 검색"
-                      className="w-full sm:w-[200px] h-9 text-sm pl-9"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Link to="/community/write">
-                    <Button className="shrink-0 rounded-[16px] px-6 bg-brand text-white border-transparent hover:bg-brand/90 h-9 text-sm font-bold cursor-pointer">
-                      글쓰기
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  {
-                    id: 10,
-                    title: "이번주 단타 수익입니다",
-                    author: "테슬람",
-                    level: "Lv.5",
-                    time: "1시간 전",
-                    profit: "+450,000원",
-                    profitRate: "+12.5%",
-                    views: 312,
-                    likes: 45,
-                  },
-                  {
-                    id: 11,
-                    title: "엔비디아 2년 장투 결국 익절",
-                    author: "존버는승리",
-                    level: "Lv.8",
-                    time: "3시간 전",
-                    profit: "+12,450,000원",
-                    profitRate: "+340.2%",
-                    views: 1205,
-                    likes: 312,
-                  },
-                  {
-                    id: 12,
-                    title: "하락장 숏으로 먹었습니다",
-                    author: "하락장전문의",
-                    level: "Lv.4",
-                    time: "4시간 전",
-                    profit: "+1,200,000원",
-                    profitRate: "+8.4%",
-                    views: 245,
-                    likes: 12,
-                  },
-                  {
-                    id: 13,
-                    title: "첫 주식 한달 수익 인증",
-                    author: "주린이",
-                    level: "Lv.2",
-                    time: "12시간 전",
-                    profit: "+34,000원",
-                    profitRate: "+3.2%",
-                    views: 89,
-                    likes: 5,
-                  },
-                  {
-                    id: 14,
-                    title: "단타로 치다가 물렸는데 본절 탈출",
-                    author: "손실은안봐",
-                    level: "Lv.3",
-                    time: "1일 전",
-                    profit: "+1,200원",
-                    profitRate: "+0.1%",
-                    views: 156,
-                    likes: 2,
-                  },
-                  {
-                    id: 15,
-                    title: "애플 꼴도 보기 싫어서 팔았습니다",
-                    author: "사과농장주인",
-                    level: "Lv.6",
-                    time: "2일 전",
-                    profit: "+2,150,000원",
-                    profitRate: "+45.8%",
-                    views: 3410,
-                    likes: 156,
-                  },
-                ].map((post) => (
-                  <div
-                    key={post.id}
-                    className="group cursor-default flex flex-col"
-                  >
-                    {/* 수익 부분 (가운데 정렬) - 정사각형, radius 없음, 테두리 없음 */}
-                    <div className="aspect-square flex flex-col justify-center items-center bg-bg-main mb-3 transition-colors">
-                      <div className="text-lg sm:text-xl font-bold text-up mb-2 tracking-tight">
-                        {post.profit}
-                      </div>
-                      <Badge className="bg-up/10 text-up border-transparent px-2 font-bold">
-                        {post.profitRate}
-                      </Badge>
-                    </div>
-
-                    {/* 텍스트 정보 부분 (하단) */}
-                    <div className="flex flex-col gap-1">
-                      <h3 className="font-bold text-sm line-clamp-1 text-text-primary">
-                        {post.title}
-                      </h3>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        <Link
-                          to={`/users/${encodeURIComponent(post.author)}`}
-                          className="text-xs font-bold text-text-secondary hover:underline transition-colors cursor-pointer"
-                        >
-                          {post.author}
-                        </Link>
-                        <Badge className="bg-text-secondary/10 text-text-secondary py-0 text-[10px] h-4 px-1 border-transparent font-bold">
-                          {post.level}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center justify-between mt-1">
-                        <div className="flex items-center gap-2 text-[11px] text-text-secondary">
-                          <span>{post.time}</span>
-                        </div>
-                        <button
-                          className={cn(
-                            "flex items-center gap-1 transition-colors shrink-0",
-                            likedProfits[post.id]
-                              ? "text-up"
-                              : "text-text-secondary",
-                          )}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            setLikedProfits((prev) => ({
-                              ...prev,
-                              [post.id]: !prev[post.id],
-                            }));
-                          }}
-                        >
-                          <ThumbsUp
-                            className={cn(
-                              "w-5 h-5",
-                              likedProfits[post.id] ? "fill-current" : "",
-                            )}
-                          />
-                          <span className="text-[11px] font-medium min-w-[20px] text-center w-full flex justify-center">
-                            {post.likes + (likedProfits[post.id] ? 1 : 0)}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           )}
         </div>
 

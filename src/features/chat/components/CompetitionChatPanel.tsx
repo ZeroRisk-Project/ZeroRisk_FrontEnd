@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Send, ImagePlus, X } from "lucide-react";
 import { Input } from "@/src/shared/components/ui/Input";
 import { Button } from "@/src/shared/components/ui/Button";
-import { cn } from "@/src/shared/lib/utils";
+import { cn, toImageSrc } from "@/src/shared/lib/utils";
 import { uploadImage } from "@/src/features/community/api/posts";
 import { useChatMessages } from "@/src/features/chat/lib/useChatMessages";
 import { useChatSocket } from "@/src/features/chat/lib/useChatSocket";
@@ -92,9 +92,9 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
                   )}
                 >
                   {msg.imageUrl && (
-                    <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                    <a href={toImageSrc(msg.imageUrl)} target="_blank" rel="noopener noreferrer">
                       <img
-                        src={msg.imageUrl}
+                        src={toImageSrc(msg.imageUrl)}
                         alt="첨부 이미지"
                         className="max-w-full rounded-[12px]"
                       />
@@ -121,7 +121,7 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
           <div className="space-y-2">
             {pendingImageUrl && (
               <div className="relative w-16 h-16 rounded-[12px] overflow-hidden border border-border-color">
-                <img src={pendingImageUrl} alt="첨부 예정 이미지" className="w-full h-full object-cover" />
+                <img src={toImageSrc(pendingImageUrl)} alt="첨부 예정 이미지" className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => setPendingImageUrl(null)}

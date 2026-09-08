@@ -5,7 +5,7 @@ import { Button } from '@/src/shared/components/ui/Button';
 import { Badge } from '@/src/shared/components/ui/Badge';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, User, ThumbsUp, ThumbsDown, MessageSquare, AlertCircle } from 'lucide-react';
-import { cn } from '@/src/shared/lib/utils';
+import { cn, toImageSrc } from '@/src/shared/lib/utils';
 import { getPost, updatePost, deletePost, votePost, PostResponse } from '@/src/features/community/api/posts';
 import {
   getComments,
@@ -409,9 +409,9 @@ export function CommunityPost() {
             {!isEditingPost && post.imageUrls && post.imageUrls.length > 0 && (
               <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {post.imageUrls.map((url, index) => (
-                  <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                  <a key={url} href={toImageSrc(url)} target="_blank" rel="noopener noreferrer">
                     <img
-                      src={url}
+                      src={toImageSrc(url)}
                       alt={`첨부 이미지 ${index + 1}`}
                       className="w-full aspect-square object-cover rounded-[12px] border border-border-color hover:opacity-90 transition-opacity"
                     />
