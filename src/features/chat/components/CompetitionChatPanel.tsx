@@ -1,9 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Send } from "lucide-react";
+import { Send, ImagePlus, X } from "lucide-react";
 import { Input } from "@/src/shared/components/ui/Input";
 import { Button } from "@/src/shared/components/ui/Button";
 import { cn } from "@/src/shared/lib/utils";
+import { uploadImage } from "@/src/features/community/api/posts";
 import { useChatMessages } from "@/src/features/chat/lib/useChatMessages";
 import { useChatSocket } from "@/src/features/chat/lib/useChatSocket";
 
@@ -14,7 +15,10 @@ interface CompetitionChatPanelProps {
 
 export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionChatPanelProps) {
   const [message, setMessage] = useState("");
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatFileInputRef = useRef<HTMLInputElement>(null);
 
   const channelId = String(competitionId);
   const historyQuery = useChatMessages("COMPETITION", channelId);
@@ -28,9 +32,27 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
   }, [allMessages.length]);
 
   const handleSend = () => {
-    if (!message.trim()) return;
-    sendMessage(message);
+    if (!message.trim() && !pendingImageUrl) return;
+    sendMessage(message, pendingImageUrl);
     setMessage("");
+    setPendingImageUrl(null);
+  };
+
+  const handleChatImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    try {
+      const url = await uploadImage(file);
+      setPendingImageUrl(url);
+    } catch (error) {
+      console.error("이미지 업로드 실패", error);
+      alert("이미지 업로드에 실패했습니다.");
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
   };
 
   return (
@@ -62,13 +84,25 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
                 )}
                 <div
                   className={cn(
-                    "px-4 py-2 rounded-[16px] text-sm max-w-[220px] break-words shadow-[0_1px_2px_rgba(0,0,0,0.05)]",
+                    "rounded-[16px] max-w-[220px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] overflow-hidden",
                     isMe
                       ? "bg-brand text-white rounded-br-sm"
                       : "bg-surface border border-border-color rounded-bl-sm",
+                    msg.imageUrl ? "p-1" : "px-4 py-2 text-sm break-words",
                   )}
                 >
-                  {msg.message}
+                  {msg.imageUrl && (
+                    <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={msg.imageUrl}
+                        alt="첨부 이미지"
+                        className="max-w-full rounded-[12px]"
+                      />
+                    </a>
+                  )}
+                  {msg.message && (
+                    <span className={cn(msg.imageUrl && "block px-3 py-2 text-sm")}>{msg.message}</span>
+                  )}
                 </div>
                 {!isMe && (
                   <span className="text-[10px] text-text-secondary">{time}</span>
@@ -84,27 +118,58 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
         {disconnectReason ? (
           <p className="text-center text-sm text-down py-2 font-medium">{disconnectReason}</p>
         ) : (
-          <div className="flex items-center relative">
-            <Input
-              className="pr-12 bg-bg-main border-border-color focus-visible:ring-brand shadow-sm rounded-[16px] py-6"
-              placeholder={connected ? "메시지 입력..." : "연결 중..."}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  handleSend();
-                }
-              }}
-              disabled={!connected}
-            />
-            <Button
-              size="icon"
-              onClick={handleSend}
-              disabled={!connected}
-              className="absolute right-1.5 top-1.5 bottom-1.5 w-9 h-9 rounded-[12px] bg-brand text-white border-transparent hover:bg-brand/90"
-            >
-              <Send className="w-4 h-4 ml-[-2px]" />
-            </Button>
+          <div className="space-y-2">
+            {pendingImageUrl && (
+              <div className="relative w-16 h-16 rounded-[12px] overflow-hidden border border-border-color">
+                <img src={pendingImageUrl} alt="첨부 예정 이미지" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPendingImageUrl(null)}
+                  className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 text-white flex items-center justify-center cursor-pointer"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            )}
+            <div className="flex items-center gap-2 relative">
+              <button
+                type="button"
+                onClick={() => chatFileInputRef.current?.click()}
+                disabled={!connected || uploadingImage || !!pendingImageUrl}
+                className="shrink-0 w-9 h-9 rounded-[12px] border border-border-color flex items-center justify-center text-text-secondary hover:bg-bg-main transition disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <ImagePlus className="w-4 h-4" />
+              </button>
+              <input
+                ref={chatFileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                onChange={handleChatImageSelect}
+              />
+              <div className="flex-1 relative">
+                <Input
+                  className="pr-12 bg-bg-main border-border-color focus-visible:ring-brand shadow-sm rounded-[16px] py-6"
+                  placeholder={connected ? "메시지 입력..." : "연결 중..."}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSend();
+                    }
+                  }}
+                  disabled={!connected}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSend}
+                  disabled={!connected}
+                  className="absolute right-1.5 top-1.5 bottom-1.5 w-9 h-9 rounded-[12px] bg-brand text-white border-transparent hover:bg-brand/90"
+                >
+                  <Send className="w-4 h-4 ml-[-2px]" />
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </div>

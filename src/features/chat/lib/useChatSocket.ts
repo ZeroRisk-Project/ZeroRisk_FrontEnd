@@ -63,14 +63,20 @@ export function useChatSocket(channelType: ChatChannelType, channelId: string) {
     }, [channelType, channelId]);
 
     const sendMessage = useCallback(
-        (text: string) => {
-            if (!clientRef.current?.connected || !text.trim()) {
+        (text: string, imageUrl?: string | null) => {
+            const hasText = text.trim().length > 0;
+            const hasImage = !!imageUrl;
+
+            if (!clientRef.current?.connected || (!hasText && !hasImage)) {
                 return;
             }
 
             clientRef.current.publish({
                 destination: `/app/chat/${channelType}/${channelId}`,
-                body: JSON.stringify({ message: text }),
+                body: JSON.stringify({
+                    message: hasText ? text : null,
+                    imageUrl: hasImage ? imageUrl : null,
+                }),
             });
         },
         [channelType, channelId],
