@@ -162,14 +162,28 @@ export function Stocks() {
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
 
-  const rankingType = RANKING_TYPE_BY_TAB[activeTab];
+  const rankingType = RANKING_TYPE_BY_TAB[activeTab] ?? "VOLUME";
   const rankingsQuery = useQuery({
     queryKey: ["stocks", "rankings", rankingType],
-    queryFn: () => getStockRankings(rankingType as RankingType),
-    enabled: !!rankingType,
+    queryFn: () => getStockRankings(rankingType),
     retry: false,
   });
-  const rankingStocks = rankingType && rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : null;
+  const rankingStocks = rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : [];
+
+  const [searchKeyword, setSearchKeyword] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchKeyword(searchQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const searchResultsQuery = useQuery({
+    queryKey: ["stocks", "search", searchKeyword],
+    queryFn: () => searchStocks(searchKeyword, 30),
+    enabled: searchKeyword.length > 0,
+    retry: false,
+  });
+  const isSearching = searchKeyword.length > 0;
+  const searchStocksList = searchResultsQuery.data ? searchResultsQuery.data.map(toSearchListItem) : [];
 
   const parseVolume = (vol: string): number => {
     const num = parseFloat(vol);
