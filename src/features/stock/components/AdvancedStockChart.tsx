@@ -2,17 +2,29 @@ import React, { useState } from "react";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { cn } from "@/src/shared/lib/utils";
 import type { ChartPoint } from "@/src/features/stock/lib/indicators";
+import type { ChartInterval } from "@/src/features/stock/api/stock";
+
+export const CHART_TIME_UNITS: { label: string; interval: ChartInterval }[] = [
+  { label: "분", interval: "MINUTE" },
+  { label: "일", interval: "DAY" },
+  { label: "주", interval: "WEEK" },
+  { label: "월", interval: "MONTH" },
+];
 
 export function AdvancedStockChart({
   hideControlsAndIndicators = false,
   noCardStyle = false,
   candles,
   avgPrice,
+  interval = "DAY",
+  onIntervalChange,
 }: {
   hideControlsAndIndicators?: boolean;
   noCardStyle?: boolean;
   candles?: ChartPoint[];
   avgPrice?: number | null;
+  interval?: ChartInterval;
+  onIntervalChange?: (interval: ChartInterval) => void;
 }) {
   const CHART_DATA = candles ?? [];
 
@@ -22,7 +34,6 @@ export function AdvancedStockChart({
     rsi: !hideControlsAndIndicators,
     macd: !hideControlsAndIndicators,
   });
-  const [timeUnit, setTimeUnit] = useState("일");
   const [hoverIndex, setHoverIndex] = useState<number | null>(15);
 
   const toggleIndicator = (key: keyof typeof activeIndicators) => {
@@ -100,18 +111,18 @@ export function AdvancedStockChart({
               ))}
             </div>
             <div className="flex gap-4">
-              {["분", "일", "주", "월"].map((t) => (
+              {CHART_TIME_UNITS.map((unit) => (
                 <button
-                  key={t}
-                  onClick={() => setTimeUnit(t)}
+                  key={unit.interval}
+                  onClick={() => onIntervalChange?.(unit.interval)}
                   className={cn(
                     "pb-1 text-sm transition-colors font-medium relative border-b-2",
-                    timeUnit === t
+                    interval === unit.interval
                       ? "text-[#636C7D] border-[#636C7D] font-bold"
                       : "text-text-secondary border-transparent hover:text-text-primary",
                   )}
                 >
-                  {t}
+                  {unit.label}
                 </button>
               ))}
             </div>

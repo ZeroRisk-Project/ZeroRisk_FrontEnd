@@ -22,6 +22,7 @@ import {
   getStockDetail,
   getStockRankings,
   searchStocks,
+  type ChartInterval,
   type RankingType,
   type StockRankingResponse,
   type StockSummaryResponse,
@@ -133,6 +134,8 @@ export function Stocks() {
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
   const [limitPrice, setLimitPrice] = useState("");
 
+  const [chartInterval, setChartInterval] = useState<ChartInterval>("DAY");
+
   const [alertDirection, setAlertDirection] = useState<PriceAlertDirection>("ABOVE");
   const [alertPrice, setAlertPrice] = useState("");
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
@@ -231,8 +234,8 @@ export function Stocks() {
   const stockDetail = stockDetailQuery.data ?? null;
 
   const stockChartQuery = useQuery({
-    queryKey: ["stocks", "chart", code],
-    queryFn: () => getStockChart(code as string, "DAY"),
+    queryKey: ["stocks", "chart", code, chartInterval],
+    queryFn: () => getStockChart(code as string, chartInterval),
     enabled: !!code,
     retry: false,
   });
@@ -590,7 +593,13 @@ export function Stocks() {
 
                     {/* Chart Area */}
                     <div>
-                      <AdvancedStockChart noCardStyle={true} candles={chartPoints} avgPrice={myAvgPrice} />
+                      <AdvancedStockChart
+                        noCardStyle={true}
+                        candles={chartPoints}
+                        avgPrice={myAvgPrice}
+                        interval={chartInterval}
+                        onIntervalChange={setChartInterval}
+                      />
                     </div>
 
                     {/* Section F: 52-Week High/Low Bar */}
