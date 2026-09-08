@@ -30,6 +30,7 @@ import { useStockPriceSocket } from "@/src/features/stock/lib/useStockPriceSocke
 import { getAccounts } from "@/src/features/account/api/account";
 import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import { createOrder } from "@/src/features/order/api/order";
+import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
   createPriceAlert,
   type PriceAlertDirection,
