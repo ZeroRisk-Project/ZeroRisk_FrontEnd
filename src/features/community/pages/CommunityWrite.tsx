@@ -4,6 +4,7 @@ import { Button } from '@/src/shared/components/ui/Button';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Edit2, ImagePlus, X } from 'lucide-react';
 import { createPost, uploadImage } from '@/src/features/community/api/posts';
+import { toImageSrc } from '@/src/shared/lib/utils';
 
 const MAX_IMAGES = 4;
 
@@ -158,7 +159,7 @@ export function CommunityWrite() {
                 <div className="flex flex-wrap gap-2">
                   {imageUrls.map((url, index) => (
                     <div key={url} className="relative w-20 h-20 rounded-[12px] overflow-hidden border border-border-color group">
-                      <img src={url} alt={`첨부 이미지 ${index + 1}`} className="w-full h-full object-cover" />
+                      <img src={toImageSrc(url)} alt={`첨부 이미지 ${index + 1}`} className="w-full h-full object-cover" />
                       <button
                         type="button"
                         onClick={() => handleRemoveImage(index)}

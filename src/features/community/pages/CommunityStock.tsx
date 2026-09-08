@@ -18,7 +18,7 @@ import {
   ImagePlus,
   X,
 } from "lucide-react";
-import { cn, formatPrice, formatPercent } from "@/src/shared/lib/utils";
+import { cn, formatPrice, formatPercent, toImageSrc } from "@/src/shared/lib/utils";
 import api from "@/src/shared/lib/api";
 import { useChatMessages } from "@/src/features/chat/lib/useChatMessages";
 import { useChatSocket } from "@/src/features/chat/lib/useChatSocket";
@@ -395,9 +395,9 @@ export function CommunityStock() {
                         )}
                       >
                         {msg.imageUrl && (
-                          <a href={msg.imageUrl} target="_blank" rel="noopener noreferrer">
+                          <a href={toImageSrc(msg.imageUrl)} target="_blank" rel="noopener noreferrer">
                             <img
-                              src={msg.imageUrl}
+                              src={toImageSrc(msg.imageUrl)}
                               alt="첨부 이미지"
                               className="max-w-full rounded-[12px]"
                             />
@@ -427,7 +427,7 @@ export function CommunityStock() {
                   {pendingImageUrl && (
                     <div className="relative inline-block">
                       <img
-                        src={pendingImageUrl}
+                        src={toImageSrc(pendingImageUrl)}
                         alt="첨부 예정 이미지"
                         className="w-16 h-16 rounded-[10px] object-cover border border-border-color"
                       />
