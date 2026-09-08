@@ -406,6 +406,20 @@ export function CommunityPost() {
               <p className="whitespace-pre-wrap leading-relaxed">{post.content}</p>
             )}
 
+            {!isEditingPost && post.imageUrls && post.imageUrls.length > 0 && (
+              <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {post.imageUrls.map((url, index) => (
+                  <a key={url} href={url} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={url}
+                      alt={`첨부 이미지 ${index + 1}`}
+                      className="w-full aspect-square object-cover rounded-[12px] border border-border-color hover:opacity-90 transition-opacity"
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
+
             <div className="mt-12 flex justify-center gap-4">
               <Button
                 variant="outline"

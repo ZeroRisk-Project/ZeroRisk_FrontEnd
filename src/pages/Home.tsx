@@ -86,8 +86,7 @@ export function Home() {
     return `${Math.floor(diffMinutes / 1440)}일 전`;
   };
 
-  const boardLabel = (post: { boardType: string; isProfitCert: boolean }) => {
-    if (post.isProfitCert) return "수익률 인증";
+  const boardLabel = (post: { boardType: string }) => {
     if (post.boardType === "STOCK") return "종목게시판";
     return "자유게시판";
   };
