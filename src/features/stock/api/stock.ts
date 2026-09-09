@@ -2,7 +2,7 @@ import api from '@/src/shared/lib/api';
 
 export type Market = 'KOSPI' | 'KOSDAQ';
 
-export type RankingType = 'VOLUME' | 'RISE' | 'FALL';
+export type RankingType = 'VOLUME' | 'RISE' | 'FALL' | 'TRADING_VALUE' | 'POPULAR';
 
 export type ChartInterval = 'DAY' | 'WEEK' | 'MONTH' | 'MINUTE';
 
@@ -24,6 +24,14 @@ export interface StockRankingResponse {
     changeAmount: number;
     changeRate: number;
     volume: number;
+    preferred: boolean;
+}
+
+export interface MarketIndexResponse {
+    market: Market;
+    value: number;
+    changeAmount: number;
+    changeRate: number;
 }
 
 export interface ChartCandleResponse {
@@ -40,6 +48,7 @@ export interface StockSummaryResponse {
     code: string;
     name: string;
     market: Market;
+    preferred: boolean;
 }
 
 export async function searchStocks(keyword: string, size = 10): Promise<StockSummaryResponse[]> {
@@ -56,6 +65,11 @@ export async function getStockDetail(code: string): Promise<StockDetailResponse>
 
 export async function getStockRankings(type: RankingType, count = 20): Promise<StockRankingResponse[]> {
     const response = await api.get<StockRankingResponse[]>('/stocks/rankings', { params: { type, count } });
+    return response.data;
+}
+
+export async function getMarketIndices(): Promise<MarketIndexResponse[]> {
+    const response = await api.get<MarketIndexResponse[]>('/stocks/indices');
     return response.data;
 }
 

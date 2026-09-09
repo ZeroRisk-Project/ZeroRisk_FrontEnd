@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getPopularPosts } from "@/src/features/community/api/posts";
-import { getStockRankings } from "@/src/features/stock/api/stock";
+import { getMarketIndices, getStockRankings } from "@/src/features/stock/api/stock";
 import {
   Card,
   CardHeader,
@@ -24,36 +24,14 @@ import { Badge } from "@/src/shared/components/ui/Badge";
 import api from "@/src/shared/lib/api";
 
 export function Home() {
-  const [kospi, setKospi] = useState({ value: 2682.43, diff: 31.55, percent: 1.19 });
-  const [kosdaq, setKosdaq] = useState({ value: 858.75, diff: -4.12, percent: -0.48 });
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setKospi((prev) => {
-        const change = (Math.random() - 0.5) * 0.4;
-        const newValue = prev.value + change;
-        const newDiff = prev.diff + change;
-        const newPercent = (newDiff / (2682.43 - 31.55)) * 100;
-        return {
-          value: Number(newValue.toFixed(2)),
-          diff: Number(newDiff.toFixed(2)),
-          percent: Number(newPercent.toFixed(2)),
-        };
-      });
-      setKosdaq((prev) => {
-        const change = (Math.random() - 0.5) * 0.15;
-        const newValue = prev.value + change;
-        const newDiff = prev.diff + change;
-        const newPercent = (newDiff / (858.75 - (-4.12))) * 100;
-        return {
-          value: Number(newValue.toFixed(2)),
-          diff: Number(newDiff.toFixed(2)),
-          percent: Number(newPercent.toFixed(2)),
-        };
-      });
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data: marketIndices = [] } = useQuery({
+    queryKey: ["stocks", "indices"],
+    queryFn: () => getMarketIndices(),
+    retry: false,
+    refetchInterval: 15000,
+  });
+  const kospi = marketIndices.find((index) => index.market === "KOSPI") ?? null;
+  const kosdaq = marketIndices.find((index) => index.market === "KOSDAQ") ?? null;
 
   const { data: popularStocks = [] } = useQuery({
     queryKey: ["stocks", "rankings", "VOLUME"],
@@ -151,12 +129,18 @@ export function Home() {
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[14px] font-bold text-slate-500">KOSDAQ 코스닥</span>
               </div>
-              <div className="text-[34px] font-extrabold text-slate-900 mb-1 tabular-nums tracking-tight">
-                {kosdaq.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div className={`text-[15px] font-bold tracking-tight ${kosdaq.diff >= 0 ? 'text-up' : 'text-down'}`}>
-                {kosdaq.diff >= 0 ? "▲" : "▼"} {kosdaq.diff >= 0 ? "+" : ""}{kosdaq.diff.toFixed(2)} ({kosdaq.percent >= 0 ? "+" : ""}{kosdaq.percent.toFixed(2)}%)
-              </div>
+              {kosdaq ? (
+                <>
+                  <div className="text-[34px] font-extrabold text-slate-900 mb-1 tabular-nums tracking-tight">
+                    {kosdaq.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[15px] font-bold tracking-tight ${kosdaq.changeAmount >= 0 ? 'text-up' : 'text-down'}`}>
+                    {kosdaq.changeAmount >= 0 ? "▲" : "▼"} {kosdaq.changeAmount >= 0 ? "+" : ""}{kosdaq.changeAmount.toFixed(2)} ({kosdaq.changeRate >= 0 ? "+" : ""}{kosdaq.changeRate.toFixed(2)}%)
+                  </div>
+                </>
+              ) : (
+                <div className="text-[15px] font-bold text-slate-400">시세 조회 중...</div>
+              )}
             </div>
 
             {/* KOSPI Card */}
@@ -164,12 +148,18 @@ export function Home() {
               <div className="flex justify-between items-start mb-2">
                 <span className="text-[14px] font-bold text-slate-500">KOSPI 코스피</span>
               </div>
-              <div className="text-[34px] font-extrabold text-slate-900 mb-1 tabular-nums tracking-tight">
-                {kospi.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div className={`text-[15px] font-bold tracking-tight ${kospi.diff >= 0 ? 'text-up' : 'text-down'}`}>
-                {kospi.diff >= 0 ? "▲" : "▼"} {kospi.diff >= 0 ? "+" : ""}{kospi.diff.toFixed(2)} ({kospi.percent >= 0 ? "+" : ""}{kospi.percent.toFixed(2)}%)
-              </div>
+              {kospi ? (
+                <>
+                  <div className="text-[34px] font-extrabold text-slate-900 mb-1 tabular-nums tracking-tight">
+                    {kospi.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className={`text-[15px] font-bold tracking-tight ${kospi.changeAmount >= 0 ? 'text-up' : 'text-down'}`}>
+                    {kospi.changeAmount >= 0 ? "▲" : "▼"} {kospi.changeAmount >= 0 ? "+" : ""}{kospi.changeAmount.toFixed(2)} ({kospi.changeRate >= 0 ? "+" : ""}{kospi.changeRate.toFixed(2)}%)
+                  </div>
+                </>
+              ) : (
+                <div className="text-[15px] font-bold text-slate-400">시세 조회 중...</div>
+              )}
             </div>
 
           </div>
