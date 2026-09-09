@@ -45,13 +45,16 @@ export interface StockListItem {
   price: number | null;
   change: number | null;
   volume: string;
+  preferred: boolean;
   isFav?: boolean;
 }
 
 const RANKING_TYPE_BY_TAB: Record<string, RankingType> = {
   거래량: "VOLUME",
+  거래대금: "TRADING_VALUE",
   급상승: "RISE",
   급하락: "FALL",
+  인기: "POPULAR",
 };
 
 const formatVolume = (volume: number): string => {
@@ -81,6 +84,7 @@ const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
   price: ranking.currentPrice,
   change: ranking.changeRate,
   volume: formatVolume(ranking.volume),
+  preferred: ranking.preferred,
 });
 
 const toSearchListItem = (summary: StockSummaryResponse): StockListItem => ({
@@ -89,6 +93,7 @@ const toSearchListItem = (summary: StockSummaryResponse): StockListItem => ({
   price: null,
   change: null,
   volume: "-",
+  preferred: summary.preferred,
 });
 
 export function Stocks() {
@@ -165,13 +170,33 @@ export function Stocks() {
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
 
-  const rankingType = RANKING_TYPE_BY_TAB[activeTab] ?? "VOLUME";
+  // "전체보기"는 전용 랭킹이 없는 탭이라 활성화하지 않는다 - 서버 랭킹 대신 종목 검색 API를
+  // 빈 키워드로 호출해 실제 전체 종목 목록을 사용한다(아래 allStocksQuery).
+  const rankingType = RANKING_TYPE_BY_TAB[activeTab];
   const rankingsQuery = useQuery({
     queryKey: ["stocks", "rankings", rankingType],
-    queryFn: () => getStockRankings(rankingType, 100),
+    queryFn: () => getStockRankings(rankingType as RankingType, 100),
+    enabled: rankingType !== undefined,
     retry: false,
   });
   const rankingStocks = rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : [];
+
+  const allStocksQuery = useQuery({
+    queryKey: ["stocks", "all"],
+    queryFn: () => searchStocks("", 100),
+    enabled: activeTab === "전체보기",
+    retry: false,
+  });
+  const allStocksList = allStocksQuery.data ? allStocksQuery.data.map(toSearchListItem) : [];
+
+  // 종목 상세의 "거래량" 표시는 현재 선택된 탭과 무관하게 항상 거래량 랭킹을 기준으로 삼는다
+  // (다른 탭을 보고 있어도 상세 화면의 거래량 표시가 계속 나오도록).
+  const volumeLookupQuery = useQuery({
+    queryKey: ["stocks", "rankings", "VOLUME"],
+    queryFn: () => getStockRankings("VOLUME", 100),
+    retry: false,
+  });
+  const volumeLookupStocks = volumeLookupQuery.data ? volumeLookupQuery.data.map(toStockListItem) : [];
 
   const [searchKeyword, setSearchKeyword] = useState("");
   useEffect(() => {
@@ -188,38 +213,21 @@ export function Stocks() {
   const isSearching = searchKeyword.length > 0;
   const searchStocksList = searchResultsQuery.data ? searchResultsQuery.data.map(toSearchListItem) : [];
 
-  const parseVolume = (vol: string): number => {
-    const num = parseFloat(vol);
-    if (vol.endsWith("M")) return num * 1000000;
-    if (vol.endsWith("K")) return num * 1000;
-    return num;
-  };
-
   const getFilteredAndSortedStocks = () => {
-    let list: StockListItem[] = isSearching ? [...searchStocksList] : [...rankingStocks];
+    let list: StockListItem[];
+    if (isSearching) {
+      list = [...searchStocksList];
+    } else if (activeTab === "전체보기") {
+      list = [...allStocksList];
+    } else {
+      list = [...rankingStocks];
+    }
 
-    // 1. Sub-filter (보통주 / 우선주)
+    // Sub-filter (보통주 / 우선주) - 서버가 종목코드로 판별해 내려주는 값을 그대로 쓴다
     if (activeFilter === "보통주") {
-      list = list.filter((s) => !s.name.endsWith("우"));
+      list = list.filter((s) => !s.preferred);
     } else if (activeFilter === "우선주") {
-      list = list.filter((s) => s.name.endsWith("우"));
-    }
-
-    // 검색 결과와 서버 랭킹(거래량/급상승/급하락)은 서버가 정한 순서를 그대로 따른다
-    if (isSearching || RANKING_TYPE_BY_TAB[activeTab]) {
-      return list;
-    }
-
-    // 2. 전용 랭킹 API가 없는 탭은 거래량 랭킹 응답을 기준으로 클라이언트에서 정렬한다
-    if (activeTab === "거래대금") {
-      list.sort((a, b) => (b.price ?? 0) * parseVolume(b.volume) - (a.price ?? 0) * parseVolume(a.volume));
-    } else if (activeTab === "인기") {
-      list.sort((a, b) => {
-        const aFav = isFav(a.code) ? 1 : 0;
-        const bFav = isFav(b.code) ? 1 : 0;
-        if (aFav !== bFav) return bFav - aFav;
-        return parseVolume(b.volume) - parseVolume(a.volume);
-      });
+      list = list.filter((s) => s.preferred);
     }
 
     return list;
@@ -245,8 +253,8 @@ export function Stocks() {
   // 상세 조회는 진입 시점 가격이라, 이후 변동은 WebSocket 실시간 체결가로 덮어쓴다
   const livePrice = useStockPriceSocket(code);
 
-  // 거래량은 상세 API 응답에 없어, 랭킹 목록에 있으면 그 값을 빌려 쓴다
-  const rankedStock = rankingStocks.find((s) => s.code === code);
+  // 거래량은 상세 API 응답에 없어, 거래량 랭킹 목록에 있으면 그 값을 빌려 쓴다
+  const rankedStock = volumeLookupStocks.find((s) => s.code === code);
 
   const stock = stockDetail
       ? {
@@ -433,9 +441,13 @@ export function Stocks() {
                     ? searchResultsQuery.isFetching
                       ? "검색 중..."
                       : "검색 결과가 없습니다."
-                    : rankingsQuery.isFetching
-                      ? "불러오는 중..."
-                      : "표시할 종목이 없습니다."}
+                    : activeTab === "전체보기"
+                      ? allStocksQuery.isFetching
+                        ? "불러오는 중..."
+                        : "표시할 종목이 없습니다."
+                      : rankingsQuery.isFetching
+                        ? "불러오는 중..."
+                        : "표시할 종목이 없습니다."}
                 </div>
               )}
               {getFilteredAndSortedStocks().map((s, index) => (
@@ -646,67 +658,57 @@ export function Stocks() {
                         <h3 className="font-bold">기술적 분석 진단</h3>
                       </div>
                       <div className="p-6 flex flex-col gap-6">
-                        <div className="flex justify-center">
-                          <div className="bg-[#1CBC9A]/12 text-[#1CBC9A] font-bold text-[16px] px-6 py-2.5 rounded-[16px]">
-                            관망 +1점
-                          </div>
-                        </div>
-                        <div className="space-y-0">
-                          {[
-                            {
-                              label: "RSI",
-                              value: "과매수권 (75)",
-                              score: "-2점",
-                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                            },
-                            {
-                              label: "MACD",
-                              value: "0선 위 (중기 상승 구조)",
-                              score: "+1점",
-                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                            },
-                            {
-                              label: "이평선",
-                              value: "완전 정배열",
-                              score: "+3점",
-                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                            },
-                            {
-                              label: "볼린저(%B)",
-                              value: "%B 상단 이탈 (1.05)",
-                              score: "-2점",
-                              scoreClass: "bg-[#007AFF]/10 text-[#007AFF]",
-                            },
-                            {
-                              label: "볼린저(추세)",
-                              value: "중심선 위 지지",
-                              score: "+1점",
-                              scoreClass: "bg-[#FF3B30]/10 text-[#FF3B30]",
-                            },
-                          ].map((item, i) => (
+                        {diagnosis ? (
+                          <>
+                            <div className="flex justify-center">
                               <div
-                                  key={i}
-                                  className="flex grid grid-cols-[80px_1fr_60px] items-center py-4 border-b border-border-color last:border-0 last:pb-0"
+                                  className={cn(
+                                      "font-bold text-[16px] px-6 py-2.5 rounded-[16px]",
+                                      diagnosis.totalScore >= 4
+                                          ? "bg-up/12 text-up"
+                                          : diagnosis.totalScore <= -4
+                                              ? "bg-down/12 text-down"
+                                              : "bg-[#1CBC9A]/12 text-[#1CBC9A]",
+                                  )}
                               >
-                          <span className="text-sm font-medium text-text-secondary">
-                            {item.label}
-                          </span>
-                                <span className="text-sm font-semibold">
-                            {item.value}
-                          </span>
-                                <div className="flex justify-end">
-                            <span
-                                className={cn(
-                                    "text-[12px] font-bold rounded-[16px] px-2 py-0.5",
-                                    item.scoreClass,
-                                )}
-                            >
-                              {item.score}
-                            </span>
-                                </div>
+                                {diagnosis.verdict} {diagnosis.totalScore > 0 ? "+" : ""}{diagnosis.totalScore}점
                               </div>
-                          ))}
-                        </div>
+                            </div>
+                            <div className="space-y-0">
+                              {diagnosis.items.map((item, i) => (
+                                  <div
+                                      key={i}
+                                      className="flex grid grid-cols-[80px_1fr_60px] items-center py-4 border-b border-border-color last:border-0 last:pb-0"
+                                  >
+                              <span className="text-sm font-medium text-text-secondary">
+                                {item.label}
+                              </span>
+                                    <span className="text-sm font-semibold">
+                                {item.value}
+                              </span>
+                                    <div className="flex justify-end">
+                                <span
+                                    className={cn(
+                                        "text-[12px] font-bold rounded-[16px] px-2 py-0.5",
+                                        item.score > 0
+                                            ? "bg-up/10 text-up"
+                                            : item.score < 0
+                                                ? "bg-down/10 text-down"
+                                                : "bg-text-secondary/10 text-text-secondary",
+                                    )}
+                                >
+                                  {item.score > 0 ? "+" : ""}{item.score}점
+                                </span>
+                                    </div>
+                                  </div>
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="py-10 text-center text-sm text-text-secondary">
+                            분석에 필요한 차트 데이터가 부족합니다.
+                          </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
