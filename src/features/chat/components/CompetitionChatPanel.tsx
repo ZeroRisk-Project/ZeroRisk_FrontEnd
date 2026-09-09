@@ -25,7 +25,9 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
   const { liveMessages, connected, sendMessage, disconnectReason } = useChatSocket("COMPETITION", channelId);
 
   const historyMessages = [...(historyQuery.data?.content ?? [])].reverse();
-  const allMessages = [...historyMessages, ...liveMessages];
+  const allMessages = [...historyMessages, ...liveMessages].filter(
+    (msg, index, self) => self.findIndex((m) => m.id === msg.id) === index,
+  );
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });

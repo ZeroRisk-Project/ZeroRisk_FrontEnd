@@ -62,7 +62,9 @@ export function CommunityStock() {
 
   // 히스토리(과거, 최신순으로 오니 뒤집어서 오래된순) + 실시간 수신(이미 오래된순)을 이어붙임
   const historyMessages = [...(historyQuery.data?.content ?? [])].reverse();
-  const allMessages = [...historyMessages, ...liveMessages];
+  const allMessages = [...historyMessages, ...liveMessages].filter(
+    (msg, index, self) => self.findIndex((m) => m.id === msg.id) === index,
+  );
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
