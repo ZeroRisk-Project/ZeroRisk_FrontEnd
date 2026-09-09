@@ -351,9 +351,13 @@ export function MainLayout() {
           {/* Logo */}
           <Link
             to="/"
-            className="text-text-primary font-bold text-xl tracking-tight flex items-center gap-1.5"
+            className="text-text-primary font-bold text-xl tracking-tight flex items-center gap-2"
           >
-            <span className="text-2xl leading-none">🌀</span>
+            <img
+              src="/ZeroRisk_icon.png"
+              alt="ZeroRisk 로고"
+              className="w-7 h-7 object-contain"
+            />
             제로리스크
           </Link>
 
@@ -770,8 +774,12 @@ export function MainLayout() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* COL 1: Logo & Brand */}
             <div className="space-y-3">
-              <div className="flex items-center gap-1.5 text-[#191F28] font-black text-lg tracking-tight">
-                <span className="text-2xl leading-none">🌀</span>
+              <div className="flex items-center gap-2 text-[#191F28] font-black text-lg tracking-tight">
+                <img
+                  src="/ZeroRisk_icon.png"
+                  alt="ZeroRisk 로고"
+                  className="w-6 h-6 object-contain"
+                />
                 <span>제로리스크</span>
               </div>
               <div className="space-y-1">

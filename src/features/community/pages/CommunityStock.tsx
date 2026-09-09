@@ -276,7 +276,7 @@ export function CommunityStock() {
                           </span>
                         ) : (
                           <span className="text-xs text-text-secondary text-opacity-80">
-                            {4521 - i}
+                            {post.id > 0 ? post.id : '-'}
                           </span>
                         )}
                       </div>

@@ -606,29 +606,28 @@ function RechargeConfirmPage() {
           </div>
         </div>
 
-        {/* Amount Input */}
-        <div className="bg-neutral-50 border-2 border-neutral-200 rounded-[28px] p-5 my-5 text-left">
-          <p className="text-sm text-text-secondary mb-2">
-            {loading ? "한도를 확인하는 중..." : `최대 ₩${formatPrice(availableAmount)}까지 추가로 받을 수 있어요`}
-          </p>
-          <input
-            type="number"
-            value={inputAmount}
-            onChange={(e) => setInputAmount(e.target.value)}
-            placeholder="받을 금액을 입력하세요"
-            className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6] transition-colors bg-transparent"
-          />
-          <button
-            type="button"
-            onClick={() => setInputAmount(String(availableAmount))}
-            className="text-sm font-bold text-[#3182F6] mt-3"
-          >
-            전액 입력
-          </button>
-          {rechargeError && (
-            <p className="text-[12px] text-[#FF3B30] font-medium mt-3">{rechargeError}</p>
-          )}
-        </div>
+        {/* Amount Input — 첫 충전(AmountStep)과 동일한 스타일로 통일 */}
+        <p className="text-[14px] text-text-secondary font-medium text-left leading-relaxed mt-6 mb-6">
+          {loading ? "한도를 확인하는 중..." : `최대 ₩${formatPrice(availableAmount)}까지 추가로 받을 수 있어요`}
+        </p>
+
+        <input
+          type="number"
+          value={inputAmount}
+          onChange={(e) => setInputAmount(e.target.value)}
+          placeholder="받을 금액을 입력하세요"
+          className="w-full border-b-2 border-neutral-200 py-3 text-xl font-bold outline-none focus:border-[#3182F6] transition-colors"
+        />
+        <button
+          type="button"
+          onClick={() => setInputAmount(String(availableAmount))}
+          className="text-sm font-bold text-[#3182F6] mt-3"
+        >
+          전액 입력 ({formatPrice(availableAmount)} 원)
+        </button>
+        {rechargeError && (
+          <p className="text-[12px] text-[#FF3B30] font-medium mt-3">{rechargeError}</p>
+        )}
 
         <p className="text-[11px] text-text-secondary mt-5 text-left">
           * 이미 교부된 모의 포인트는 계좌 잔액이 줄어들더라도 삭감되거나 강제 회수되지 않습니다.

@@ -356,7 +356,10 @@ export function Admin() {
   // 로컬 state를 서버 값으로 채워넣는다 - 이후의 로컬 수정은 그대로 유지됨.
   useEffect(() => {
     if (postsQuery.data) {
-      setPosts(postsQuery.data.content);
+      const sorted = [...postsQuery.data.content].sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+      );
+      setPosts(sorted);
     }
   }, [postsQuery.data]);
 

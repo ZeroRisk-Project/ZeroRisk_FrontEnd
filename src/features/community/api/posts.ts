@@ -46,10 +46,10 @@ interface PageResponse<T> {
     number: number; // 현재 페이지 (0부터 시작)
 }
 
-// 게시판 목록 조회. boardType으로 자유/종목/공지 구분
-export async function getPosts(boardType: BoardType, page = 0, size = 20): Promise<PageResponse<PostResponse>> {
+// 게시판 목록 조회. boardType으로 자유/종목/공지 구분 (기본 최신순 정렬)
+export async function getPosts(boardType: BoardType, page = 0, size = 20, sort = 'createdAt,desc'): Promise<PageResponse<PostResponse>> {
     const response = await api.get<PageResponse<PostResponse>>('/posts', {
-        params: { boardType, page, size },
+        params: { boardType, page, size, sort },
     });
 
     return response.data;
@@ -95,10 +95,10 @@ export async function votePost(postId: number, voteType: VoteType): Promise<void
     await api.post(`/posts/${postId}/votes`, { voteType });
 }
 
-// 내 게시글 목록 조회 (마이페이지)
-export async function getMyPosts(page = 0, size = 20): Promise<PageResponse<PostResponse>> {
+// 내 게시글 목록 조회 (마이페이지, 기본 최신순 정렬)
+export async function getMyPosts(page = 0, size = 20, sort = 'createdAt,desc'): Promise<PageResponse<PostResponse>> {
     const response = await api.get<PageResponse<PostResponse>>('/posts/me', {
-        params: { page, size },
+        params: { page, size, sort },
     });
 
     return response.data;

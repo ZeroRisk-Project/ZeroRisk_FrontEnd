@@ -24,19 +24,25 @@ export function Community() {
   const [activeTab, setActiveTab] = useState("자유게시판");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // 공지(NOTICE)와 일반 자유글(FREE)을 따로 조회해서 공지를 목록 상단에 얹는 구조 -
-  // 두 응답이 한 세트로 같이 갱신돼야 해서 하나의 쿼리로 묶었다. 자유게시판 탭일 때만 조회.
+  // 공지(NOTICE)와 일반 자유글(FREE)을 최신순으로 조회해서 공지를 목록 상단에 얹는 구조
   const { data: freeBoardData } = useQuery({
     queryKey: ["community", "free-board"],
     queryFn: async () => {
-      const [noticeRes, freeRes] = await Promise.all([getPosts("NOTICE", 0, 5), getPosts("FREE", 0, 20)]);
+      const [noticeRes, freeRes] = await Promise.all([
+        getPosts("NOTICE", 0, 5, "createdAt,desc"),
+        getPosts("FREE", 0, 20, "createdAt,desc"),
+      ]);
       return { noticePosts: noticeRes.content, freePosts: freeRes.content };
     },
     enabled: activeTab === "자유게시판",
     retry: false,
   });
-  const noticePosts = freeBoardData?.noticePosts ?? [];
-  const freePosts = freeBoardData?.freePosts ?? [];
+  const noticePosts = (freeBoardData?.noticePosts ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const freePosts = (freeBoardData?.freePosts ?? [])
+    .slice()
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 10개 종목으로 자동 구성
   // (KIS 실시간 시세 API 부하 및 AWS 크레딧 고려하여 10개로 제한)
@@ -178,7 +184,7 @@ export function Community() {
                             </span>
                           ) : (
                             <span className="text-xs text-text-secondary text-opacity-80">
-                              {8421 - i}
+                              {post.id}
                             </span>
                           )}
                         </div>
