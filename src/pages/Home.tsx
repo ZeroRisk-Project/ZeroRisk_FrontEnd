@@ -200,15 +200,15 @@ export function Home() {
                   className="block"
                 >
                   <Card className="h-full hover:border-brand/50 transition-colors cursor-pointer">
-                    <div className="p-5 flex justify-between items-center h-full">
-                      <div>
-                        <h4 className="font-semibold text-lg">{stock.name}</h4>
+                    <div className="p-5 flex justify-between items-center h-full gap-3">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-lg truncate">{stock.name}</h4>
                         <p className="text-sm text-text-secondary">
                           {stock.code}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold tabular-nums text-lg">
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold tabular-nums text-lg whitespace-nowrap">
                           {formatPrice(stock.currentPrice)}원
                         </p>
                         <p
@@ -246,15 +246,15 @@ export function Home() {
                   className="block"
                 >
                   <Card className="h-full hover:border-brand/50 transition-colors cursor-pointer">
-                    <div className="p-5 flex justify-between items-center h-full">
-                      <div>
-                        <h4 className="font-semibold text-lg">{stock.name}</h4>
+                    <div className="p-5 flex justify-between items-center h-full gap-3">
+                      <div className="min-w-0">
+                        <h4 className="font-semibold text-lg truncate">{stock.name}</h4>
                         <p className="text-sm text-text-secondary">
                           {stock.code}
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold tabular-nums text-lg">
+                      <div className="text-right shrink-0">
+                        <p className="font-semibold tabular-nums text-lg whitespace-nowrap">
                           {formatPrice(stock.currentPrice)}원
                         </p>
                         <p
