@@ -47,7 +47,29 @@ api.interceptors.response.use(
                 return api(originalRequest);
             } catch (reissueError) {
                 refreshWaiters = [];
-                window.location.href = '/login';
+                const pathname = window.location.pathname;
+                const isPublic =
+                    pathname === '/' ||
+                    pathname === '/stocks' ||
+                    pathname.startsWith('/stocks/') ||
+                    (pathname.startsWith('/community') && !pathname.startsWith('/community/write')) ||
+                    pathname === '/ranking' ||
+                    (pathname.startsWith('/competitions') && !pathname.startsWith('/competitions/create')) ||
+                    pathname === '/about' ||
+                    pathname === '/notice' ||
+                    pathname === '/faq' ||
+                    pathname === '/inquiry' ||
+                    pathname === '/terms' ||
+                    pathname === '/privacy' ||
+                    pathname.startsWith('/users/') ||
+                    pathname === '/login' ||
+                    pathname === '/register' ||
+                    pathname === '/forgot-password' ||
+                    pathname.startsWith('/oauth2/');
+
+                if (!isPublic) {
+                    window.location.href = '/login';
+                }
                 return Promise.reject(reissueError);
             } finally {
                 isRefreshing = false;
