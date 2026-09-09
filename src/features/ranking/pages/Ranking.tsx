@@ -7,6 +7,7 @@ import { Input } from "@/src/shared/components/ui/Input";
 import { cn } from "@/src/shared/lib/utils";
 import { User, Medal, Search } from "lucide-react";
 import { getRankings, getMyRanking, RankingPeriodParam } from "@/src/features/ranking/api/ranking";
+import { useAuth } from "@/src/shared/context/AuthContext";
 
 const TAB_TO_PERIOD: Record<string, RankingPeriodParam> = {
   "일간": "DAILY",
@@ -15,6 +16,7 @@ const TAB_TO_PERIOD: Record<string, RankingPeriodParam> = {
 };
 
 export function Ranking() {
+  const { isLoggedIn } = useAuth();
   const [activeTab, setActiveTab] = useState("주간");
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
@@ -38,9 +40,10 @@ export function Ranking() {
   const { data: myRankingData } = useQuery({
     queryKey: ["myRanking", period],
     queryFn: ({ signal }) => getMyRanking(period, signal),
+    enabled: isLoggedIn,
     retry: false,
   });
-  const myRanking = myRankingData ?? null; // 비로그인이거나 해당 기간의 랭킹 데이터가 없는 경우
+  const myRanking = isLoggedIn ? (myRankingData ?? null) : null; // 비로그인이거나 해당 기간의 랭킹 데이터가 없는 경우
 
   const filteredRankers = rankings
     .slice(3)

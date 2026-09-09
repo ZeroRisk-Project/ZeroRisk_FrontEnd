@@ -14,17 +14,24 @@ import {
 
 const DEFAULT_GROUP_NAME = '기본';
 
-export function useWatchlist() {
+export function useWatchlist(enabled = true) {
     const [groups, setGroups] = useState<WatchlistGroupResponse[]>([]);
     const [favorites, setFavorites] = useState<WatchlistFavoriteResponse[] | null>(null);
 
     const reload = useCallback(async () => {
+        if (!enabled) return;
         const [nextGroups, nextFavorites] = await Promise.all([getGroups(), getFavorites()]);
         setGroups(nextGroups);
         setFavorites(nextFavorites);
-    }, []);
+    }, [enabled]);
 
     useEffect(() => {
+        if (!enabled) {
+            setGroups([]);
+            setFavorites(null);
+            return;
+        }
+
         let ignore = false;
         Promise.all([getGroups(), getFavorites()])
             .then(([nextGroups, nextFavorites]) => {
@@ -41,7 +48,7 @@ export function useWatchlist() {
         return () => {
             ignore = true;
         };
-    }, []);
+    }, [enabled]);
 
     const resolveDefaultGroupId = useCallback(async () => {
         const loaded = groups.length > 0 ? groups : await getGroups();

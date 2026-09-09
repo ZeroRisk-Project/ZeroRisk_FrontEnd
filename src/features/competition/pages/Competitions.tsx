@@ -3,7 +3,9 @@ import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
 import { Input } from "@/src/shared/components/ui/Input";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/src/shared/context/AuthContext";
+
 import { cn, formatPrice } from "@/src/shared/lib/utils";
 import { Search } from "lucide-react";
 import api from "@/src/shared/lib/api";
@@ -20,6 +22,7 @@ export function Competitions() {
   const [activeTab, setActiveTab] = useState("전체");
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const { isLoggedIn } = useAuth();
 
   const [toastMsg, setToastMsg] = useState("");
   const showToast = (msg: string) => {
@@ -78,6 +81,7 @@ export function Competitions() {
 
 
   const handleParticipate = async (comp: any) => {
+    if (!isLoggedIn) { navigate('/login'); return; }
     if (joinedIds.includes(comp.id)) return;
     try {
       await api.post(`/competitions/${comp.id}/join`);
@@ -252,18 +256,14 @@ export function Competitions() {
                 </div>
 
                 {comp.status === "ENDED" || comp.status === "CALCULATING" || (comp.status === "ONGOING" && !joinedIds.includes(comp.id)) ? (
-                  <Link to={`/competitions/${comp.id}`} className="block w-full">
-                    <Button variant="outline" className="w-full relative">
-                      상세보기
-                    </Button>
-                  </Link>
+                  <Button variant="outline" className="w-full relative" onClick={() => { if (!isLoggedIn) navigate('/login'); else navigate(`/competitions/${comp.id}`); }}>
+                    상세보기
+                  </Button>
                 ) : joinedIds.includes(comp.id) ? (
                   <div className="grid grid-cols-2 gap-2 w-full">
-                    <Link to={`/competitions/${comp.id}`} className="w-full">
-                      <Button variant="outline" className="w-full relative font-bold">
-                        상세보기
-                      </Button>
-                    </Link>
+                    <Button variant="outline" className="w-full relative font-bold" onClick={() => { if (!isLoggedIn) navigate('/login'); else navigate(`/competitions/${comp.id}`); }}>
+                      상세보기
+                    </Button>
                     <Button
                       disabled
                       className="w-full bg-[#F2F2F7] text-[#8E8E93] border border-[#E5E5EA] cursor-not-allowed font-extrabold disabled:opacity-100 shadow-none hover:bg-[#F2F2F7]"
@@ -273,11 +273,9 @@ export function Competitions() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-2 w-full">
-                    <Link to={`/competitions/${comp.id}`} className="w-full">
-                      <Button variant="outline" className="w-full relative font-bold">
-                        상세보기
-                      </Button>
-                    </Link>
+                    <Button variant="outline" className="w-full relative font-bold" onClick={() => navigate(`/competitions/${comp.id}`)}>
+                      상세보기
+                    </Button>
                     <Button
                       className="w-full font-bold bg-brand text-white hover:bg-brand/90 transition"
                       onClick={() => handleParticipate(comp)}

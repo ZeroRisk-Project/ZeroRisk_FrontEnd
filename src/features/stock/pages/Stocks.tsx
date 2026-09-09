@@ -38,6 +38,7 @@ import {
   type PriceAlertDirection,
 } from "@/src/features/pricealert/api/pricealert";
 import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
+import { useAuth } from "@/src/shared/context/AuthContext";
 
 export interface StockListItem {
   code: string;
@@ -128,9 +129,14 @@ export function Stocks() {
 
   const isCompared = (stockCode: string) => compareStocks.includes(stockCode);
 
-  const { isFavorite, toggleFavorite } = useWatchlist();
+  const { isLoggedIn } = useAuth();
+  const { isFavorite, toggleFavorite } = useWatchlist(isLoggedIn);
 
   const toggleFav = (stockCode: string) => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
     void toggleFavorite(stockCode);
   };
 
@@ -150,6 +156,7 @@ export function Stocks() {
   const accountsQuery = useQuery({
     queryKey: ["stocks", "accounts"],
     queryFn: () => getAccounts(),
+    enabled: isLoggedIn,
     retry: false,
   });
   const basicAccount = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
@@ -165,7 +172,7 @@ export function Stocks() {
   const holdingsQuery = useQuery({
     queryKey: ["stocks", "holdings", basicAccountId],
     queryFn: () => getHoldings(basicAccountId as number),
-    enabled: basicAccountId !== null,
+    enabled: isLoggedIn && basicAccountId !== null,
     retry: false,
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
@@ -288,6 +295,10 @@ export function Stocks() {
   };
 
   const submitOrder = async (requestedOrderType: "MARKET" | "LIMIT") => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
     if (!stock) return;
     if (basicAccountId === null) {
       showToast("계좌 정보를 불러오지 못했습니다.");
@@ -335,6 +346,10 @@ export function Stocks() {
   const handleBooking = () => submitOrder("LIMIT");
 
   const handleCreateAlert = async () => {
+    if (!isLoggedIn) {
+      navigate("/login");
+      return;
+    }
     if (!stock) return;
 
     const targetPrice = Number(alertPrice || stock.price);

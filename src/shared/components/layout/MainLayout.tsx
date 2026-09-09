@@ -21,6 +21,7 @@ import {
   getMyJoinedCompetitionIds,
 } from "@/src/features/competition/api/competition";
 import { getRankings, type RankingResponse } from "@/src/features/ranking/api/ranking";
+import { useAuth } from "@/src/shared/context/AuthContext";
 
 const NAV_ITEMS = [
   { label: "홈", path: "/" },
@@ -71,6 +72,7 @@ async function toAccountOption(account: AccountResponse): Promise<AccountOption>
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { isLoggedIn, isAdmin, user } = useAuth();
   const ACCOUNT_LINK_DISMISS_KEY = "dismiss_account_link_banner";
   const COMPETITION_DISMISS_KEY = "dismissed_competition_alert";
   const RANKING_DISMISS_KEY = "dismissed_ranking_alert";
@@ -80,8 +82,6 @@ export function MainLayout() {
   );
   const [showCompAlert, setShowCompAlert] = useState(true);
   const [showRankAlert, setShowRankAlert] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
@@ -159,43 +159,30 @@ export function MainLayout() {
     }
   };
 
-  const checkLoginStatus = async () => {
-    try {
-      const response = await api.get("/users/me");
-      console.log("users/me 성공:", response.status, response.data);
-      setIsLoggedIn(true);
-      const admin = response.data.userRole === "ADMIN";
-      setIsAdmin(admin);
-      setUserProfile({ nickname: response.data.nickname, profileImageUrl: response.data.profileImageUrl });
-      await fetchAccounts();
-
-      if (admin) {
-        return;
-      }
-
-      const linked = await fetchAccountLinked();
-      setAccountLinked(linked);
-
-      if (!linked && !response.data.hasClaimedPracticeCredit) {
-        navigate("/start", { replace: true });
-        return;
-      }
-
-      await Promise.all([
-        fetchOngoingCompetition(response.data.userId),
-        fetchTopRanking(),
-      ]);
-    } catch (error) {
-      console.log("users/me 실패:", error);
-      setIsLoggedIn(false);
-      setIsAdmin(false);
+  useEffect(() => {
+    if (!isLoggedIn || !user) {
       setAccounts([]);
       setActiveAccount(EMPTY_ACCOUNT);
       setAccountLinked(true);
       setOngoingCompetition(null);
       setTopRanking(null);
+      return;
     }
-  };
+
+    setUserProfile({ nickname: user.nickname, profileImageUrl: user.profileImageUrl });
+    fetchAccounts();
+
+    if (!isAdmin) {
+      fetchAccountLinked().then((linked) => {
+        setAccountLinked(linked);
+        if (!linked && !user.hasClaimedPracticeCredit) {
+          navigate("/start", { replace: true });
+        }
+      });
+      fetchOngoingCompetition(user.userId);
+      fetchTopRanking();
+    }
+  }, [isLoggedIn, user, isAdmin]);
 
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -287,39 +274,30 @@ export function MainLayout() {
   };
 
   useEffect(() => {
-    checkLoginStatus();
-    window.addEventListener("auth-change", checkLoginStatus);
-    return () => {
-      window.removeEventListener("auth-change", checkLoginStatus);
-    };
-  }, []);
-
-  useEffect(() => {
     isNotificationOpenRef.current = isNotificationOpen;
   }, [isNotificationOpen]);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
+
     const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
     const sseBaseUrl = apiBaseUrl.replace(/\/api\/v1\/?$/, '');
     const eventSource = new EventSource(`${sseBaseUrl}/sse/subscribe`, { withCredentials: true });
 
     eventSource.addEventListener('notification', () => {
-      // 새 알림이 오면, 드롭다운이 열려있을 때만 목록을 다시 불러와 최신화.
-      // ref로 최신값을 읽어서 stale closure 방지 (deps에 넣으면 매번 재연결되므로 이 방식 사용)
       if (isNotificationOpenRef.current) {
         loadNotifications();
       }
     });
 
     eventSource.onerror = () => {
-      // 연결 끊김은 브라우저가 자동 재연결을 시도하므로 별도 처리는 하지 않음
       console.warn('SSE 연결 오류 발생, 자동 재연결 대기 중');
     };
 
     return () => {
       eventSource.close();
     };
-  }, []);
+  }, [isLoggedIn]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -618,7 +596,7 @@ export function MainLayout() {
       </header>
 
       {/* Dismissible Alerts Area - absolutely positioned so it overlaps/layers over the main content instead of pushing it down */}
-      {((showAccountAlert && !accountLinked) || (showCompAlert && ongoingCompetition) || (showRankAlert && topRanking)) && (
+      {isLoggedIn && ((showAccountAlert && !accountLinked) || (showCompAlert && ongoingCompetition) || (showRankAlert && topRanking)) && (
         <div className="absolute top-[80px] left-0 right-0 z-30 py-3 px-6 select-none pointer-events-none animate-in fade-in slide-in-from-top-2 duration-300">
           <div className="max-w-7xl mx-auto flex flex-col items-end gap-3 pointer-events-auto w-full md:max-w-[600px] md:ml-auto">
             {showAccountAlert && !accountLinked && (
