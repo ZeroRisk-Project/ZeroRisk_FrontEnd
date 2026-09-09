@@ -59,6 +59,7 @@ export function Mypage() {
   const navigate = useNavigate();
   const [mainFilter, setMainFilter] = useState("거래내역");
   const [txTab, setTxTab] = useState("거래내역");
+  const [txPeriod, setTxPeriod] = useState("1개월");
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
 
@@ -246,14 +247,22 @@ export function Mypage() {
     }));
   }, [holdingsQuery.data, compositionQuery.data]);
 
+  const TX_PERIOD_DAYS: Record<string, number> = { "1주일": 7, "1개월": 30, "3개월": 90 };
+
   const TRANSACTIONS_DONE = trades
-      ? trades.map((trade) => ({
-        type: trade.side === "BUY" ? "buy" : "sell",
-        stock: trade.stockName,
-        date: formatTransactionDate(trade.tradedAt),
-        price: trade.price,
-        qty: trade.quantity,
-      }))
+      ? trades
+          .filter((trade) => {
+            const days = TX_PERIOD_DAYS[txPeriod] ?? 30;
+            const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+            return new Date(trade.tradedAt).getTime() >= cutoff;
+          })
+          .map((trade) => ({
+            type: trade.side === "BUY" ? "buy" : "sell",
+            stock: trade.stockName,
+            date: formatTransactionDate(trade.tradedAt),
+            price: trade.price,
+            qty: trade.quantity,
+          }))
       : [];
 
   const TRANSACTIONS_PENDING = pendingOrders
@@ -436,11 +445,17 @@ export function Mypage() {
                         미체결 내역
                       </button>
                     </div>
-                    <select className="bg-[#F2F4F6] border-none rounded-xl px-3 py-2 text-sm font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors">
-                      <option>1주일</option>
-                      <option selected>1개월</option>
-                      <option>3개월</option>
-                    </select>
+                    {txTab === "거래내역" && (
+                        <select
+                            value={txPeriod}
+                            onChange={(e) => setTxPeriod(e.target.value)}
+                            className="bg-[#F2F4F6] border-none rounded-xl px-3 py-2 text-sm font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
+                        >
+                          <option>1주일</option>
+                          <option>1개월</option>
+                          <option>3개월</option>
+                        </select>
+                    )}
                   </>
                 )}
 
