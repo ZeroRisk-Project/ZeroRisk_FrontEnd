@@ -29,10 +29,10 @@ interface PageResponse<T> {
     number: number;
 }
 
-// 관리자 게시글 목록 조회 (삭제 여부 무관 전체)
-export async function getAdminPosts(page = 0, size = 50): Promise<PageResponse<AdminPostResponse>> {
+// 관리자 게시글 목록 조회 (삭제 여부 무관 전체, 기본 최신순 정렬)
+export async function getAdminPosts(page = 0, size = 50, sort = 'createdAt,desc'): Promise<PageResponse<AdminPostResponse>> {
     const response = await api.get<PageResponse<AdminPostResponse>>('/admin/moderation/posts', {
-        params: { page, size },
+        params: { page, size, sort },
     });
 
     return response.data;
