@@ -554,6 +554,10 @@ export function MainLayout() {
                   <img
                     src={userProfile.profileImageUrl || DEFAULT_PROFILE_IMAGE}
                     alt="profile"
+                    onError={(e) => {
+                      const el = e.currentTarget;
+                      if (!el.src.endsWith(DEFAULT_PROFILE_IMAGE)) el.src = DEFAULT_PROFILE_IMAGE;
+                    }}
                     className="w-9 h-9 rounded-full object-cover border border-border-color"
                   />
                   <span className="text-[14.5px] font-bold">{userProfile.nickname}</span>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Search, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/src/shared/lib/utils";
 
@@ -12,7 +12,33 @@ const ACTION_TYPE_LABELS: Record<string, string> = {
   REJECT: "신고반려",
   ANSWER: "문의답변",
   RETRY: "재처리",
+  EXPEL: "강제퇴장",
+  FORCE_DELETE: "강제삭제",
+  RESTORE: "복구",
+  DEACTIVATE: "비활성화",
 };
+
+// 게시판 코드(FREE/STOCK/NOTICE)를 한국어로 — 일부 로그 detail이 "[FREE] 제목" 형태로 내려옴
+const BOARD_CODE_LABELS: Record<string, string> = {
+  FREE: "자유게시판",
+  STOCK: "종목게시판",
+  NOTICE: "공지",
+};
+function localizeBoardCodes(detail: string): string {
+  return (detail ?? "").replace(
+    /\[(FREE|STOCK|NOTICE)\]/g,
+    (_, code) => `[${BOARD_CODE_LABELS[code]}]`,
+  );
+}
+
+// detail 말미의 "(사유: ...)"를 본문과 분리 — 인라인에는 본문만 노출하고
+// 사유는 우클릭 '사유 보기'로만 확인하게 한다.
+function splitReason(detail: string): { text: string; reason: string | null } {
+  const raw = detail ?? "";
+  const m = raw.match(/\s*\(사유:\s*([\s\S]+?)\)\s*$/);
+  if (!m || m.index == null) return { text: raw, reason: null };
+  return { text: raw.slice(0, m.index).trim(), reason: m[1].trim() };
+}
 
 interface AdminLogsTabProps {
   logs: any[];
@@ -28,6 +54,10 @@ interface AdminLogsTabProps {
 export function AdminLogsTab({
   logs, logMonitoringTab, setLogMonitoringTab, logSearchQuery, setLogSearchQuery, logPage, setLogPage, triggerToast,
 }: AdminLogsTabProps) {
+  // 우클릭 컨텍스트 메뉴 / 사유 보기 모달
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; reason: string } | null>(null);
+  const [reasonModal, setReasonModal] = useState<string | null>(null);
+
   return (
               <div id="admin-logs-panel" className="space-y-4">
                 <div>
@@ -125,14 +155,23 @@ export function AdminLogsTab({
                               String(l.targetId ?? "").includes(query);
                             return matchTab && matchQuery;
                           })
-                          .map((log) => (
-                            <tr key={log.id} className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E]">
+                          .map((log) => {
+                            const { text: detailText, reason } = splitReason(log.detail);
+                            return (
+                            <tr
+                              key={log.id}
+                              onContextMenu={(e) => {
+                                e.preventDefault();
+                                setCtxMenu({ x: e.pageX, y: e.pageY, reason: reason ?? "" });
+                              }}
+                              className="h-[52px] hover:bg-[#FAFAFA] transition-colors text-sm font-medium text-[#1C1C1E] select-none"
+                            >
                               <td className="py-2 px-4 text-[#8E8E93] tabular-nums whitespace-nowrap">
                                 {log.createdAt?.slice(0, 19).replace("T", " ")}
                               </td>
                               <td className="py-2 px-4 whitespace-nowrap">
                                 <span className={cn(
-                                  "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase inline-block",
+                                  "px-2.5 py-1 rounded-[16px] text-xs font-black inline-block",
                                   log.actionType === "CREATE" && "bg-[#30D158]/11 text-[#30D158]",
                                   log.actionType === "UPDATE" && "bg-[#007AFF]/11 text-[#007AFF]",
                                   log.actionType === "DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
@@ -140,20 +179,26 @@ export function AdminLogsTab({
                                   log.actionType === "UNSUSPEND" && "bg-[#4A5DF9]/11 text-[#4A5DF9]",
                                   log.actionType === "PROCESS" && "bg-[#FF3B30]/11 text-[#FF3B30]",
                                   log.actionType === "REJECT" && "bg-[#8E8E93]/11 text-[#8E8E93]",
-                                  log.actionType === "ANSWER" && "bg-[#30D158]/11 text-[#30D158]"
+                                  log.actionType === "ANSWER" && "bg-[#30D158]/11 text-[#30D158]",
+                                  log.actionType === "RETRY" && "bg-[#007AFF]/11 text-[#007AFF]",
+                                  log.actionType === "FORCE_DELETE" && "bg-[#FF3B30]/11 text-[#FF3B30]",
+                                  log.actionType === "RESTORE" && "bg-[#30D158]/11 text-[#30D158]",
+                                  log.actionType === "EXPEL" && "bg-[#FF9500]/11 text-[#FF9500]",
+                                  log.actionType === "DEACTIVATE" && "bg-[#8E8E93]/11 text-[#8E8E93]"
                                 )}>
                                   {ACTION_TYPE_LABELS[log.actionType] ?? log.actionType}
                                 </span>
                               </td>
                               <td className="py-2 px-4 font-bold text-[#1C1C1E] whitespace-nowrap">
-                                {log.adminNickname} → {log.targetType} #{log.targetId}
+                                <span className="text-[#4A5DF9]">{log.adminNickname}</span> → {log.targetType} #{log.targetId}
                               </td>
-                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{log.detail}</td>
+                              <td className="py-2 px-4 text-[#3A3A3C] font-semibold whitespace-nowrap">{localizeBoardCodes(detailText)}</td>
                               <td className="py-2 px-4 text-center text-[#8E8E93] tabular-nums font-semibold whitespace-nowrap">
                                 {log.ipAddress ?? "-"}
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                       </tbody>
                     </table>
                   </div>
@@ -186,6 +231,55 @@ export function AdminLogsTab({
                     </button>
                   </div>
                 </div>
+
+                {/* 로그 우클릭 컨텍스트 메뉴 */}
+                {ctxMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[99]"
+                      onClick={() => setCtxMenu(null)}
+                      onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); }}
+                    />
+                    <div
+                      className="fixed z-[100] bg-white border border-[#E5E5EA] rounded-[12px] shadow-[0_10px_25px_rgba(0,0,0,0.12)] p-1.5 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+                      style={{ top: ctxMenu.y, left: ctxMenu.x }}
+                    >
+                      <button
+                        disabled={!ctxMenu.reason}
+                        onClick={() => { setReasonModal(ctxMenu.reason); setCtxMenu(null); }}
+                        className="w-full text-left px-3 py-2 text-[13.5px] font-bold text-[#4A5DF9] hover:bg-[#4A5DF9]/10 rounded-[8px] transition cursor-pointer disabled:text-[#C7C7CC] disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                      >
+                        사유 보기
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* 사유 보기 모달 */}
+                {reasonModal !== null && (
+                  <div
+                    className="fixed inset-0 z-[101] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+                    onClick={() => setReasonModal(null)}
+                  >
+                    <div
+                      className="bg-white rounded-[20px] w-full max-w-[420px] p-6 shadow-[0_12px_44px_rgba(0,0,0,0.18)] flex flex-col gap-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h2 className="text-[17px] font-bold text-[#1C1C1E]">처리 사유</h2>
+                      <p className="text-[14px] text-[#3A3A3C] leading-relaxed whitespace-pre-wrap break-words">
+                        {reasonModal || "기재된 사유가 없습니다."}
+                      </p>
+                      <div className="flex justify-end">
+                        <button
+                          onClick={() => setReasonModal(null)}
+                          className="px-4 py-2 bg-[#1C1C1E] hover:bg-black text-white text-[13px] font-bold rounded-[12px] transition cursor-pointer"
+                        >
+                          닫기
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
   );
 }

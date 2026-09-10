@@ -14,10 +14,33 @@ const ACTIVITY_LABELS: Record<string, { label: string; color: string }> = {
   OPENBANKING_AUTH: { label: "계좌 인증", color: "bg-[#30D158]/11 text-[#30D158]" },
   CHARGE: { label: "시드머니 충전", color: "bg-[#30D158]/11 text-[#30D158]" },
   RESET_SEED_MONEY: { label: "자금 초기화", color: "bg-[#8E8E93]/11 text-[#8E8E93]" },
+  PRACTICE_CREDIT: { label: "연습 크레딧", color: "bg-[#30D158]/11 text-[#30D158]" },
   JOIN_COMPETITION: { label: "대회 참가", color: "bg-[#007AFF]/11 text-[#007AFF]" },
   FOLLOW: { label: "팔로우", color: "bg-[#4A5DF9]/11 text-[#4A5DF9]" },
   UNFOLLOW: { label: "언팔로우", color: "bg-[#8E8E93]/11 text-[#8E8E93]" },
+  POST_CREATE: { label: "게시글 작성", color: "bg-[#34C759]/11 text-[#34C759]" },
+  POST_UPDATE: { label: "게시글 수정", color: "bg-[#FF9500]/11 text-[#FF9500]" },
+  POST_DELETE: { label: "게시글 삭제", color: "bg-[#FF3B30]/11 text-[#FF3B30]" },
+  COMMENT_CREATE: { label: "댓글 작성", color: "bg-[#34C759]/11 text-[#34C759]" },
+  COMMENT_UPDATE: { label: "댓글 수정", color: "bg-[#FF9500]/11 text-[#FF9500]" },
+  COMMENT_DELETE: { label: "댓글 삭제", color: "bg-[#FF3B30]/11 text-[#FF3B30]" },
+  ORDER_BUY: { label: "매수", color: "bg-[#FF3B30]/11 text-[#FF3B30]" },
+  ORDER_SELL: { label: "매도", color: "bg-[#007AFF]/11 text-[#007AFF]" },
+  ORDER_CANCEL: { label: "주문 취소", color: "bg-[#8E8E93]/11 text-[#8E8E93]" },
 };
+
+// 게시판 코드(FREE/STOCK/NOTICE)를 한국어로 — 활동 로그 detail이 "[FREE] 제목" 형태로 내려옴
+const BOARD_CODE_LABELS: Record<string, string> = {
+  FREE: "자유게시판",
+  STOCK: "종목게시판",
+  NOTICE: "공지",
+};
+function localizeLogDetail(detail: string): string {
+  return (detail ?? "").replace(
+    /\[(FREE|STOCK|NOTICE)\]/g,
+    (_, code) => `[${BOARD_CODE_LABELS[code]}]`,
+  );
+}
 
 interface AdminMembersTabProps {
   users: any[];
@@ -329,7 +352,7 @@ export function AdminMembersTab({
             </button>
 
             <div className="space-y-1">
-              <h2 className="text-[19px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}님의 활동 로그</h2>
+              <h2 className="text-[19px] font-bold text-[#1C1C1E]"><span className="text-[#4A5DF9]">{activityModal.user.nickname}</span>님의 활동 로그</h2>
               <p className="text-[#8E8E93] text-[13px]">선택된 회원이 수행한 로그인·가입·계정 변경 등 주요 활동 내역입니다</p>
             </div>
 
@@ -338,7 +361,7 @@ export function AdminMembersTab({
               <div className="flex items-center gap-3">
                 <img src={activityModal.user.profileImageUrl || DEFAULT_PROFILE_IMAGE} alt="avatar" className="flex-shrink-0 w-11 h-11 rounded-full object-cover" />
                 <div>
-                  <p className="text-[14px] font-bold text-[#1C1C1E]">{activityModal.user.nickname}</p>
+                  <p className="text-[14px] font-bold text-[#4A5DF9]">{activityModal.user.nickname}</p>
                   <p className="text-[12px] text-[#8E8E93]">{activityModal.user.email}</p>
                 </div>
               </div>
@@ -363,7 +386,7 @@ export function AdminMembersTab({
                         <span className={cn("px-2 py-0.5 rounded-md text-[11px] font-bold", meta.color)}>
                           {meta.label}
                         </span>
-                        <span className="text-[13px] text-neutral-700">{log.detail}</span>
+                        <span className="text-[13px] text-neutral-700">{localizeLogDetail(log.detail)}</span>
                       </div>
                       <div className="text-right">
                         <p className="text-[11px] text-neutral-400">{log.createdAt?.slice(0, 16).replace("T", " ")}</p>

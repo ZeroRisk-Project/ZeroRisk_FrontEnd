@@ -981,16 +981,16 @@ export function Stocks() {
                         <h3 className="font-bold">목표가 알림</h3>
                       </div>
                       <div className="p-6 flex flex-col gap-4">
-                        <div className="flex bg-bg-main p-1 rounded-[16px]">
+                        <div className="flex bg-bg-main p-1 rounded-[16px] border border-border-color">
                           {(["ABOVE", "BELOW"] as const).map((direction) => (
                               <button
                                   key={direction}
                                   onClick={() => setAlertDirection(direction)}
                                   className={cn(
-                                      "flex-1 py-2 text-[13px] font-bold rounded-[12px] transition-colors",
+                                      "flex-1 py-2 text-sm font-semibold rounded-[12px] transition-colors",
                                       alertDirection === direction
-                                          ? "bg-surface text-text-primary shadow-sm"
-                                          : "text-text-secondary hover:text-text-primary",
+                                          ? "bg-surface shadow-[0_1px_3px_rgba(0,0,0,0.06)] text-[#636C7D] border border-border-color/50"
+                                          : "text-text-secondary hover:text-text-primary border border-transparent",
                                   )}
                               >
                                 {direction === "ABOVE" ? "이상일 때" : "이하일 때"}

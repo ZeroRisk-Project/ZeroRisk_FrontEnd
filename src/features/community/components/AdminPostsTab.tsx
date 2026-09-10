@@ -6,6 +6,13 @@ import {
   AdminCommentResponse,
 } from '@/src/features/moderation/api/moderation';
 
+// 관리자 액션 버튼 공통 스타일 — 브랜드(파랑)/회색 위주로 통일. 위험 동작은 평소 회색, hover 시에만 빨강.
+const ADMIN_BTN = {
+  brand: "border border-[#4A5DF9] text-[#4A5DF9] hover:bg-[#4A5DF9]/5",
+  gray: "border border-[#E5E5EA] text-[#4E5968] hover:bg-[#F2F2F7] hover:text-[#1C1C1E]",
+  danger: "border border-[#E5E5EA] text-[#8E8E93] hover:border-[#FF3B30] hover:text-[#FF3B30] hover:bg-[#FF3B30]/5",
+};
+
 interface PostItem {
   id: number;
   author: string;
@@ -147,21 +154,21 @@ export function AdminPostsTab({
                                   <div className="flex gap-2 justify-center">
                                     <button
                                       onClick={() => setSelectedPostDetail(post)}
-                                      className="px-2.5 py-1.5 bg-[#4A5DF9]/10 text-[#4A5DF9] hover:bg-[#4A5DF9]/20 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                      className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.brand)}
                                     >
                                       상세
                                     </button>
                                     {post.status === "ACTIVE" ? (
                                       <button
                                         onClick={() => handlePostStatus("DELETED")}
-                                        className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                        className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.danger)}
                                       >
                                         삭제
                                       </button>
                                     ) : (
                                       <button
                                         onClick={() => handlePostStatus("ACTIVE")}
-                                        className="px-2.5 py-1.5 bg-[#34C759]/10 text-[#34C759] hover:bg-[#34C759]/20 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                        className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.gray)}
                                       >
                                         복구
                                       </button>
@@ -253,9 +260,7 @@ export function AdminPostsTab({
                         }}
                         className={cn(
                           'shrink-0 px-2 py-1 text-[11px] font-bold rounded-[8px] transition cursor-pointer',
-                          comment.isDeleted
-                            ? 'bg-[#34C759]/10 text-[#34C759] hover:bg-[#34C759]/20'
-                            : 'border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5',
+                          comment.isDeleted ? ADMIN_BTN.gray : ADMIN_BTN.danger,
                         )}
                       >
                         {comment.isDeleted ? '복구' : '삭제'}
@@ -297,7 +302,7 @@ export function AdminPostsTab({
                       triggerToast('⚠️ 처리에 실패했습니다.');
                     }
                   }}
-                  className="flex-1 py-3 bg-[#34C759] text-white hover:bg-[#34C759]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
+                  className="flex-1 py-3 bg-[#4A5DF9] text-white hover:bg-[#4A5DF9]/90 transition text-[13px] font-bold rounded-[12px] shadow-sm cursor-pointer"
                 >
                   게시글 복구 활성화
                 </button>
