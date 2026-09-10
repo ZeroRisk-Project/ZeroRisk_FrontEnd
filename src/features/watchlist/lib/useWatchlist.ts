@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
     addFavorite,
     createGroup,
@@ -50,15 +50,33 @@ export function useWatchlist(enabled = true) {
         };
     }, [enabled]);
 
+    // 즐겨찾기를 아주 짧은 간격으로 두 번 누르면(더블클릭 등) 두 호출이 모두 "그룹 없음"으로 보고
+    // 각자 기본 그룹을 만들어버릴 수 있다 - 진행 중인 resolve를 공유해서 동시 호출이 하나의
+    // 결과를 기다리게 한다.
+    const resolvingDefaultGroupRef = useRef<Promise<number> | null>(null);
+
     const resolveDefaultGroupId = useCallback(async () => {
-        const loaded = groups.length > 0 ? groups : await getGroups();
-        if (loaded.length > 0) {
-            setGroups(loaded);
-            return loaded[0].groupId;
+        if (resolvingDefaultGroupRef.current) {
+            return resolvingDefaultGroupRef.current;
         }
-        const created = await createGroup(DEFAULT_GROUP_NAME);
-        setGroups([created]);
-        return created.groupId;
+
+        const resolution = (async () => {
+            const loaded = groups.length > 0 ? groups : await getGroups();
+            if (loaded.length > 0) {
+                setGroups(loaded);
+                return loaded[0].groupId;
+            }
+            const created = await createGroup(DEFAULT_GROUP_NAME);
+            setGroups([created]);
+            return created.groupId;
+        })();
+
+        resolvingDefaultGroupRef.current = resolution;
+        try {
+            return await resolution;
+        } finally {
+            resolvingDefaultGroupRef.current = null;
+        }
     }, [groups]);
 
     const isFavorite = useCallback(

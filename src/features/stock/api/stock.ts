@@ -51,6 +51,18 @@ export interface StockSummaryResponse {
     preferred: boolean;
 }
 
+export interface OrderBookLevel {
+    price: number;
+    quantity: number;
+}
+
+export interface OrderBookResponse {
+    sellLevels: OrderBookLevel[];
+    buyLevels: OrderBookLevel[];
+    totalSellQuantity: number;
+    totalBuyQuantity: number;
+}
+
 export async function searchStocks(keyword: string, size = 10): Promise<StockSummaryResponse[]> {
     const response = await api.get<{ content: StockSummaryResponse[] }>('/stocks/search', {
         params: { keyword, size },
@@ -75,5 +87,10 @@ export async function getMarketIndices(): Promise<MarketIndexResponse[]> {
 
 export async function getStockChart(code: string, interval: ChartInterval): Promise<ChartCandleResponse[]> {
     const response = await api.get<ChartCandleResponse[]>(`/stocks/${code}/chart`, { params: { interval } });
+    return response.data;
+}
+
+export async function getOrderBook(code: string): Promise<OrderBookResponse> {
+    const response = await api.get<OrderBookResponse>(`/stocks/${code}/orderbook`);
     return response.data;
 }

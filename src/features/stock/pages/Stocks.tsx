@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useEffect, useMemo, useState } from "react";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
@@ -58,6 +58,10 @@ const RANKING_TYPE_BY_TAB: Record<string, RankingType> = {
   인기: "POPULAR",
 };
 
+// "전체보기"/검색 결과는 종목 검색 API만으로는 현재가를 알 수 없다(가격 필드가 없음).
+// 랭킹 API들에 함께 걸려있는 종목이라면 그 시세를 빌려와서 최소한 "-"만 뜨는 걸 줄인다.
+const PRICE_LOOKUP_RANKING_TYPES: RankingType[] = ["VOLUME", "TRADING_VALUE", "RISE", "FALL"];
+
 const formatVolume = (volume: number): string => {
   if (volume >= 1_000_000) return `${(volume / 1_000_000).toFixed(1)}M`;
   if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
@@ -88,14 +92,20 @@ const toStockListItem = (ranking: StockRankingResponse): StockListItem => ({
   preferred: ranking.preferred,
 });
 
-const toSearchListItem = (summary: StockSummaryResponse): StockListItem => ({
-  code: summary.code,
-  name: summary.name,
-  price: null,
-  change: null,
-  volume: "-",
-  preferred: summary.preferred,
-});
+const toSearchListItem = (
+    summary: StockSummaryResponse,
+    priceLookup: Map<string, StockRankingResponse>,
+): StockListItem => {
+  const ranked = priceLookup.get(summary.code);
+  return {
+    code: summary.code,
+    name: summary.name,
+    price: ranked ? ranked.currentPrice : null,
+    change: ranked ? ranked.changeRate : null,
+    volume: ranked ? formatVolume(ranked.volume) : "-",
+    preferred: summary.preferred,
+  };
+};
 
 export function Stocks() {
   const { code } = useParams();
@@ -188,14 +198,6 @@ export function Stocks() {
   });
   const rankingStocks = rankingsQuery.data ? rankingsQuery.data.map(toStockListItem) : [];
 
-  const allStocksQuery = useQuery({
-    queryKey: ["stocks", "all"],
-    queryFn: () => searchStocks("", 100),
-    enabled: activeTab === "전체보기",
-    retry: false,
-  });
-  const allStocksList = allStocksQuery.data ? allStocksQuery.data.map(toSearchListItem) : [];
-
   // 종목 상세의 "거래량" 표시는 현재 선택된 탭과 무관하게 항상 거래량 랭킹을 기준으로 삼는다
   // (다른 탭을 보고 있어도 상세 화면의 거래량 표시가 계속 나오도록).
   const volumeLookupQuery = useQuery({
@@ -204,6 +206,40 @@ export function Stocks() {
     retry: false,
   });
   const volumeLookupStocks = volumeLookupQuery.data ? volumeLookupQuery.data.map(toStockListItem) : [];
+
+  // "전체보기"/검색 결과에 현재가를 최대한 채워주기 위해 나머지 랭킹들도 함께 가져와서 합친다.
+  const needsPriceLookup = activeTab === "전체보기" || searchQuery.trim().length > 0;
+  const extraPriceLookupQueries = useQueries({
+    queries: PRICE_LOOKUP_RANKING_TYPES.filter((type) => type !== "VOLUME").map((type) => ({
+      queryKey: ["stocks", "rankings", type],
+      queryFn: () => getStockRankings(type, 100),
+      enabled: needsPriceLookup,
+      retry: false,
+    })),
+  });
+  const priceLookupMap = useMemo(() => {
+    const map = new Map<string, StockRankingResponse>();
+    const allRankingResults = [volumeLookupQuery.data, ...extraPriceLookupQueries.map((q) => q.data)];
+    for (const rankings of allRankingResults) {
+      for (const ranking of rankings ?? []) {
+        if (!map.has(ranking.code)) {
+          map.set(ranking.code, ranking);
+        }
+      }
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumeLookupQuery.data, ...extraPriceLookupQueries.map((q) => q.data)]);
+
+  const allStocksQuery = useQuery({
+    queryKey: ["stocks", "all"],
+    queryFn: () => searchStocks("", 100),
+    enabled: activeTab === "전체보기",
+    retry: false,
+  });
+  const allStocksList = allStocksQuery.data
+      ? allStocksQuery.data.map((summary) => toSearchListItem(summary, priceLookupMap))
+      : [];
 
   const [searchKeyword, setSearchKeyword] = useState("");
   useEffect(() => {
@@ -218,7 +254,9 @@ export function Stocks() {
     retry: false,
   });
   const isSearching = searchKeyword.length > 0;
-  const searchStocksList = searchResultsQuery.data ? searchResultsQuery.data.map(toSearchListItem) : [];
+  const searchStocksList = searchResultsQuery.data
+      ? searchResultsQuery.data.map((summary) => toSearchListItem(summary, priceLookupMap))
+      : [];
 
   const getFilteredAndSortedStocks = () => {
     let list: StockListItem[];
@@ -982,7 +1020,7 @@ export function Stocks() {
                   </Card>
 
                   {/* Order Book Panel */}
-                  <OrderBook />
+                  <OrderBook code={stock.code} currentPrice={stock.price} changeRate={stock.changeRate} />
                 </div>
               </div>
           ) : (

@@ -44,6 +44,12 @@ export interface PortfolioSnapshotResponse {
     totalAsset: number;
 }
 
+export interface PortfolioRiskResponse {
+    available: boolean;
+    beta: number | null;
+    volatility: number | null;
+}
+
 export async function getAccounts(): Promise<AccountResponse[]> {
     const response = await api.get<AccountResponse[]>('/accounts');
     return response.data;
@@ -67,5 +73,10 @@ export async function getSnapshots(
     const response = await api.get<PortfolioSnapshotResponse[]>('/portfolio/snapshots', {
         params: { accountId, from, to },
     });
+    return response.data;
+}
+
+export async function getRisk(accountId: number): Promise<PortfolioRiskResponse> {
+    const response = await api.get<PortfolioRiskResponse>('/portfolio/risk', { params: { accountId } });
     return response.data;
 }
