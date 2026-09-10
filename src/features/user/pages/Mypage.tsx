@@ -282,6 +282,7 @@ export function Mypage() {
           .map((trade) => ({
             type: trade.side === "BUY" ? "buy" : "sell",
             stock: trade.stockName,
+            stockCode: trade.stockCode,
             date: formatTransactionDate(trade.tradedAt),
             price: trade.price,
             qty: trade.quantity,
@@ -293,6 +294,7 @@ export function Mypage() {
         orderId: order.orderId as number | null,
         type: order.side === "BUY" ? "buy" : "sell",
         stock: order.stockName,
+        stockCode: order.stockCode,
         date: formatTransactionDate(order.createdAt),
         price: order.limitPrice ?? 0,
         qty: order.quantity,
@@ -563,7 +565,8 @@ export function Mypage() {
                               return (
                                 <div
                                     key={idx}
-                                    className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                                    onClick={() => navigate(`/stocks/${log.stockCode}`)}
+                                    className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px] cursor-pointer"
                                 >
                                   <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
                                   <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
@@ -604,7 +607,8 @@ export function Mypage() {
                               return (
                                   <div
                                       key={idx}
-                                      className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                                      onClick={() => navigate(`/stocks/${log.stockCode}`)}
+                                      className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px] cursor-pointer"
                                   >
                                     <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
                                     <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
@@ -621,7 +625,10 @@ export function Mypage() {
                                     <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
                                     <div className="flex justify-end pl-2">
                                       <button
-                                          onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (log.orderId !== null) handleCancelOrder(log.orderId);
+                                          }}
                                           disabled={log.orderId === null}
                                           className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                       >
@@ -829,7 +836,8 @@ export function Mypage() {
                             return (
                                 <div
                                     key={alert.alertId}
-                                    className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all"
+                                    onClick={() => navigate(`/stocks/${alert.stockCode}`)}
+                                    className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all cursor-pointer"
                                 >
                                   <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-[#F2F4F6] flex items-center justify-center font-bold text-xs text-[#4E5968] shrink-0">
@@ -855,7 +863,10 @@ export function Mypage() {
                                       </div>
                                     </div>
                                     <button
-                                        onClick={() => handleDeletePriceAlert(alert.alertId)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeletePriceAlert(alert.alertId);
+                                        }}
                                         className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
                                     >
                                       <X className="w-4 h-4" />
@@ -880,6 +891,7 @@ export function Mypage() {
                       return (
                         <div
                           key={idx}
+                          onClick={() => navigate(`/stocks/${stock.stockCode}`)}
                           className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all cursor-pointer gap-4"
                         >
                           <div className="flex items-center gap-4">
