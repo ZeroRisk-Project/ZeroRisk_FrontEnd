@@ -777,11 +777,15 @@ export function Mypage() {
                         return (
                           <div
                             key={stock.code}
+                            onClick={() => navigate(`/stocks/${stock.code}`)}
                             className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all cursor-pointer"
                           >
                             <div className="flex items-center gap-3">
                               <button
-                                onClick={() => handleToggleFavorite(stock.code)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleFavorite(stock.code);
+                                }}
                                 className="text-[#F04452] hover:scale-110 transition-transform cursor-pointer"
                               >
                                 <Heart className="w-5 h-5 fill-[#F04452]" />
@@ -798,6 +802,7 @@ export function Mypage() {
                               {groups.length > 1 && (
                                   <select
                                       value={stock.groupId}
+                                      onClick={(e) => e.stopPropagation()}
                                       onChange={(e) =>
                                           void changeFavoriteGroup(stock.favoriteId, Number(e.target.value))
                                       }
