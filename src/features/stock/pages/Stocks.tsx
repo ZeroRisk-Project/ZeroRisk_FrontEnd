@@ -39,6 +39,7 @@ import {
   type PriceAlertDirection,
 } from "@/src/features/pricealert/api/pricealert";
 import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
+import { GroupPickerDialog } from "@/src/features/watchlist/components/GroupPickerDialog";
 import { useAuth } from "@/src/shared/context/AuthContext";
 import { ConfirmDialog } from "@/src/shared/components/ui/ConfirmDialog";
 
@@ -142,14 +143,20 @@ export function Stocks() {
   const isCompared = (stockCode: string) => compareStocks.includes(stockCode);
 
   const { isLoggedIn } = useAuth();
-  const { isFavorite, toggleFavorite } = useWatchlist(isLoggedIn);
+  const { isFavorite, toggleFavorite, groups, addFavoriteToGroup, createGroupReturningId } = useWatchlist(isLoggedIn);
 
+  // 이미 관심종목이면 바로 해제하고, 아직 아니면 어느 그룹에 담을지 먼저 고르게 한다.
+  const [groupPickerStockCode, setGroupPickerStockCode] = useState<string | null>(null);
   const toggleFav = (stockCode: string) => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
-    void toggleFavorite(stockCode);
+    if (isFavorite(stockCode)) {
+      void toggleFavorite(stockCode);
+    } else {
+      setGroupPickerStockCode(stockCode);
+    }
   };
 
   const isFav = (stockCode: string) => isFavorite(stockCode);
@@ -495,6 +502,17 @@ export function Stocks() {
 
   return (
       <div className="flex gap-6 relative animate-in fade-in duration-500">
+        <GroupPickerDialog
+            open={groupPickerStockCode !== null}
+            groups={groups}
+            onCancel={() => setGroupPickerStockCode(null)}
+            onCreateGroup={createGroupReturningId}
+            onSelect={(groupId) => {
+              if (groupPickerStockCode) void addFavoriteToGroup(groupPickerStockCode, groupId);
+              setGroupPickerStockCode(null);
+            }}
+        />
+
         {/* Left List Area */}
         <Card className="hidden lg:flex lg:w-[350px] xl:w-[400px] flex-col h-[calc(100vh-8rem)] sticky top-[80px] p-5 bg-white">
           {/* Top Filters */}
