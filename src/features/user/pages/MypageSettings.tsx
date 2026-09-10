@@ -36,6 +36,7 @@ export function MypageSettings() {
   const [nickname, setNickname] = useState("불러오는 중");
   const [tempNickname, setTempNickname] = useState("");
   const [profilePic, setProfilePic] = useState(DEFAULT_PROFILE_IMAGE);
+  const [savedProfilePic, setSavedProfilePic] = useState(DEFAULT_PROFILE_IMAGE); // 서버에 저장된 현재 이미지 (변경 여부 판단용)
   const [nicknameError, setNicknameError] = useState<string | null>(null);
   const [nicknameSuccess, setNicknameSuccess] = useState<boolean>(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -117,6 +118,7 @@ export function MypageSettings() {
       setNickname(data.nickname);
       setEmail(data.email);
       setProfilePic(data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
+      setSavedProfilePic(data.profileImageUrl || DEFAULT_PROFILE_IMAGE);
       setAccountType(data.oauthProvider ? "social" : "general");
       setHasPracticeCredit(!!data.hasClaimedPracticeCredit);
     }
@@ -190,17 +192,37 @@ export function MypageSettings() {
   }, [tempNickname, nickname]);
 
   // Profile Pic picker trigger
+  // 원본 사진을 그대로 저장하면 base64 문자열이 수 MB에 달해 /users/me 응답·<img> 렌더가
+  // 불안정해진다(헤더에서 프로필이 깨지는 원인). 256px 이내로 축소한 뒤 저장한다.
   const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setProfilePic(event.target.result as string);
-          triggerNotification("프로필 이미지가 변경되었습니다.");
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const src = event.target?.result as string | undefined;
+      if (!src) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 256;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(img.width * scale));
+        canvas.height = Math.max(1, Math.round(img.height * scale));
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setProfilePic(canvas.toDataURL("image/jpeg", 0.85));
+        } else {
+          setProfilePic(src);
         }
+        triggerNotification("프로필 이미지가 변경되었습니다.");
       };
-      reader.readAsDataURL(e.target.files[0]);
-    }
+      img.onerror = () => triggerNotification("이미지를 불러오지 못했습니다.");
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
   };
 
   // Toast Notification helper
@@ -295,12 +317,24 @@ export function MypageSettings() {
                     accept="image/*" 
                     onChange={handleProfilePicChange}
                   />
-                  <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    className="mt-3.5 px-4 py-1.5 border border-neutral-200 rounded-full text-[13px] font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition"
-                  >
-                    사진 변경
-                  </button>
+                  <div className="mt-3.5 flex items-center gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-1.5 border border-neutral-200 rounded-full text-[13px] font-bold text-neutral-600 bg-white hover:bg-neutral-50 transition"
+                    >
+                      사진 변경
+                    </button>
+                    <button
+                      onClick={() => {
+                        setProfilePic(DEFAULT_PROFILE_IMAGE);
+                        triggerNotification("기본 이미지로 변경되었습니다.");
+                      }}
+                      disabled={profilePic === DEFAULT_PROFILE_IMAGE}
+                      className="px-4 py-1.5 border border-neutral-200 rounded-full text-[13px] font-bold text-neutral-500 bg-white hover:bg-neutral-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      기본 이미지로
+                    </button>
+                  </div>
                 </div>
 
                 {/* Nickname Input - Floating label styled */}
@@ -344,15 +378,24 @@ export function MypageSettings() {
                 <button
                   onClick={async () => {
                     try {
-                      await api.patch("/users/me", { nickname: tempNickname, profileImageUrl: profilePic });
+                      await api.patch("/users/me", {
+                        nickname: tempNickname,
+                        profileImageUrl: profilePic === DEFAULT_PROFILE_IMAGE ? null : profilePic,
+                      });
                       setNickname(tempNickname);
-                      triggerNotification("닉네임이 성공적으로 변경되었습니다.");
+                      setSavedProfilePic(profilePic);
+                      window.dispatchEvent(new Event("auth-change")); // 헤더(AuthContext)가 새 프로필을 다시 불러오도록
+                      triggerNotification("프로필이 저장되었습니다.");
                       closeSheet();
                     } catch (error: any) {
                       setNicknameError(error.response?.data?.message ?? "변경에 실패했습니다.");
                     }
                   }}
-                  disabled={!!nicknameError || tempNickname === nickname || !tempNickname.trim()}
+                  disabled={
+                    !!nicknameError ||
+                    (tempNickname === nickname && profilePic === savedProfilePic) ||
+                    !tempNickname.trim()
+                  }
                   className="w-full bg-[#4B80EB] disabled:bg-neutral-200 text-white font-bold py-4 rounded-[16px] transition-all hover:bg-blue-600 disabled:text-neutral-400 mt-4 cursor-pointer"
                 >
                   저장하기

@@ -4,6 +4,13 @@ import { Trophy, Plus, X } from "lucide-react";
 import { cn } from "@/src/shared/lib/utils";
 import api from "@/src/shared/lib/api";
 
+// 관리자 액션 버튼 공통 스타일 — 브랜드(파랑)/회색 위주로 통일. 위험 동작은 평소 회색, hover 시에만 빨강.
+const ADMIN_BTN = {
+  brand: "border border-[#4A5DF9] text-[#4A5DF9] hover:bg-[#4A5DF9]/5",
+  gray: "border border-[#E5E5EA] text-[#4E5968] hover:bg-[#F2F2F7] hover:text-[#1C1C1E]",
+  danger: "border border-[#E5E5EA] text-[#8E8E93] hover:border-[#FF3B30] hover:text-[#FF3B30] hover:bg-[#FF3B30]/5",
+};
+
 interface AdminCompetitionsTabProps {
   competitions: any[];
   fetchAdminCompetitions: () => Promise<void>;
@@ -72,7 +79,7 @@ export function AdminCompetitionsTab({
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">참가 인원</th>
                           <th className="py-3.5 px-4 text-center whitespace-nowrap">대회 상태</th>
                           <th className="py-3.5 px-4 text-center w-28 whitespace-nowrap">공개 처리</th>
-                          <th className="py-3.5 px-4 text-center w-[160px] whitespace-nowrap">관리 제어</th>
+                          <th className="py-3.5 px-4 w-[160px] whitespace-nowrap">관리 제어</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#E5E5EA]">
@@ -142,8 +149,8 @@ export function AdminCompetitionsTab({
                                   )} />
                                 </button>
                               </td>
-                              <td className="py-2 px-4 text-center whitespace-nowrap">
-                                <div className="flex gap-2 justify-center">
+                              <td className="py-2 px-4 whitespace-nowrap">
+                                <div className="flex gap-2 justify-start">
                                   <button
                                     onClick={async () => {
                                       setSelectedCompForParticipants(comp);
@@ -156,7 +163,7 @@ export function AdminCompetitionsTab({
                                         setCompParticipants(prev => ({ ...prev, [comp.id]: [] }));
                                       }
                                     }}
-                                    className="px-2.5 py-1.5 border border-[#10B981] text-[#10B981] hover:bg-[#10B981]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                    className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.brand)}
                                   >
                                     참가자
                                   </button>
@@ -172,14 +179,14 @@ export function AdminCompetitionsTab({
                                         setEditMaxParticipants(comp.maxParticipants?.toString() ?? "");
                                         setEditError("");
                                       }}
-                                      className="px-2.5 py-1.5 border border-[#4A5DF9] text-[#4A5DF9] hover:bg-[#4A5DF9]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                      className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.gray)}
                                     >
                                       수정
                                     </button>
                                   )}
                                   <button
                                     onClick={handleDeleteComp}
-                                    className="px-2.5 py-1.5 border border-[#FF3B30] text-[#FF3B30] hover:bg-[#FF3B30]/5 text-xs font-bold rounded-[8px] transition cursor-pointer"
+                                    className={cn("px-2.5 py-1.5 text-xs font-bold rounded-[8px] transition cursor-pointer", ADMIN_BTN.danger)}
                                   >
                                     삭제
                                   </button>
@@ -322,7 +329,7 @@ export function AdminCompetitionsTab({
                           triggerToast(`⚠️ ${error.response?.data?.message ?? "처리에 실패했습니다."}`);
                         }
                       }}
-                      className="px-3 py-1.5 rounded-[8px] bg-[#FF3B30]/10 text-[#FF3B30] text-[11.5px] font-black hover:bg-[#FF3B30] hover:text-white transition cursor-pointer"
+                      className={cn("px-3 py-1.5 rounded-[8px] text-[11.5px] font-bold transition cursor-pointer", ADMIN_BTN.danger)}
                     >
                       강제퇴장
                     </button>

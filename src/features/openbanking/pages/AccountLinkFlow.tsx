@@ -564,7 +564,9 @@ function RechargeConfirmPage() {
     if (!isValid) return;
     try {
       await api.post("/openbanking/recharge", { amount: amountNumber });
-      navigate("/account-link/recharge/complete", { state: { amount: amountNumber } });
+      navigate("/account-link/recharge/complete", {
+        state: { amount: amountNumber, bank: currentBank, num: currentNum },
+      });
     } catch (error: any) {
       setRechargeError(error.response?.data?.message ?? "충전에 실패했습니다.");
     }
@@ -662,7 +664,9 @@ function RechargeConfirmPage() {
 function RechargeCompletePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state || { amount: 3000000 };
+
+  // Retrieve states safely
+  const state = location.state || { amount: 3000000, bank: "신한은행", num: "110-***-******" };
 
   return (
     <div className="flex flex-col h-full justify-between flex-1 p-6 sm:p-8 text-center animate-in zoom-in-95 duration-400">
@@ -679,44 +683,53 @@ function RechargeCompletePage() {
       </div>
 
       {/* Center success content */}
-      <div className="my-auto py-10">
-
-        <div className="w-16 h-16 bg-blue-50 text-[#3182F6] rounded-full flex items-center justify-center text-2.5xl mx-auto mb-6 shadow-xs">
-          ⚡
+      <div className="my-auto py-8">
+        {/* Toss-style Green Circle with Check Icon */}
+        <div className="w-20 h-20 bg-[#00D26A] text-white rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce-short">
+          <Check className="w-10 h-10 stroke-[3.5]" />
         </div>
 
-        {/* Title */}
-        <p className="text-xs font-extrabold text-[#3182F6] uppercase tracking-wider mb-1.5">RECHARGE COMPLETED</p>
+        {/* Large Heading */}
         <h2 className="text-[25px] font-black text-neutral-900 leading-snug tracking-tight mb-2">
           {formatPrice(state.amount)} 원<br />
           추가 충전됐어요!
         </h2>
 
         <p className="text-sm font-semibold text-text-secondary leading-relaxed max-w-sm mx-auto mb-8">
-          연동 계좌의 증가액이 성공적으로 확인되었습니다.<br />
-          추가된 자금으로 더욱 능동적인 전술을 수립해보세요.
+          리스크 없이 실전처럼 안전하게 진짜 실력을 겨뤄보세요.<br />
+          이제 바로 투자할 자금이 준비 완료되었습니다.
         </p>
 
-        {/* Receipt table details */}
-        <div className="bg-neutral-50/70 border border-neutral-150 rounded-[24px] p-5 text-left max-w-xs mx-auto space-y-3.5">
+        {/* Summary Details Card */}
+        <div className="bg-neutral-50/70 border border-neutral-100 rounded-[24px] p-5 text-left max-w-sm mx-auto space-y-3.5">
           <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-neutral-400">추가 충전</span>
-            <span className="font-extrabold text-[#3182F6]">+ ₩{formatPrice(state.amount)}</span>
+            <span className="font-bold text-neutral-400">충전된 시드머니</span>
+            <span className="font-extrabold text-neutral-800">{formatPrice(state.amount)} 원</span>
           </div>
           <div className="flex justify-between items-center text-xs">
-            <span className="font-bold text-neutral-400">총 보유 포인트</span>
-            <span className="font-extrabold text-neutral-800">지급 완료</span>
+            <span className="font-bold text-neutral-400">연동된 계좌</span>
+            <span className="font-extrabold text-neutral-800">{state.bank} {state.num ? state.num.slice(0, 7) + "***" : "110-***"}</span>
           </div>
+          <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-neutral-400">재충전 가능 조건</span>
+            <span className="font-extrabold text-[#3182F6]">계좌 잔액이 남았거나, 잔액 상승 시 가능</span>
+          </div>
+        </div>
+
+        {/* Advice Panel info card */}
+        <div className="bg-blue-50/50 text-[#3182F6] rounded-2xl p-4 text-[11px] font-bold leading-relaxed text-left max-w-sm mx-auto border border-blue-50 mt-5 flex gap-2">
+          <span>💡</span>
+          <div>앞으로 월급이 들어오거나 잔액이 추가로 늘어날 때 <strong>재충전</strong> 메뉴를 통해 늘어난 증가 갭만큼 한도 포인트를 언제든지 추가 수령 가능합니다.</div>
         </div>
       </div>
 
-      {/* Button footer controls */}
+      {/* Action triggers bottom screen */}
       <div className="space-y-3">
         <button
           onClick={() => navigate("/stocks")}
           className="w-full bg-[#3182F6] hover:bg-[#1B64DA] text-white py-4 rounded-[16px] font-bold text-[16px] transition-colors cursor-pointer shadow-lg shadow-blue-500/10"
         >
-          투자하러 가기
+          지금 바로 투자하기
         </button>
 
         <button
