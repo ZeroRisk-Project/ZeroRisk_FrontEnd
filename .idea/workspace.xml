@@ -3,7 +3,15 @@
   <component name="ChangeListManager">
     <list default="true" id="0ef077b8-aa5b-4325-96d0-72a5ee6bd2a2" name="변경" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/portfolio/api/portfolio.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/portfolio/api/portfolio.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/portfolio/pages/Portfolio.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/portfolio/pages/Portfolio.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/stock/api/stock.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/api/stock.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/stock/components/OrderBook.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/components/OrderBook.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/stock/pages/Stocks.tsx" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/user/pages/Mypage.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/user/pages/MypageSettings.tsx" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/user/pages/MypageSettings.tsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/features/watchlist/lib/useWatchlist.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/features/watchlist/lib/useWatchlist.ts" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/shared/lib/api.ts" beforeDir="false" afterPath="$PROJECT_DIR$/src/shared/lib/api.ts" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -90,7 +98,9 @@
       <workItem from="1788783509364" duration="2273000" />
       <workItem from="1788839844401" duration="1837000" />
       <workItem from="1788875988752" duration="3381000" />
-      <workItem from="1788925996968" duration="3528000" />
+      <workItem from="1788925996968" duration="5592000" />
+      <workItem from="1788957208674" duration="11168000" />
+      <workItem from="1789015203749" duration="1818000" />
     </task>
     <servers />
   </component>

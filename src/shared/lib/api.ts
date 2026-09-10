@@ -17,7 +17,7 @@ export interface ApiErrorResponse {
 }
 
 let isRefreshing = false;
-let refreshWaiters: Array<() => void> = [];
+let refreshWaiters: Array<{ resolve: () => void; reject: (error: unknown) => void }> = [];
 
 api.interceptors.response.use(
     (response) => response,
@@ -33,7 +33,10 @@ api.interceptors.response.use(
             !SILENT_CHECK_URLS.includes(originalRequest.url)
         ) {
             if (isRefreshing) {
-                await new Promise<void>((resolve) => refreshWaiters.push(resolve));
+                // resolve/reject를 둘 다 큐에 담아둬야, 재발급이 실패했을 때 대기 중인 요청들을
+                // 정리(reject)할 수 있다 - 예전엔 실패 시 배열만 비우고 아무도 깨우지 않아서
+                // 대기 중이던 요청들이 새로고침 전까지 영구히 멈춰 있었다.
+                await new Promise<void>((resolve, reject) => refreshWaiters.push({ resolve, reject }));
                 return api(originalRequest);
             }
 
@@ -42,10 +45,11 @@ api.interceptors.response.use(
 
             try {
                 await api.post('/auth/reissue');
-                refreshWaiters.forEach((resolve) => resolve());
+                refreshWaiters.forEach(({ resolve }) => resolve());
                 refreshWaiters = [];
                 return api(originalRequest);
             } catch (reissueError) {
+                refreshWaiters.forEach(({ reject }) => reject(reissueError));
                 refreshWaiters = [];
                 const pathname = window.location.pathname;
                 const isPublic =

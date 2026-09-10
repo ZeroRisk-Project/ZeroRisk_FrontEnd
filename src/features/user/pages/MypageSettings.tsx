@@ -134,6 +134,12 @@ export function MypageSettings() {
   // Handle Nickname validation
   const handleNicknameChange = (val: string) => {
     setTempNickname(val);
+  };
+
+  // 형식 검증은 입력 즉시, 중복 확인은 실제 서버 조회(/auth/nickname-check)라 타이핑마다
+  // 매번 호출하지 않도록 디바운스한다.
+  useEffect(() => {
+    const val = tempNickname;
     if (!val.trim()) {
       setNicknameError("닉네임을 입력해 주세요.");
       setNicknameSuccess(false);
@@ -150,16 +156,38 @@ export function MypageSettings() {
       setNicknameSuccess(false);
       return;
     }
-
-    // Mock duplicate check
-    if (val === "이미사용중" || val === "test") {
-      setNicknameError("이미 사용 중인 닉네임입니다.");
-      setNicknameSuccess(false);
-    } else {
+    if (val === nickname) {
       setNicknameError(null);
-      setNicknameSuccess(true);
+      setNicknameSuccess(false);
+      return;
     }
-  };
+
+    let ignore = false;
+    const timer = setTimeout(() => {
+      api
+        .get("/auth/nickname-check", { params: { nickname: val } })
+        .then((response) => {
+          if (ignore) return;
+          if (response.data.available) {
+            setNicknameError(null);
+            setNicknameSuccess(true);
+          } else {
+            setNicknameError("이미 사용 중인 닉네임입니다.");
+            setNicknameSuccess(false);
+          }
+        })
+        .catch(() => {
+          if (ignore) return;
+          setNicknameError("중복 확인에 실패했습니다. 잠시 후 다시 시도해주세요.");
+          setNicknameSuccess(false);
+        });
+    }, 400);
+
+    return () => {
+      ignore = true;
+      clearTimeout(timer);
+    };
+  }, [tempNickname, nickname]);
 
   // Profile Pic picker trigger
   const handleProfilePicChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -337,20 +365,10 @@ export function MypageSettings() {
               <div className="space-y-5">
                 <div className="text-center mb-2">
                   <h3 className="text-lg font-bold text-neutral-900">비밀번호 변경</h3>
-                  {/* Account Type switcher just for demonstration */}
-                  <div className="mt-3 inline-flex bg-neutral-100 p-1 rounded-lg text-xs font-bold text-neutral-500">
-                    <button 
-                      onClick={() => setAccountType("general")}
-                      className={`px-3 py-1.5 rounded-md transition ${accountType === "general" ? 'bg-white text-neutral-900 shadow-xs' : ''}`}
-                    >
-                      일반 계정
-                    </button>
-                    <button 
-                      onClick={() => setAccountType("social")}
-                      className={`px-3 py-1.5 rounded-md transition ${accountType === "social" ? 'bg-white text-neutral-900 shadow-xs' : ''}`}
-                    >
-                      소셜 계정
-                    </button>
+                  {/* accountType은 서버에서 받아온 실제 가입 방식(oauthProvider 여부)이라 사용자가
+                      직접 바꿀 수 있는 값이 아니다 - 읽기 전용으로만 표시한다. */}
+                  <div className="mt-3 inline-flex bg-neutral-100 px-3 py-1.5 rounded-lg text-xs font-bold text-neutral-500">
+                    {accountType === "social" ? "소셜 계정" : "일반 계정"}
                   </div>
                 </div>
 

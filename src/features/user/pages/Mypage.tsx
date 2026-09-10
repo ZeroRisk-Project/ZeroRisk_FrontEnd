@@ -62,6 +62,12 @@ export function Mypage() {
   const [txPeriod, setTxPeriod] = useState("1개월");
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [actionToast, setActionToast] = useState("");
+
+  const showToast = (message: string) => {
+    setActionToast(message);
+    setTimeout(() => setActionToast(""), 3000);
+  };
 
   const queryClient = useQueryClient();
 
@@ -95,8 +101,21 @@ export function Mypage() {
     if (basicAccountId === null) return;
     try {
       await cancelOrder(orderId);
-      await queryClient.invalidateQueries({ queryKey: ["mypage", "pendingOrders", basicAccountId] });
-    } catch {
+      showToast("주문이 취소되었습니다.");
+    } catch (error: any) {
+      // 취소 시도와 예약주문 체결 배치가 동시에 같은 주문을 처리했을 수 있다(백엔드 레이스) -
+      // 실패 사유를 그대로 보여줘야 사용자가 "이미 체결됐다"는 걸 알 수 있다.
+      showToast(error?.response?.data?.message ?? "주문 취소에 실패했습니다.");
+    } finally {
+      // 성공/실패 여부와 무관하게 다시 조회한다 - 취소가 실패했다면(레이스로 이미 체결됐다면)
+      // 미체결 목록/체결내역/잔고가 실제 최신 상태로 갱신되어야 한다.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["mypage", "pendingOrders", basicAccountId] }),
+        queryClient.invalidateQueries({ queryKey: ["mypage", "trades", basicAccountId] }),
+        queryClient.invalidateQueries({ queryKey: ["mypage", "accounts"] }),
+        queryClient.invalidateQueries({ queryKey: ["mypage", "holdings", basicAccountId] }),
+        queryClient.invalidateQueries({ queryKey: ["mypage", "composition", basicAccountId] }),
+      ]);
     }
   };
 
@@ -160,10 +179,11 @@ export function Mypage() {
   const handleSubmitGroupName = async () => {
     const name = groupNameDraft.trim();
     if (!name) return;
-    if (editingGroupId === null) {
-      await addGroup(name);
-    } else {
-      await renameGroup(editingGroupId, name);
+    const success =
+        editingGroupId === null ? await addGroup(name) : await renameGroup(editingGroupId, name);
+    if (!success) {
+      showToast(editingGroupId === null ? "그룹 생성에 실패했습니다." : "그룹 이름 변경에 실패했습니다.");
+      return;
     }
     closeGroupEditor();
   };
@@ -173,8 +193,11 @@ export function Mypage() {
     await removeGroup(groupId);
   };
 
-  const handleToggleFavorite = (code: string) => {
-    void toggleFavorite(code);
+  const handleToggleFavorite = async (code: string) => {
+    const success = await toggleFavorite(code);
+    if (!success) {
+      showToast("관심종목 처리에 실패했습니다.");
+    }
   };
 
   const favoriteCodes = (favorites ?? []).map((favorite) => favorite.stockCode);
@@ -326,6 +349,11 @@ export function Mypage() {
 
   return (
     <>
+      {actionToast && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-[#1C1C1E] text-white px-4 py-2 rounded-[16px] text-sm whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-top-2 z-[60]">
+          {actionToast}
+        </div>
+      )}
       <div className={`flex flex-col lg:flex-row gap-6 w-full transition-all duration-300 animate-in fade-in duration-500 ${!isLinked ? "pb-40 md:pb-32" : ""}`}>
         
         {/* Left Column (Profile & Content Area) */}

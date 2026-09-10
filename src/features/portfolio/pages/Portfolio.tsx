@@ -2,16 +2,16 @@ import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/src/shared/components/ui/Card';
 import { Badge } from '@/src/shared/components/ui/Badge';
-import { ChevronDown, AlertTriangle, Search, ChevronRight, TrendingUp, AlertCircle } from 'lucide-react';
+import { ChevronDown, AlertTriangle, Search, ChevronRight, TrendingUp, AlertCircle, Info } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatPrice, formatPercent, cn } from '@/src/shared/lib/utils';
 import {
   PieChart, Pie, Cell, Tooltip as RechartsTooltip,
-  AreaChart, Area, XAxis, YAxis, ComposedChart, Line,
+  AreaChart, Area, XAxis, YAxis, ComposedChart,
   BarChart, Bar, ReferenceLine, ResponsiveContainer
 } from 'recharts';
 import {
-    getAccounts, getComposition, getHoldings, getSnapshots,
+    getAccounts, getComposition, getHoldings, getRisk, getSnapshots,
 } from '@/src/features/portfolio/api/portfolio';
 import api from '@/src/shared/lib/api';
 
@@ -42,12 +42,6 @@ const LineTooltip = ({ active, payload, label }: any) => {
           <span className="text-text-secondary">내 총자산</span>
           <span className="font-medium text-[#4A5DF9]">{formatPrice(payload[0].value)}원</span>
         </div>
-        {payload[1] && (
-          <div className="flex justify-between gap-4 mt-1">
-            <span className="text-text-secondary">KOSPI 수익률</span>
-            <span className="font-medium text-[#8E8E93]">{payload[1].value > 0 ? '+' : ''}{payload[1].value}%</span>
-          </div>
-        )}
       </div>
     );
   }
@@ -137,6 +131,14 @@ export function Portfolio() {
     });
     const serverSnapshots = snapshotsQuery.data ?? null;
 
+    const riskQuery = useQuery({
+        queryKey: ['portfolio', 'risk', effectiveAccountId],
+        queryFn: () => getRisk(effectiveAccountId as number),
+        enabled: effectiveAccountId !== null,
+        retry: false,
+    });
+    const risk = riskQuery.data ?? null;
+
   const holdings = useMemo(() => {
       if (!serverHoldings) return [];
       const weightByCode = new Map(
@@ -170,23 +172,26 @@ export function Portfolio() {
       };
   }, [serverHoldings, serverComposition]);
 
-  const history = useMemo(() => {
+  // KOSPI 비교선은 시장지수 일별 종가 데이터가 아직 준비되지 않아 우선 뺐다(예전엔 항상 0%로
+  // 하드코딩되어 실제 데이터처럼 보이는 게 더 큰 문제였음) - 데이터가 준비되면 다시 추가할 것.
+  const historyData = useMemo(() => {
       if (!serverSnapshots) return [];
-        return serverSnapshots.map((snapshot) => ({
-            date: snapshot.snapshotDate.slice(5),
-            asset: snapshot.totalAsset,
-            kospiRate: 0,
-        }));
+      return serverSnapshots.map((snapshot) => ({
+          date: snapshot.snapshotDate.slice(5),
+          asset: snapshot.totalAsset,
+      }));
   }, [serverSnapshots]);
 
   // Check for risk warning
   const highRiskStock = holdings.find(h => h.weight > 30);
 
-  // Compute history for composed chart
-  const historyData = history.map(h => ({
-     ...h,
-     kospiScaled: summary.totalPurchase * (1 + h.kospiRate / 100) // Dummy scale KOSPI to match asset for visual overlay
-  }));
+  const holdingsLoading = holdingsQuery.isLoading || compositionQuery.isLoading;
+  const holdingsError = holdingsQuery.isError || compositionQuery.isError;
+  const holdingsEmptyMessage = holdingsError
+      ? "데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."
+      : holdingsLoading
+          ? "불러오는 중..."
+          : "보유 종목이 없습니다.";
 
   return (
     <div className="space-y-8 pb-10 relative">
@@ -265,12 +270,58 @@ export function Portfolio() {
            </Card>
         </div>
 
+        {holdingsError && (
+           <div className="flex items-center gap-2 p-4 rounded-[12px] bg-[rgba(255,59,48,0.1)] text-[#FF3B30]">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <p className="font-medium text-sm">
+                 보유 종목 정보를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.
+              </p>
+           </div>
+        )}
+
         {highRiskStock && (
            <div className="flex items-center gap-2 p-4 rounded-[12px] bg-[rgba(255,59,48,0.1)] text-[#FF3B30]">
               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
               <p className="font-medium text-sm">
                  {highRiskStock.name} 비중이 {highRiskStock.weight}%입니다. 분산 투자를 권장합니다.
               </p>
+           </div>
+        )}
+
+        {risk && risk.available && (
+           <div className="grid grid-cols-2 gap-4">
+              <Card>
+                 <CardContent className="p-5 flex flex-col h-full min-h-[120px]">
+                    <div className="flex items-center gap-1.5 text-text-secondary cursor-help hover:text-text-primary transition-colors" title="시장(KOSPI) 대비 변동성. 1보다 크면 더 많이 움직임">
+                       <span className="text-sm font-bold">베타 (β)</span>
+                       <Info className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="mt-auto text-right">
+                       <span className="text-2xl font-bold tracking-tight">{risk.beta}</span>
+                    </div>
+                 </CardContent>
+              </Card>
+              <Card>
+                 <CardContent className="p-5 flex flex-col h-full min-h-[120px]">
+                    <div className="flex items-center gap-1.5 text-text-secondary cursor-help hover:text-text-primary transition-colors" title="연율화된 일별 수익률의 표준편차. 낮을수록 안정적">
+                       <span className="text-sm font-bold">변동성</span>
+                       <Info className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="mt-auto text-right">
+                       <span className="text-2xl font-bold tracking-tight">{risk.volatility}%</span>
+                    </div>
+                 </CardContent>
+              </Card>
+           </div>
+        )}
+        {risk && !risk.available && (
+           <div className="text-sm text-text-secondary px-1">
+              베타/변동성은 종목별 시세 데이터가 더 쌓이면(최소 20 거래일) 표시됩니다.
+           </div>
+        )}
+        {riskQuery.isError && (
+           <div className="text-sm text-text-secondary px-1">
+              베타/변동성 정보를 불러오지 못했습니다.
            </div>
         )}
       </section>
@@ -284,7 +335,7 @@ export function Portfolio() {
             <CardContent>
                {holdings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[240px] text-text-secondary">
-                     <p>보유 종목이 없습니다.</p>
+                     <p>{holdingsEmptyMessage}</p>
                   </div>
                ) : (
                   <>
@@ -364,10 +415,8 @@ export function Portfolio() {
                         </defs>
                         <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#8E8E93' }} dy={10} />
                         <YAxis yAxisId="left" hide domain={['auto', 'auto']} />
-                        <YAxis yAxisId="right" orientation="right" hide domain={['auto', 'auto']} />
                         <RechartsTooltip content={<LineTooltip />} />
                         <Area yAxisId="left" type="monotone" dataKey="asset" stroke="#4A5DF9" strokeWidth={2} fillOpacity={1} fill="url(#colorAsset)" />
-                        <Line yAxisId="right" type="monotone" dataKey="kospiScaled" stroke="#8E8E93" strokeWidth={2} strokeDasharray="4 4" dot={false} activeDot={false} />
                      </ComposedChart>
                   </ResponsiveContainer>
                </div>
@@ -375,10 +424,6 @@ export function Portfolio() {
                   <div className="flex items-center gap-2">
                      <span className="w-2 h-2 rounded-full bg-[#4A5DF9]"></span>
                      <span>내 자산</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                     <span className="w-2 h-2 rounded-full bg-[#8E8E93]"></span>
-                     <span>KOSPI</span>
                   </div>
                </div>
             </CardContent>
@@ -394,7 +439,7 @@ export function Portfolio() {
             <CardContent className="overflow-x-auto">
                {holdings.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
-                     <p>보유 종목이 없습니다.</p>
+                     <p>{holdingsEmptyMessage}</p>
                   </div>
                ) : (
                   <table className="w-full text-sm text-left">
@@ -442,7 +487,7 @@ export function Portfolio() {
          <CardContent>
             {holdings.length === 0 ? (
                <div className="flex flex-col items-center justify-center h-[245px] text-text-secondary">
-                  <p>보유 종목이 없습니다.</p>
+                  <p>{holdingsEmptyMessage}</p>
                </div>
             ) : (
                <div className="h-[245px] w-full">
