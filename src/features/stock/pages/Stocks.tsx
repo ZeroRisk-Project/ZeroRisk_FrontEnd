@@ -382,14 +382,22 @@ export function Stocks() {
   };
 
   interface PendingOrder {
+    side: "buy" | "sell";
+    stockName: string;
+    stockCode: string;
+    accountId: number;
     requestedOrderType: "MARKET" | "LIMIT";
+    isMarketPriceType: boolean;
     quantity: number;
+    limitPrice?: number;
     amount: number;
   }
   const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
 
   // 매수하기/매도하기/예약 버튼 클릭 시 바로 주문을 넣지 않고, 검증까지만 통과시킨 뒤
-  // 확인 다이얼로그를 띄운다 - 실제 API 호출은 다이얼로그의 "확인"에서 submitOrder가 처리.
+  // 확인 다이얼로그를 띄운다 - 다이얼로그가 떠 있는 동안 폼 입력을 바꿔도 주문 내용이
+  // 달라지지 않도록, 이 시점 값들을 pendingOrder에 스냅샷으로 담아두고 submitOrder는
+  // 그 스냅샷만 사용한다(오버레이가 폼을 덮어 실제로 바뀔 일은 없지만 안전하게).
   const openOrderConfirm = (requestedOrderType: "MARKET" | "LIMIT") => {
     if (!isLoggedIn) {
       navigate("/login");
@@ -414,30 +422,39 @@ export function Stocks() {
     }
 
     const unitPrice = priceType === "시장가" ? stock.price : orderLimitPrice;
-    setPendingOrder({ requestedOrderType, quantity: orderQuantity, amount: orderQuantity * unitPrice });
+    setPendingOrder({
+      side: orderType,
+      stockName: stock.name,
+      stockCode: stock.code,
+      accountId: selectedAccountId,
+      requestedOrderType,
+      isMarketPriceType: priceType === "시장가",
+      quantity: orderQuantity,
+      limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
+      amount: orderQuantity * unitPrice,
+    });
   };
 
   const submitOrder = async () => {
-    if (!stock || !pendingOrder || selectedAccountId === null) return;
-    const { requestedOrderType, quantity: orderQuantity } = pendingOrder;
-    const orderLimitPrice = Number(limitPrice || 0);
+    if (!pendingOrder) return;
+    const { side, stockCode, accountId, requestedOrderType, isMarketPriceType, quantity: orderQuantity, limitPrice: orderLimitPrice } = pendingOrder;
 
     setIsSubmittingOrder(true);
     try {
       await createOrder({
-        accountId: selectedAccountId,
-        stockCode: stock.code,
-        side: orderType === "buy" ? "BUY" : "SELL",
+        accountId,
+        stockCode,
+        side: side === "buy" ? "BUY" : "SELL",
         orderType: requestedOrderType,
         quantity: orderQuantity,
-        limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
+        limitPrice: orderLimitPrice,
       });
       setQuantity("");
       void refreshAccountBalance();
       showToast(
-          requestedOrderType === "LIMIT" && priceType === "시장가"
+          requestedOrderType === "LIMIT" && isMarketPriceType
               ? "성공적으로 예약 주문이 접수되었습니다."
-              : `성공적으로 ${orderType === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
+              : `성공적으로 ${side === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
       );
     } catch (error: any) {
       showToast(error?.response?.data?.message ?? "주문 처리에 실패했습니다.");
@@ -1091,11 +1108,11 @@ export function Stocks() {
                       open={pendingOrder !== null}
                       title={
                         pendingOrder
-                            ? `${stock.name} ${pendingOrder.quantity}주를 총 ${formatPrice(pendingOrder.amount)}원에 ${orderType === "buy" ? "구매" : "판매"}하시겠습니까?`
+                            ? `${pendingOrder.stockName} ${pendingOrder.quantity}주를 총 ${formatPrice(pendingOrder.amount)}원에 ${pendingOrder.side === "buy" ? "구매" : "판매"}하시겠습니까?`
                             : ""
                       }
-                      confirmLabel={orderType === "buy" ? "구매하기" : "판매하기"}
-                      confirmTone={orderType === "buy" ? "buy" : "sell"}
+                      confirmLabel={pendingOrder?.side === "buy" ? "구매하기" : "판매하기"}
+                      confirmTone={pendingOrder?.side === "buy" ? "buy" : "sell"}
                       onCancel={() => setPendingOrder(null)}
                       onConfirm={() => void submitOrder()}
                   />
