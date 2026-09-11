@@ -17,6 +17,13 @@ export interface StockDetailResponse {
     week52Low: number;
 }
 
+export interface StockQuoteResponse {
+    code: string;
+    currentPrice: number;
+    changeAmount: number;
+    changeRate: number;
+}
+
 export interface StockRankingResponse {
     code: string;
     name: string;
@@ -77,6 +84,12 @@ export async function getStockDetail(code: string): Promise<StockDetailResponse>
 
 export async function getStockRankings(type: RankingType, count = 20): Promise<StockRankingResponse[]> {
     const response = await api.get<StockRankingResponse[]>('/stocks/rankings', { params: { type, count } });
+    return response.data;
+}
+
+export async function getStockQuotes(codes: string[]): Promise<StockQuoteResponse[]> {
+    if (codes.length === 0) return [];
+    const response = await api.get<StockQuoteResponse[]>('/stocks/quotes', { params: { codes: codes.join(',') } });
     return response.data;
 }
 

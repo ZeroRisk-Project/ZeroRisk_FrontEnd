@@ -20,6 +20,7 @@ import { OrderBook } from "@/src/features/stock/components/OrderBook";
 import {
   getStockChart,
   getStockDetail,
+  getStockQuotes,
   getStockRankings,
   searchStocks,
   type ChartInterval,
@@ -30,7 +31,7 @@ import {
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { useStockPriceSocket } from "@/src/features/stock/lib/useStockPriceSocket";
-import { getAccounts } from "@/src/features/account/api/account";
+import { getAccounts, toAccountOption, type AccountOption } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
 import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
@@ -38,7 +39,9 @@ import {
   type PriceAlertDirection,
 } from "@/src/features/pricealert/api/pricealert";
 import { useWatchlist } from "@/src/features/watchlist/lib/useWatchlist";
+import { GroupPickerDialog } from "@/src/features/watchlist/components/GroupPickerDialog";
 import { useAuth } from "@/src/shared/context/AuthContext";
+import { ConfirmDialog } from "@/src/shared/components/ui/ConfirmDialog";
 
 export interface StockListItem {
   code: string;
@@ -140,14 +143,20 @@ export function Stocks() {
   const isCompared = (stockCode: string) => compareStocks.includes(stockCode);
 
   const { isLoggedIn } = useAuth();
-  const { isFavorite, toggleFavorite } = useWatchlist(isLoggedIn);
+  const { isFavorite, toggleFavorite, groups, addFavoriteToGroup, createGroupReturningId } = useWatchlist(isLoggedIn);
 
+  // 이미 관심종목이면 바로 해제하고, 아직 아니면 어느 그룹에 담을지 먼저 고르게 한다.
+  const [groupPickerStockCode, setGroupPickerStockCode] = useState<string | null>(null);
   const toggleFav = (stockCode: string) => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
-    void toggleFavorite(stockCode);
+    if (isFavorite(stockCode)) {
+      void toggleFavorite(stockCode);
+    } else {
+      setGroupPickerStockCode(stockCode);
+    }
   };
 
   const isFav = (stockCode: string) => isFavorite(stockCode);
@@ -170,8 +179,25 @@ export function Stocks() {
     retry: false,
   });
   const basicAccount = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
-  const basicAccountId = basicAccount ? basicAccount.accountId : null;
-  const basicAccountBalance = basicAccount ? basicAccount.balance : 0;
+
+  // 계좌 선택 드롭다운에 보여줄 이름 붙은 옵션 목록(대회 계좌는 대회명을 붙여준다).
+  const accountOptionsQuery = useQuery({
+    queryKey: ["stocks", "accountOptions", accountsQuery.data],
+    queryFn: () => Promise.all((accountsQuery.data ?? []).map(toAccountOption)),
+    enabled: !!accountsQuery.data,
+  });
+  const accountOptions = accountOptionsQuery.data ?? [];
+
+  // 주문/보유종목 조회에 실제로 쓰이는 계좌 - 처음엔 기본계좌를 기본 선택하고, 이후엔
+  // 사용자가 드롭다운에서 고른 계좌를 확인 다이얼로그를 거쳐 반영한다.
+  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
+  useEffect(() => {
+    if (selectedAccountId === null && basicAccount) {
+      setSelectedAccountId(basicAccount.accountId);
+    }
+  }, [basicAccount, selectedAccountId]);
+  const selectedAccountBalance = accountOptions.find((a) => a.accountId === selectedAccountId)?.balance ?? 0;
+  const [pendingAccount, setPendingAccount] = useState<AccountOption | null>(null);
 
   // 주문 성공 후 잔고를 다시 반영해야 할 때, 직접 재조회하는 대신 캐시를 무효화해서
   // React Query가 다시 가져오게 한다 - 결과적으로 화면에 보이는 잔고 갱신은 기존과 동일.
@@ -180,9 +206,9 @@ export function Stocks() {
   };
 
   const holdingsQuery = useQuery({
-    queryKey: ["stocks", "holdings", basicAccountId],
-    queryFn: () => getHoldings(basicAccountId as number),
-    enabled: isLoggedIn && basicAccountId !== null,
+    queryKey: ["stocks", "holdings", selectedAccountId],
+    queryFn: () => getHoldings(selectedAccountId as number),
+    enabled: isLoggedIn && selectedAccountId !== null,
     retry: false,
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
@@ -278,6 +304,36 @@ export function Stocks() {
     return list;
   };
 
+  // "전체보기"/검색 결과는 랭킹 lookup만으로는 대부분 가격이 안 채워지므로, 화면에 실제로
+  // 보이는 한 페이지 분량만 개별 시세로 조회해 덮어쓴다(전체 목록을 한 번에 조회하면 KIS
+  // 호출이 과도해진다).
+  const LIST_PAGE_SIZE = 20;
+  const [listPage, setListPage] = useState(0);
+  useEffect(() => {
+    setListPage(0);
+  }, [activeTab, activeFilter, searchKeyword]);
+
+  const filteredStocks = getFilteredAndSortedStocks();
+  const listPageCount = Math.max(1, Math.ceil(filteredStocks.length / LIST_PAGE_SIZE));
+  const pagedStocks = filteredStocks.slice(
+      listPage * LIST_PAGE_SIZE,
+      (listPage + 1) * LIST_PAGE_SIZE,
+  );
+
+  const needsPageQuotes = (activeTab === "전체보기" || isSearching) && pagedStocks.length > 0;
+  const pagedCodes = pagedStocks.map((s) => s.code);
+  const pageQuotesQuery = useQuery({
+    queryKey: ["stocks", "quotes", pagedCodes],
+    queryFn: () => getStockQuotes(pagedCodes),
+    enabled: needsPageQuotes,
+    retry: false,
+  });
+  const pageQuoteByCode = new Map((pageQuotesQuery.data ?? []).map((q) => [q.code, q]));
+  const displayedStocks = pagedStocks.map((s) => {
+    const quote = pageQuoteByCode.get(s.code);
+    return quote ? { ...s, price: quote.currentPrice, change: quote.changeRate } : s;
+  });
+
   const stockDetailQuery = useQuery({
     queryKey: ["stocks", "detail", code],
     queryFn: () => getStockDetail(code as string),
@@ -332,13 +388,30 @@ export function Stocks() {
     setTimeout(() => setActionToast(""), 3000);
   };
 
-  const submitOrder = async (requestedOrderType: "MARKET" | "LIMIT") => {
+  interface PendingOrder {
+    side: "buy" | "sell";
+    stockName: string;
+    stockCode: string;
+    accountId: number;
+    requestedOrderType: "MARKET" | "LIMIT";
+    isMarketPriceType: boolean;
+    quantity: number;
+    limitPrice?: number;
+    amount: number;
+  }
+  const [pendingOrder, setPendingOrder] = useState<PendingOrder | null>(null);
+
+  // 매수하기/매도하기/예약 버튼 클릭 시 바로 주문을 넣지 않고, 검증까지만 통과시킨 뒤
+  // 확인 다이얼로그를 띄운다 - 다이얼로그가 떠 있는 동안 폼 입력을 바꿔도 주문 내용이
+  // 달라지지 않도록, 이 시점 값들을 pendingOrder에 스냅샷으로 담아두고 submitOrder는
+  // 그 스냅샷만 사용한다(오버레이가 폼을 덮어 실제로 바뀔 일은 없지만 안전하게).
+  const openOrderConfirm = (requestedOrderType: "MARKET" | "LIMIT") => {
     if (!isLoggedIn) {
       navigate("/login");
       return;
     }
     if (!stock) return;
-    if (basicAccountId === null) {
+    if (selectedAccountId === null) {
       showToast("계좌 정보를 불러오지 못했습니다.");
       return;
     }
@@ -355,33 +428,52 @@ export function Stocks() {
       return;
     }
 
+    const unitPrice = priceType === "시장가" ? stock.price : orderLimitPrice;
+    setPendingOrder({
+      side: orderType,
+      stockName: stock.name,
+      stockCode: stock.code,
+      accountId: selectedAccountId,
+      requestedOrderType,
+      isMarketPriceType: priceType === "시장가",
+      quantity: orderQuantity,
+      limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
+      amount: orderQuantity * unitPrice,
+    });
+  };
+
+  const submitOrder = async () => {
+    if (!pendingOrder) return;
+    const { side, stockCode, accountId, requestedOrderType, isMarketPriceType, quantity: orderQuantity, limitPrice: orderLimitPrice } = pendingOrder;
+
     setIsSubmittingOrder(true);
     try {
       await createOrder({
-        accountId: basicAccountId,
-        stockCode: stock.code,
-        side: orderType === "buy" ? "BUY" : "SELL",
+        accountId,
+        stockCode,
+        side: side === "buy" ? "BUY" : "SELL",
         orderType: requestedOrderType,
         quantity: orderQuantity,
-        limitPrice: requestedOrderType === "LIMIT" ? orderLimitPrice : undefined,
+        limitPrice: orderLimitPrice,
       });
       setQuantity("");
       void refreshAccountBalance();
       showToast(
-          requestedOrderType === "LIMIT" && priceType === "시장가"
+          requestedOrderType === "LIMIT" && isMarketPriceType
               ? "성공적으로 예약 주문이 접수되었습니다."
-              : `성공적으로 ${orderType === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
+              : `성공적으로 ${side === "buy" ? "매수" : "매도"} 주문이 접수되었습니다.`,
       );
     } catch (error: any) {
       showToast(error?.response?.data?.message ?? "주문 처리에 실패했습니다.");
     } finally {
       setIsSubmittingOrder(false);
+      setPendingOrder(null);
     }
   };
 
-  const handleOrder = () => submitOrder(priceType === "시장가" ? "MARKET" : "LIMIT");
+  const handleOrder = () => openOrderConfirm(priceType === "시장가" ? "MARKET" : "LIMIT");
 
-  const handleBooking = () => submitOrder("LIMIT");
+  const handleBooking = () => openOrderConfirm("LIMIT");
 
   const handleCreateAlert = async () => {
     if (!isLoggedIn) {
@@ -410,6 +502,17 @@ export function Stocks() {
 
   return (
       <div className="flex gap-6 relative animate-in fade-in duration-500">
+        <GroupPickerDialog
+            open={groupPickerStockCode !== null}
+            groups={groups}
+            onCancel={() => setGroupPickerStockCode(null)}
+            onCreateGroup={createGroupReturningId}
+            onSelect={(groupId) => {
+              if (groupPickerStockCode) void addFavoriteToGroup(groupPickerStockCode, groupId);
+              setGroupPickerStockCode(null);
+            }}
+        />
+
         {/* Left List Area */}
         <Card className="hidden lg:flex lg:w-[350px] xl:w-[400px] flex-col h-[calc(100vh-8rem)] sticky top-[80px] p-5 bg-white">
           {/* Top Filters */}
@@ -488,7 +591,7 @@ export function Stocks() {
                 <div className="text-right">등락률</div>
                 <div className="text-center">비교</div>
               </div>
-              {getFilteredAndSortedStocks().length === 0 && (
+              {filteredStocks.length === 0 && (
                 <div className="p-10 text-center text-text-secondary text-[13px]">
                   {isSearching
                     ? searchResultsQuery.isFetching
@@ -503,7 +606,7 @@ export function Stocks() {
                         : "표시할 종목이 없습니다."}
                 </div>
               )}
-              {getFilteredAndSortedStocks().map((s, index) => (
+              {displayedStocks.map((s, index) => (
                   <div
                       key={s.code}
                       onClick={() => {
@@ -588,6 +691,26 @@ export function Stocks() {
               ))}
             </div>
           </div>
+
+          {filteredStocks.length > LIST_PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-3 pt-3 text-[13px] text-text-secondary">
+                <button
+                    className="px-2 py-1 rounded-[6px] border border-border-color disabled:opacity-40 disabled:cursor-not-allowed hover:bg-bg-main"
+                    onClick={() => setListPage((p) => Math.max(0, p - 1))}
+                    disabled={listPage === 0}
+                >
+                  이전
+                </button>
+                <span>{listPage + 1} / {listPageCount}</span>
+                <button
+                    className="px-2 py-1 rounded-[6px] border border-border-color disabled:opacity-40 disabled:cursor-not-allowed hover:bg-bg-main"
+                    onClick={() => setListPage((p) => Math.min(listPageCount - 1, p + 1))}
+                    disabled={listPage >= listPageCount - 1}
+                >
+                  다음
+                </button>
+              </div>
+          )}
         </Card>
 
         <div className="flex-1 flex flex-col gap-4 min-w-0">
@@ -798,6 +921,31 @@ export function Stocks() {
                       </div>
 
                       <div className="p-6 flex flex-col h-full space-y-6">
+                        {accountOptions.length > 1 && (
+                            <div className="flex items-center gap-4">
+                              <div className="w-16 text-sm font-bold text-text-secondary">
+                                주문 계좌
+                              </div>
+                              <select
+                                  value={selectedAccountId ?? ""}
+                                  onChange={(e) => {
+                                    const nextId = Number(e.target.value);
+                                    const next = accountOptions.find((a) => a.accountId === nextId);
+                                    if (next && next.accountId !== selectedAccountId) {
+                                      setPendingAccount(next);
+                                    }
+                                  }}
+                                  className="flex-1 h-12 px-4 rounded-[16px] border border-border-color bg-bg-main text-sm font-semibold text-text-primary focus:outline-none focus:ring-2 focus:ring-brand cursor-pointer"
+                              >
+                                {accountOptions.map((account) => (
+                                    <option key={account.accountId} value={account.accountId}>
+                                      {account.name}
+                                    </option>
+                                ))}
+                              </select>
+                            </div>
+                        )}
+
                         <div className="flex bg-bg-main p-1 rounded-[16px] border border-border-color">
                           {["시장가", "지정가"].map((t) => (
                               <button
@@ -922,7 +1070,7 @@ export function Stocks() {
                             주문 가능 금액
                           </span>
                               <span className="font-bold tabular-nums">
-                            {formatPrice(basicAccountBalance)}원
+                            {formatPrice(selectedAccountBalance)}원
                           </span>
                             </div>
                             <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
@@ -974,6 +1122,31 @@ export function Stocks() {
                     </CardContent>
                   </Card>
 
+                  <ConfirmDialog
+                      open={pendingOrder !== null}
+                      title={
+                        pendingOrder
+                            ? `${pendingOrder.stockName} ${pendingOrder.quantity}주를 총 ${formatPrice(pendingOrder.amount)}원에 ${pendingOrder.side === "buy" ? "구매" : "판매"}하시겠습니까?`
+                            : ""
+                      }
+                      confirmLabel={pendingOrder?.side === "buy" ? "구매하기" : "판매하기"}
+                      confirmTone={pendingOrder?.side === "buy" ? "buy" : "sell"}
+                      onCancel={() => setPendingOrder(null)}
+                      onConfirm={() => void submitOrder()}
+                  />
+
+                  <ConfirmDialog
+                      open={pendingAccount !== null}
+                      title={pendingAccount ? `${pendingAccount.name}(으)로 전환하시겠습니까?` : ""}
+                      description="선택한 계좌 기준으로 주문 가능 금액과 보유 종목이 표시됩니다."
+                      confirmLabel="전환하기"
+                      onCancel={() => setPendingAccount(null)}
+                      onConfirm={() => {
+                        if (pendingAccount) setSelectedAccountId(pendingAccount.accountId);
+                        setPendingAccount(null);
+                      }}
+                  />
+
                   {/* Price Alert Panel */}
                   <Card>
                     <CardContent className="p-0">
@@ -1000,8 +1173,8 @@ export function Stocks() {
                         <div className="flex items-center bg-bg-main rounded-[16px] overflow-hidden border border-border-color focus-within:ring-2 focus-within:ring-brand">
                           <input
                               className="flex-1 h-12 px-4 bg-transparent text-right font-bold tabular-nums outline-none w-full"
-                              placeholder={String(stock.price)}
-                              value={alertPrice}
+                              placeholder={formatPrice(stock.price)}
+                              value={alertPrice ? formatPrice(Number(alertPrice)) : ""}
                               onChange={(e) => setAlertPrice(e.target.value.replace(/[^0-9]/g, ""))}
                           />
                           <span className="pr-4 text-sm font-bold text-text-secondary">원</span>
