@@ -37,12 +37,8 @@ import {
   getTrades,
 } from "@/src/features/order/api/order";
 import { getComposition, getHoldings } from "@/src/features/portfolio/api/portfolio";
-
-const TRADES_PAGE_SIZE = 100;
-
-function formatTransactionDate(isoDateTime: string): string {
-  return `${isoDateTime.slice(2, 10).replaceAll("-", ".")} ${isoDateTime.slice(11, 16)}`;
-}
+import { TransactionHistoryGrid, TRADES_PAGE_SIZE, formatTransactionDate } from "@/src/features/user/components/TransactionHistoryGrid";
+import { CompetitionAccountPopup } from "@/src/features/user/components/CompetitionAccountPopup";
 
 const COMPETITION_STATUS_LABELS: Record<string, string> = {
   SCHEDULED: "예정",
@@ -63,6 +59,8 @@ export function Mypage() {
   const [postSubFilter, setPostSubFilter] = useState<"post" | "cert">("post");
   const [selectedDate, setSelectedDate] = useState<number | null>(null);
   const [actionToast, setActionToast] = useState("");
+  const [competitionCtxMenu, setCompetitionCtxMenu] = useState<{ x: number; y: number; competitionId: number; title: string } | null>(null);
+  const [competitionPopup, setCompetitionPopup] = useState<{ accountId: number; title: string } | null>(null);
 
   const showToast = (message: string) => {
     setActionToast(message);
@@ -557,99 +555,12 @@ export function Mypage() {
               {/* Body */}
               <div className="p-0 flex-1 overflow-x-auto overflow-y-auto">
                 {mainFilter === "거래내역" && (
-                  <div className="min-w-[600px] pb-6">
-                    {txTab === "거래내역" ? (
-                      <>
-                        <div className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center py-3 px-6 border-b border-[#F2F4F6] text-sm text-[#6B7684] font-semibold bg-[#F9FAFB]">
-                          <div>일시</div>
-                          <div className="px-2">종목명</div>
-                          <div>구분</div>
-                          <div className="text-right pr-2">단가</div>
-                          <div className="text-right pr-2">수량</div>
-                          <div className="text-right">결제금액</div>
-                        </div>
-                        {TRANSACTIONS_DONE.length === 0 ? (
-                          <div className="p-10 text-center text-[#8B95A1] text-sm">
-                            거래 내역이 없습니다.
-                          </div>
-                        ) : (
-                          TRANSACTIONS_DONE.map((log, idx) => {
-                            const isBuy = log.type === "buy";
-                            return (
-                              <div
-                                key={idx}
-                                className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                              >
-                                <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                                <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                                <div>
-                                  <span className={cn(
-                                    "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                    isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
-                                  )}>
-                                    {isBuy ? "매수" : "매도"}
-                                  </span>
-                                </div>
-                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                                <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center py-3 px-6 border-b border-[#F2F4F6] text-sm text-[#6B7684] font-semibold bg-[#F9FAFB]">
-                          <div>일시</div>
-                          <div className="px-2">종목명</div>
-                          <div>구분</div>
-                          <div className="text-right pr-2">단가</div>
-                          <div className="text-right pr-2">수량</div>
-                          <div className="text-right">결제금액</div>
-                          <div></div>
-                        </div>
-                        {TRANSACTIONS_PENDING.length === 0 ? (
-                          <div className="p-10 text-center text-[#8B95A1] text-sm">
-                            미체결 주문이 없습니다.
-                          </div>
-                        ) : (
-                          TRANSACTIONS_PENDING.map((log, idx) => {
-                            const isBuy = log.type === "buy";
-                            return (
-                              <div
-                                key={idx}
-                                className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                              >
-                                <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                                <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                                <div>
-                                  <span className={cn(
-                                    "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                    isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
-                                  )}>
-                                    {isBuy ? "매수대기" : "매도대기"}
-                                  </span>
-                                </div>
-                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                                <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
-                                <div className="flex justify-end pl-2">
-                                  <button
-                                    onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
-                                    disabled={log.orderId === null}
-                                    className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                  >
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })
-                        )}
-                      </>
-                    )}
-                  </div>
+                  <TransactionHistoryGrid
+                    subTab={txTab === "거래내역" ? "거래내역" : "미체결 내역"}
+                    done={TRANSACTIONS_DONE}
+                    pending={TRANSACTIONS_PENDING}
+                    onCancelOrder={handleCancelOrder}
+                  />
                 )}
 
                 {mainFilter === "관심종목" && (
@@ -944,7 +855,14 @@ export function Mypage() {
                       </thead>
                       <tbody className="divide-y divide-[#F2F4F6]">
                         {myCompetitions.map((item: any) => (
-                          <tr key={item.competitionId} className="hover:bg-[#F9FAFB] cursor-pointer">
+                          <tr
+                            key={item.competitionId}
+                            className="hover:bg-[#F9FAFB] cursor-pointer"
+                            onContextMenu={(e) => {
+                              e.preventDefault();
+                              setCompetitionCtxMenu({ x: e.pageX, y: e.pageY, competitionId: item.competitionId, title: item.title });
+                            }}
+                          >
                             <td className="py-4 px-6 text-[#6B7684] text-[13px]">
                               {formatCompetitionPeriod(item.startAt, item.endAt)}
                             </td>
@@ -952,10 +870,12 @@ export function Mypage() {
                               <span className={cn(
                                 "text-[12px] font-bold px-2 py-1 rounded-md",
                                 item.status === "ONGOING"
-                                  ? "bg-[#E8F3FF] text-[#3182F6]"
+                                  ? "bg-brand/10 text-brand"
                                   : item.status === "SCHEDULED"
-                                    ? "bg-[#F2F4F6] text-[#4E5968]"
-                                    : "text-[#8B95A1] bg-[#F2F4F6]/50"
+                                    ? "bg-[#FF9500]/10 text-[#FF9500]"
+                                    : item.status === "CALCULATING"
+                                      ? "bg-[#8B95A1]/10 text-[#8B95A1]"
+                                      : "bg-[#F2F4F6] text-[#8B95A1]"
                               )}>
                                 {COMPETITION_STATUS_LABELS[item.status]}
                               </span>
@@ -978,6 +898,35 @@ export function Mypage() {
                       </tbody>
                     </table>
                   </div>
+                )}
+
+                {competitionCtxMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-[99]"
+                      onClick={() => setCompetitionCtxMenu(null)}
+                      onContextMenu={(e) => { e.preventDefault(); setCompetitionCtxMenu(null); }}
+                    />
+                    <div
+                      className="fixed z-[100] bg-white border border-[#E5E5EA] rounded-[12px] shadow-[0_10px_25px_rgba(0,0,0,0.12)] p-1.5 min-w-[140px] animate-in fade-in zoom-in-95 duration-100"
+                      style={{ top: competitionCtxMenu.y, left: competitionCtxMenu.x }}
+                    >
+                      <button
+                        onClick={() => {
+                          const acc = competitionAccounts.find((a) => a.competitionId === competitionCtxMenu.competitionId);
+                          if (!acc) {
+                            showToast("대회가 아직 시작되지 않아 계좌 내역이 없습니다.");
+                          } else {
+                            setCompetitionPopup({ accountId: acc.accountId, title: competitionCtxMenu.title });
+                          }
+                          setCompetitionCtxMenu(null);
+                        }}
+                        className="w-full text-left px-3 py-2 text-[13.5px] font-bold text-[#4A5DF9] hover:bg-[#4A5DF9]/10 rounded-[8px] transition cursor-pointer"
+                      >
+                        계좌 내역 보기
+                      </button>
+                    </div>
+                  </>
                 )}
 
                 {mainFilter === "게시글" && (
@@ -1198,6 +1147,13 @@ export function Mypage() {
             </Link>
           </div>
         </div>
+      )}
+      {competitionPopup && (
+        <CompetitionAccountPopup
+          accountId={competitionPopup.accountId}
+          competitionTitle={competitionPopup.title}
+          onClose={() => setCompetitionPopup(null)}
+        />
       )}
     </>
   );

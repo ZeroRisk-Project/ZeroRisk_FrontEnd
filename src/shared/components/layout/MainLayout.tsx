@@ -19,6 +19,7 @@ import {
   getCompetitionDetail,
   getCompetitionRankings,
   getMyJoinedCompetitionIds,
+  type CompetitionStatus,
 } from "@/src/features/competition/api/competition";
 import { getRankings, type RankingResponse } from "@/src/features/ranking/api/ranking";
 import { useAuth } from "@/src/shared/context/AuthContext";
@@ -41,10 +42,12 @@ const ALERT_SETTING_LABELS: { key: keyof AlertSettingsResponse; label: string; d
   { key: 'inquiryAnswered', label: '문의 답변', description: '등록한 문의에 답변이 달렸을 때 알림' },
 ];
 
-interface AccountOption {
+export interface AccountOption {
   accountId: number;
   name: string;
   balance: number;
+  competitionStatus?: CompetitionStatus;
+  startAt?: string;
 }
 
 const EMPTY_ACCOUNT: AccountOption = { accountId: 0, name: "기본 계좌", balance: 0 };
@@ -63,7 +66,13 @@ async function toAccountOption(account: AccountResponse): Promise<AccountOption>
 
   try {
     const competition = await getCompetitionDetail(account.competitionId);
-    return { accountId: account.accountId, name: competition.title, balance: account.balance };
+    return {
+      accountId: account.accountId,
+      name: competition.title,
+      balance: account.balance,
+      competitionStatus: competition.status,
+      startAt: competition.startAt,
+    };
   } catch {
     return { accountId: account.accountId, name: "대회 계좌", balance: account.balance };
   }
@@ -778,7 +787,7 @@ export function MainLayout() {
             )
         )}
       >
-        <Outlet />
+        <Outlet context={{ activeAccount, refreshAccounts: fetchAccounts }} />
       </main>
 
       {/* Footer */}

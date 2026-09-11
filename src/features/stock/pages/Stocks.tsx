@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { useParams, Link, useNavigate, useOutletContext } from "react-router-dom";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Input } from "@/src/shared/components/ui/Input";
@@ -30,8 +30,8 @@ import {
 import { toChartPoints } from "@/src/features/stock/lib/indicators";
 import { toDiagnosis } from "@/src/features/stock/lib/diagnosis";
 import { useStockPriceSocket } from "@/src/features/stock/lib/useStockPriceSocket";
-import { getAccounts } from "@/src/features/account/api/account";
 import { createOrder } from "@/src/features/order/api/order";
+import type { AccountOption } from "@/src/shared/components/layout/MainLayout";
 import { getHoldings } from "@/src/features/portfolio/api/portfolio";
 import {
   createPriceAlert,
@@ -67,6 +67,9 @@ const formatVolume = (volume: number): string => {
   if (volume >= 1_000) return `${(volume / 1_000).toFixed(1)}K`;
   return String(volume);
 };
+
+const formatStartAt = (startAt: string | undefined): string =>
+    startAt ? startAt.slice(0, 10).replaceAll("-", ".") : "-";
 
 const getTickSize = (price: number): number => {
   if (price < 2_000) return 1;
@@ -161,28 +164,22 @@ export function Stocks() {
   const [alertPrice, setAlertPrice] = useState("");
   const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
 
-  const queryClient = useQueryClient();
+  const { activeAccount, refreshAccounts } = useOutletContext<{
+    activeAccount: AccountOption;
+    refreshAccounts: () => void;
+  }>();
+  const isScheduledCompetitionAccount = activeAccount.competitionStatus === "SCHEDULED";
 
-  const accountsQuery = useQuery({
-    queryKey: ["stocks", "accounts"],
-    queryFn: () => getAccounts(),
-    enabled: isLoggedIn,
-    retry: false,
-  });
-  const basicAccount = accountsQuery.data?.find((account) => account.accountType === "BASIC") ?? null;
-  const basicAccountId = basicAccount ? basicAccount.accountId : null;
-  const basicAccountBalance = basicAccount ? basicAccount.balance : 0;
-
-  // 주문 성공 후 잔고를 다시 반영해야 할 때, 직접 재조회하는 대신 캐시를 무효화해서
-  // React Query가 다시 가져오게 한다 - 결과적으로 화면에 보이는 잔고 갱신은 기존과 동일.
+  // 잔고는 헤더(MainLayout)의 계좌 목록이 유일한 출처라, 주문 성공 후에는
+  // 그쪽 재조회 콜백을 호출해서 갱신한다(여기서 별도로 계좌를 다시 조회하지 않음).
   const refreshAccountBalance = () => {
-    void queryClient.invalidateQueries({ queryKey: ["stocks", "accounts"] });
+    refreshAccounts();
   };
 
   const holdingsQuery = useQuery({
-    queryKey: ["stocks", "holdings", basicAccountId],
-    queryFn: () => getHoldings(basicAccountId as number),
-    enabled: isLoggedIn && basicAccountId !== null,
+    queryKey: ["stocks", "holdings", activeAccount.accountId],
+    queryFn: () => getHoldings(activeAccount.accountId),
+    enabled: isLoggedIn && activeAccount.accountId !== 0,
     retry: false,
   });
   const myAvgPrice = holdingsQuery.data?.find((holding) => holding.stockCode === code)?.averagePrice ?? null;
@@ -338,8 +335,14 @@ export function Stocks() {
       return;
     }
     if (!stock) return;
-    if (basicAccountId === null) {
+    if (activeAccount.accountId === 0) {
       showToast("계좌 정보를 불러오지 못했습니다.");
+      return;
+    }
+    if (isScheduledCompetitionAccount) {
+      showToast(
+          `대회가 아직 시작 전이라 거래할 수 없어요. 대회 시작일: ${formatStartAt(activeAccount.startAt)}`,
+      );
       return;
     }
 
@@ -358,7 +361,7 @@ export function Stocks() {
     setIsSubmittingOrder(true);
     try {
       await createOrder({
-        accountId: basicAccountId,
+        accountId: activeAccount.accountId,
         stockCode: stock.code,
         side: orderType === "buy" ? "BUY" : "SELL",
         orderType: requestedOrderType,
@@ -922,7 +925,7 @@ export function Stocks() {
                             주문 가능 금액
                           </span>
                               <span className="font-bold tabular-nums">
-                            {formatPrice(basicAccountBalance)}원
+                            {formatPrice(activeAccount.balance)}원
                           </span>
                             </div>
                             <div className="flex justify-between items-center bg-bg-main p-4 rounded-[16px]">
@@ -944,13 +947,19 @@ export function Stocks() {
                             </div>
                           </div>
 
+                          {isScheduledCompetitionAccount && (
+                              <p className="text-[13px] text-[#F04452] text-center">
+                                대회가 아직 시작 전이라 거래할 수 없어요. 대회 시작일: {formatStartAt(activeAccount.startAt)}
+                              </p>
+                          )}
+
                           <div className="flex gap-2 relative">
                             <Button
                                 variant="outline"
                                 size="lg"
                                 className="flex-1 shrink-1 min-w-0 border-border-color text-text-primary hover:bg-bg-main"
                                 onClick={handleBooking}
-                                disabled={isSubmittingOrder}
+                                disabled={isSubmittingOrder || isScheduledCompetitionAccount}
                             >
                               예약
                             </Button>
@@ -959,7 +968,7 @@ export function Stocks() {
                                 size="lg"
                                 className="flex-[3] text-base"
                                 onClick={handleOrder}
-                                disabled={isSubmittingOrder}
+                                disabled={isSubmittingOrder || isScheduledCompetitionAccount}
                             >
                               {orderType === "buy" ? "매수하기" : "매도하기"}
                             </Button>
