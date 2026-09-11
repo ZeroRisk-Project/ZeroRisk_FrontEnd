@@ -164,7 +164,7 @@ export function Mypage() {
   };
 
   const { groups, favorites, toggleFavorite, addGroup, renameGroup, removeGroup, changeFavoriteGroup } =
-      useWatchlist();
+    useWatchlist();
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [editingGroupId, setEditingGroupId] = useState<number | null>(null);
@@ -180,7 +180,7 @@ export function Mypage() {
     const name = groupNameDraft.trim();
     if (!name) return;
     const success =
-        editingGroupId === null ? await addGroup(name) : await renameGroup(editingGroupId, name);
+      editingGroupId === null ? await addGroup(name) : await renameGroup(editingGroupId, name);
     if (!success) {
       showToast(editingGroupId === null ? "그룹 생성에 실패했습니다." : "그룹 이름 변경에 실패했습니다.");
       return;
@@ -206,11 +206,11 @@ export function Mypage() {
     queryKey: ["mypage", "favoriteQuotes", favoriteCodes],
     queryFn: async () => {
       const results = await Promise.all(
-          (favorites ?? []).map((favorite) =>
-              getStockDetail(favorite.stockCode)
-                  .then((detail) => [detail.code, { price: detail.currentPrice, change: detail.changeRate }] as const)
-                  .catch(() => null),
-          ),
+        (favorites ?? []).map((favorite) =>
+          getStockDetail(favorite.stockCode)
+            .then((detail) => [detail.code, { price: detail.currentPrice, change: detail.changeRate }] as const)
+            .catch(() => null),
+        ),
       );
       return Object.fromEntries(results.filter((entry) => entry !== null));
     },
@@ -229,9 +229,9 @@ export function Mypage() {
   }));
 
   const visibleFavorites =
-      selectedGroupId === null
-          ? favoriteStocks
-          : favoriteStocks.filter((stock) => stock.groupId === selectedGroupId);
+    selectedGroupId === null
+      ? favoriteStocks
+      : favoriteStocks.filter((stock) => stock.groupId === selectedGroupId);
 
   useEffect(() => {
     if (selectedGroupId !== null && !groups.some((group) => group.groupId === selectedGroupId)) {
@@ -255,7 +255,7 @@ export function Mypage() {
 
   const MY_HOLDINGS = useMemo(() => {
     const weightByCode = new Map(
-        (compositionQuery.data?.stocks ?? []).map((stock) => [stock.stockCode, stock.weight]),
+      (compositionQuery.data?.stocks ?? []).map((stock) => [stock.stockCode, stock.weight]),
     );
 
     return (holdingsQuery.data ?? []).map((holding) => ({
@@ -273,31 +273,31 @@ export function Mypage() {
   const TX_PERIOD_DAYS: Record<string, number> = { "1주일": 7, "1개월": 30, "3개월": 90 };
 
   const TRANSACTIONS_DONE = trades
-      ? trades
-          .filter((trade) => {
-            const days = TX_PERIOD_DAYS[txPeriod] ?? 30;
-            const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
-            return new Date(trade.tradedAt).getTime() >= cutoff;
-          })
-          .map((trade) => ({
-            type: trade.side === "BUY" ? "buy" : "sell",
-            stock: trade.stockName,
-            date: formatTransactionDate(trade.tradedAt),
-            price: trade.price,
-            qty: trade.quantity,
-          }))
-      : [];
+    ? trades
+      .filter((trade) => {
+        const days = TX_PERIOD_DAYS[txPeriod] ?? 30;
+        const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+        return new Date(trade.tradedAt).getTime() >= cutoff;
+      })
+      .map((trade) => ({
+        type: trade.side === "BUY" ? "buy" : "sell",
+        stock: trade.stockName,
+        date: formatTransactionDate(trade.tradedAt),
+        price: trade.price,
+        qty: trade.quantity,
+      }))
+    : [];
 
   const TRANSACTIONS_PENDING = pendingOrders
-      ? pendingOrders.map((order) => ({
-        orderId: order.orderId as number | null,
-        type: order.side === "BUY" ? "buy" : "sell",
-        stock: order.stockName,
-        date: formatTransactionDate(order.createdAt),
-        price: order.limitPrice ?? 0,
-        qty: order.quantity,
-      }))
-      : [];
+    ? pendingOrders.map((order) => ({
+      orderId: order.orderId as number | null,
+      type: order.side === "BUY" ? "buy" : "sell",
+      stock: order.stockName,
+      date: formatTransactionDate(order.createdAt),
+      price: order.limitPrice ?? 0,
+      qty: order.quantity,
+    }))
+    : [];
 
   const myPostsQuery = useQuery({
     queryKey: ["mypage", "posts"],
@@ -355,7 +355,7 @@ export function Mypage() {
         </div>
       )}
       <div className={`flex flex-col lg:flex-row gap-6 w-full transition-all duration-300 animate-in fade-in duration-500 ${!isLinked ? "pb-40 md:pb-32" : ""}`}>
-        
+
         {/* Left Column (Profile & Content Area) */}
         <div className="flex-1 min-w-0 flex flex-col gap-6">
           {/* Profile Card */}
@@ -378,7 +378,7 @@ export function Mypage() {
                 </div>
               </div>
               <div className="flex items-center gap-2 mt-4 md:mt-0 absolute top-0 right-0 md:relative">
-                <Link 
+                <Link
                   to="/mypage/settings"
                   className="p-2 text-[#8B95A1] hover:text-[#191F28] hover:bg-[#F2F4F6] rounded-full transition-colors flex items-center justify-center"
                 >
@@ -402,19 +402,34 @@ export function Mypage() {
                 </div>
                 <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(mainAccountBalance)}원</p>
               </div>
+              {/* 진행 중인 대회: 활성 계좌(잔액) 기준. 종료·집계중·상태 불명 계좌는 배치하지 않는다. */}
               {competitionAccounts.map((acc) => {
-                const competitionTitle =
-                  myCompetitions.find((c: any) => c.competitionId === acc.competitionId)?.title ?? "대회 전용 계좌";
+                const comp = myCompetitions.find((c: any) => c.competitionId === acc.competitionId);
+                if (comp?.status !== "ONGOING") return null;
                 return (
-                  <div key={acc.accountId} className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
+                  <div key={`acc-${acc.accountId}`} className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
                     <div>
                       <span className="inline-flex items-center justify-center text-center leading-none text-[10px] font-bold text-[#6B7684] bg-white border border-[#E5E8EB] px-2 py-1 rounded-md mb-2">대회 전용</span>
-                      <h4 className="font-semibold text-sm text-[#4E5968] truncate">{competitionTitle}</h4>
+                      <h4 className="font-semibold text-sm text-[#4E5968] truncate">{comp?.title ?? "대회 전용 계좌"}</h4>
                     </div>
                     <p className="font-bold text-xl text-right text-[#191F28]">{formatPrice(acc.balance)}원</p>
                   </div>
                 );
               })}
+
+              {/* 예정(모집 중)인 대회: 참가는 했지만 계좌가 아직 비활성이라 /accounts에는 없음.
+                  참가 이력에서 뽑아 잔액 대신 '개최 전' 안내만 표시한다. */}
+              {myCompetitions
+                .filter((c: any) => c.status === "SCHEDULED")
+                .map((c: any) => (
+                  <div key={`sched-${c.competitionId}`} className="bg-[#F9FAFB] rounded-2xl p-5 cursor-pointer hover:bg-[#F2F4F6] transition-colors flex flex-col justify-between h-[120px]">
+                    <div>
+                      <span className="inline-flex items-center justify-center text-center leading-none text-[10px] font-bold text-brand bg-brand/10 px-2 py-1 rounded-md mb-2">대회 계좌</span>
+                      <h4 className="font-semibold text-sm text-[#4E5968] truncate">{c.title}</h4>
+                    </div>
+                    <p className="font-bold text-sm text-right text-brand">개최 전 입니다.</p>
+                  </div>
+                ))}
             </div>
           </div>
 
@@ -474,15 +489,15 @@ export function Mypage() {
                       </button>
                     </div>
                     {txTab === "거래내역" && (
-                        <select
-                            value={txPeriod}
-                            onChange={(e) => setTxPeriod(e.target.value)}
-                            className="bg-[#F2F4F6] border-none rounded-xl px-3 py-2 text-sm font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
-                        >
-                          <option>1주일</option>
-                          <option>1개월</option>
-                          <option>3개월</option>
-                        </select>
+                      <select
+                        value={txPeriod}
+                        onChange={(e) => setTxPeriod(e.target.value)}
+                        className="bg-[#F2F4F6] border-none rounded-xl px-3 py-2 text-sm font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
+                      >
+                        <option>1주일</option>
+                        <option>1개월</option>
+                        <option>3개월</option>
+                      </select>
                     )}
                   </>
                 )}
@@ -492,18 +507,18 @@ export function Mypage() {
                     {mainFilter === "댓글"
                       ? "작성한 댓글"
                       : mainFilter === "대회"
-                      ? "참여한 대회"
-                      : mainFilter}
+                        ? "참여한 대회"
+                        : mainFilter}
                     <span className="text-[15px] font-semibold text-[#3182F6] bg-blue-50 px-2 py-0.5 rounded-lg">
                       {mainFilter === "관심종목"
                         ? visibleFavorites.length
                         : mainFilter === "목표가 알림"
-                        ? priceAlerts.length
-                        : mainFilter === "보유종목"
-                        ? MY_HOLDINGS.length
-                        : mainFilter === "대회"
-                        ? myCompetitions.length
-                        : myComments.length}
+                          ? priceAlerts.length
+                          : mainFilter === "보유종목"
+                            ? MY_HOLDINGS.length
+                            : mainFilter === "대회"
+                              ? myCompetitions.length
+                              : myComments.length}
                     </span>
                   </h3>
                 )}
@@ -554,33 +569,33 @@ export function Mypage() {
                           <div className="text-right">결제금액</div>
                         </div>
                         {TRANSACTIONS_DONE.length === 0 ? (
-                            <div className="p-10 text-center text-[#8B95A1] text-sm">
-                              거래 내역이 없습니다.
-                            </div>
+                          <div className="p-10 text-center text-[#8B95A1] text-sm">
+                            거래 내역이 없습니다.
+                          </div>
                         ) : (
                           TRANSACTIONS_DONE.map((log, idx) => {
                             const isBuy = log.type === "buy";
-                              return (
-                                <div
-                                    key={idx}
-                                    className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                                >
-                                  <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                                  <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                                  <div>
+                            return (
+                              <div
+                                key={idx}
+                                className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                              >
+                                <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
+                                <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
+                                <div>
                                   <span className={cn(
-                                      "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                      isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
+                                    "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
+                                    isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
                                   )}>
                                     {isBuy ? "매수" : "매도"}
                                   </span>
-                                    </div>
-                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                                    <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
+                                </div>
+                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
+                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
+                                <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
                               </div>
-                              );
-                            })
+                            );
+                          })
                         )}
                       </>
                     ) : (
@@ -595,42 +610,42 @@ export function Mypage() {
                           <div></div>
                         </div>
                         {TRANSACTIONS_PENDING.length === 0 ? (
-                            <div className="p-10 text-center text-[#8B95A1] text-sm">
-                              미체결 주문이 없습니다.
-                            </div>
+                          <div className="p-10 text-center text-[#8B95A1] text-sm">
+                            미체결 주문이 없습니다.
+                          </div>
                         ) : (
-                            TRANSACTIONS_PENDING.map((log, idx) => {
-                              const isBuy = log.type === "buy";
-                              return (
-                                  <div
-                                      key={idx}
-                                      className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
-                                  >
-                                    <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
-                                    <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
-                                    <div>
+                          TRANSACTIONS_PENDING.map((log, idx) => {
+                            const isBuy = log.type === "buy";
+                            return (
+                              <div
+                                key={idx}
+                                className="grid grid-cols-[120px_1fr_60px_100px_70px_120px_40px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                              >
+                                <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
+                                <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
+                                <div>
                                   <span className={cn(
-                                      "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
-                                      isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
+                                    "text-[12px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap",
+                                    isBuy ? "text-[#F04452] bg-[rgba(240,68,82,0.1)]" : "text-[#3182F6] bg-[rgba(49,130,246,0.1)]"
                                   )}>
                                     {isBuy ? "매수대기" : "매도대기"}
                                   </span>
-                                    </div>
-                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
-                                    <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
-                                    <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
-                                    <div className="flex justify-end pl-2">
-                                      <button
-                                          onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
-                                          disabled={log.orderId === null}
-                                          className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                      >
-                                        <X className="w-4 h-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                              );
-                            })
+                                </div>
+                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{formatPrice(log.price)}원</div>
+                                <div className="text-right text-[#4E5968] font-medium pr-2 tabular-nums">{log.qty}주</div>
+                                <div className="text-right font-bold text-[#191F28] tabular-nums">{formatPrice(log.price * log.qty)}원</div>
+                                <div className="flex justify-end pl-2">
+                                  <button
+                                    onClick={() => log.orderId !== null && handleCancelOrder(log.orderId)}
+                                    disabled={log.orderId === null}
+                                    className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })
                         )}
                       </>
                     )}
@@ -641,122 +656,122 @@ export function Mypage() {
                   <div className="p-6 space-y-2">
                     <div className="flex items-center gap-2 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                       <button
-                          onClick={() => setSelectedGroupId(null)}
-                          className={cn(
-                              "shrink-0 px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
-                              selectedGroupId === null
-                                  ? "bg-[#191F28] text-white"
-                                  : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
-                          )}
+                        onClick={() => setSelectedGroupId(null)}
+                        className={cn(
+                          "shrink-0 px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                          selectedGroupId === null
+                            ? "bg-[#191F28] text-white"
+                            : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                        )}
                       >
                         전체
                       </button>
                       {groups.map((group) =>
-                          editingGroupId === group.groupId ? (
-                              <div
-                                  key={group.groupId}
-                                  className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1"
-                              >
-                                <input
-                                    autoFocus
-                                    maxLength={50}
-                                    value={groupNameDraft}
-                                    onChange={(e) => setGroupNameDraft(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") void handleSubmitGroupName();
-                                      if (e.key === "Escape") closeGroupEditor();
-                                    }}
-                                    className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
-                                />
-                                <button
-                                    onClick={() => void handleSubmitGroupName()}
-                                    className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                    onClick={closeGroupEditor}
-                                    className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                          ) : (
-                              <div key={group.groupId} className="shrink-0 flex items-center gap-1">
-                                <button
-                                    onClick={() => setSelectedGroupId(group.groupId)}
-                                    className={cn(
-                                        "px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
-                                        selectedGroupId === group.groupId
-                                            ? "bg-[#191F28] text-white"
-                                            : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
-                                    )}
-                                >
-                                  {group.name}
-                                </button>
-                                {selectedGroupId === group.groupId && (
-                                    <>
-                                      <button
-                                          onClick={() => {
-                                            setIsAddingGroup(false);
-                                            setEditingGroupId(group.groupId);
-                                            setGroupNameDraft(group.name);
-                                          }}
-                                          className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#191F28] rounded-lg transition-colors cursor-pointer"
-                                      >
-                                        <Edit2 className="w-3.5 h-3.5" />
-                                      </button>
-                                      <button
-                                          onClick={() => void handleRemoveGroup(group.groupId)}
-                                          className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    </>
-                                )}
-                              </div>
-                          )
-                      )}
-
-                      {isAddingGroup ? (
-                          <div className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1">
+                        editingGroupId === group.groupId ? (
+                          <div
+                            key={group.groupId}
+                            className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1"
+                          >
                             <input
-                                autoFocus
-                                maxLength={50}
-                                placeholder="그룹 이름"
-                                value={groupNameDraft}
-                                onChange={(e) => setGroupNameDraft(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") void handleSubmitGroupName();
-                                  if (e.key === "Escape") closeGroupEditor();
-                                }}
-                                className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
+                              autoFocus
+                              maxLength={50}
+                              value={groupNameDraft}
+                              onChange={(e) => setGroupNameDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") void handleSubmitGroupName();
+                                if (e.key === "Escape") closeGroupEditor();
+                              }}
+                              className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
                             />
                             <button
-                                onClick={() => void handleSubmitGroupName()}
-                                className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                              onClick={() => void handleSubmitGroupName()}
+                              className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
                             >
                               <Check className="w-3.5 h-3.5" />
                             </button>
                             <button
-                                onClick={closeGroupEditor}
-                                className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                              onClick={closeGroupEditor}
+                              className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
                             >
                               <X className="w-3.5 h-3.5" />
                             </button>
                           </div>
-                      ) : (
+                        ) : (
+                          <div key={group.groupId} className="shrink-0 flex items-center gap-1">
+                            <button
+                              onClick={() => setSelectedGroupId(group.groupId)}
+                              className={cn(
+                                "px-3.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors cursor-pointer",
+                                selectedGroupId === group.groupId
+                                  ? "bg-[#191F28] text-white"
+                                  : "bg-[#F2F4F6] text-[#4E5968] hover:bg-[#E5E8EB]"
+                              )}
+                            >
+                              {group.name}
+                            </button>
+                            {selectedGroupId === group.groupId && (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setIsAddingGroup(false);
+                                    setEditingGroupId(group.groupId);
+                                    setGroupNameDraft(group.name);
+                                  }}
+                                  className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-[#F2F4F6] hover:text-[#191F28] rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => void handleRemoveGroup(group.groupId)}
+                                  className="w-7 h-7 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )
+                      )}
+
+                      {isAddingGroup ? (
+                        <div className="shrink-0 flex items-center gap-1 bg-[#F2F4F6] rounded-xl pl-3 pr-1 py-1">
+                          <input
+                            autoFocus
+                            maxLength={50}
+                            placeholder="그룹 이름"
+                            value={groupNameDraft}
+                            onChange={(e) => setGroupNameDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void handleSubmitGroupName();
+                              if (e.key === "Escape") closeGroupEditor();
+                            }}
+                            className="w-[100px] bg-transparent text-[13px] font-bold text-[#191F28] outline-none"
+                          />
                           <button
-                              onClick={() => {
-                                setEditingGroupId(null);
-                                setIsAddingGroup(true);
-                                setGroupNameDraft("");
-                              }}
-                              className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-[13px] font-bold text-[#8B95A1] border border-dashed border-[#D1D6DB] hover:text-[#191F28] hover:border-[#8B95A1] transition-colors cursor-pointer"
+                            onClick={() => void handleSubmitGroupName()}
+                            className="w-6 h-6 flex items-center justify-center text-[#3182F6] hover:bg-white rounded-lg transition-colors cursor-pointer"
                           >
-                            <Plus className="w-3.5 h-3.5" />
-                            새 그룹
+                            <Check className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={closeGroupEditor}
+                            className="w-6 h-6 flex items-center justify-center text-[#8B95A1] hover:bg-white rounded-lg transition-colors cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setEditingGroupId(null);
+                            setIsAddingGroup(true);
+                            setGroupNameDraft("");
+                          }}
+                          className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-xl text-[13px] font-bold text-[#8B95A1] border border-dashed border-[#D1D6DB] hover:text-[#191F28] hover:border-[#8B95A1] transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          새 그룹
+                        </button>
                       )}
                     </div>
 
@@ -765,7 +780,7 @@ export function Mypage() {
                         <p>등록된 관심종목이 없습니다.</p>
                       </div>
                     ) : (
-                        visibleFavorites.map((stock) => {
+                      visibleFavorites.map((stock) => {
                         const isUp = stock.change >= 0;
                         return (
                           <div
@@ -789,24 +804,24 @@ export function Mypage() {
                             </div>
                             <div className="flex items-center gap-3">
                               {groups.length > 1 && (
-                                  <select
-                                      value={stock.groupId}
-                                      onChange={(e) =>
-                                          void changeFavoriteGroup(stock.favoriteId, Number(e.target.value))
-                                      }
-                                      className="max-w-[110px] bg-[#F2F4F6] border-none rounded-lg px-2 py-1.5 text-[12px] font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
-                                  >
-                                    {groups.map((group) => (
-                                        <option key={group.groupId} value={group.groupId}>
-                                          {group.name}
-                                        </option>
-                                    ))}
-                                  </select>
+                                <select
+                                  value={stock.groupId}
+                                  onChange={(e) =>
+                                    void changeFavoriteGroup(stock.favoriteId, Number(e.target.value))
+                                  }
+                                  className="max-w-[110px] bg-[#F2F4F6] border-none rounded-lg px-2 py-1.5 text-[12px] font-bold text-[#4E5968] outline-none cursor-pointer hover:bg-[#E5E8EB] transition-colors"
+                                >
+                                  {groups.map((group) => (
+                                    <option key={group.groupId} value={group.groupId}>
+                                      {group.name}
+                                    </option>
+                                  ))}
+                                </select>
                               )}
                               <div className="text-right">
                                 <div className="font-bold text-[#191F28] text-[15px]">{formatPrice(stock.price)}원</div>
                                 <div className={cn("text-[13px] font-bold mt-0.5", isUp ? "text-[#F04452]" : "text-[#3182F6]")}>
-                                {isUp ? "+" : ""}{stock.change}%
+                                  {isUp ? "+" : ""}{stock.change}%
                                 </div>
                               </div>
                             </div>
@@ -818,62 +833,62 @@ export function Mypage() {
                 )}
 
                 {mainFilter === "목표가 알림" && (
-                    <div className="p-6 space-y-2">
-                      {priceAlerts.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
-                            <p>등록된 목표가 알림이 없습니다.</p>
-                          </div>
-                      ) : (
-                          priceAlerts.map((alert) => {
-                            const isAbove = alert.direction === "ABOVE";
-                            return (
-                                <div
-                                    key={alert.alertId}
-                                    className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all"
-                                >
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-[#F2F4F6] flex items-center justify-center font-bold text-xs text-[#4E5968] shrink-0">
-                                      {alert.stockName.substring(0, 2)}
-                                    </div>
-                                    <div>
-                                      <h4 className="font-bold text-[#191F28] text-[15px]">{alert.stockName}</h4>
-                                      <span className="text-[12px] text-[#8B95A1]">{alert.stockCode}</span>
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                      <div className="font-bold text-[#191F28] text-[15px]">
-                                        {formatPrice(alert.targetPrice)}원
-                                      </div>
-                                      <div
-                                          className={cn(
-                                              "text-[13px] font-bold mt-0.5",
-                                              isAbove ? "text-[#F04452]" : "text-[#3182F6]",
-                                          )}
-                                      >
-                                        {isAbove ? "이상일 때" : "이하일 때"}
-                                      </div>
-                                    </div>
-                                    <button
-                                        onClick={() => handleDeletePriceAlert(alert.alertId)}
-                                        className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
+                  <div className="p-6 space-y-2">
+                    {priceAlerts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
+                        <p>등록된 목표가 알림이 없습니다.</p>
+                      </div>
+                    ) : (
+                      priceAlerts.map((alert) => {
+                        const isAbove = alert.direction === "ABOVE";
+                        return (
+                          <div
+                            key={alert.alertId}
+                            className="flex items-center justify-between p-4 border border-[#F2F4F6] rounded-2xl bg-white hover:shadow-sm transition-all"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-[#F2F4F6] flex items-center justify-center font-bold text-xs text-[#4E5968] shrink-0">
+                                {alert.stockName.substring(0, 2)}
+                              </div>
+                              <div>
+                                <h4 className="font-bold text-[#191F28] text-[15px]">{alert.stockName}</h4>
+                                <span className="text-[12px] text-[#8B95A1]">{alert.stockCode}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-4">
+                              <div className="text-right">
+                                <div className="font-bold text-[#191F28] text-[15px]">
+                                  {formatPrice(alert.targetPrice)}원
                                 </div>
-                            );
-                          })
-                      )}
-                    </div>
+                                <div
+                                  className={cn(
+                                    "text-[13px] font-bold mt-0.5",
+                                    isAbove ? "text-[#F04452]" : "text-[#3182F6]",
+                                  )}
+                                >
+                                  {isAbove ? "이상일 때" : "이하일 때"}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleDeletePriceAlert(alert.alertId)}
+                                className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 )}
 
                 {mainFilter === "보유종목" && (
                   <div className="p-6 space-y-3">
                     {MY_HOLDINGS.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
-                          <p>보유 중인 종목이 없습니다.</p>
-                        </div>
+                      <div className="flex flex-col items-center justify-center h-[200px] text-text-secondary">
+                        <p>보유 중인 종목이 없습니다.</p>
+                      </div>
                     )}
                     {MY_HOLDINGS.map((stock, idx) => {
                       const isUp = stock.returnRate >= 0;
@@ -939,8 +954,8 @@ export function Mypage() {
                                 item.status === "ONGOING"
                                   ? "bg-[#E8F3FF] text-[#3182F6]"
                                   : item.status === "SCHEDULED"
-                                  ? "bg-[#F2F4F6] text-[#4E5968]"
-                                  : "text-[#8B95A1] bg-[#F2F4F6]/50"
+                                    ? "bg-[#F2F4F6] text-[#4E5968]"
+                                    : "text-[#8B95A1] bg-[#F2F4F6]/50"
                               )}>
                                 {COMPETITION_STATUS_LABELS[item.status]}
                               </span>
@@ -951,12 +966,12 @@ export function Mypage() {
                               {item.status === "SCHEDULED"
                                 ? "-"
                                 : prizeHistory.some((p: any) => p.competitionId === item.competitionId)
-                                ? "수령완료"
-                                : item.rankPosition
-                                ? `${item.rankPosition}위`
-                                : item.status === "ONGOING" || item.status === "CALCULATING"
-                                ? "집계중"
-                                : "-"}
+                                  ? "수령완료"
+                                  : item.rankPosition
+                                    ? `${item.rankPosition}위`
+                                    : item.status === "ONGOING" || item.status === "CALCULATING"
+                                      ? "집계중"
+                                      : "-"}
                             </td>
                           </tr>
                         ))}
