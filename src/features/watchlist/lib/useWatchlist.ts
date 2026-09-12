@@ -99,6 +99,30 @@ export function useWatchlist(enabled = true) {
         }
     }, [favorites, resolveDefaultGroupId]);
 
+    // 즐겨찾기 추가 시 그룹을 직접 골라야 할 때(관심종목 추가 다이얼로그) 사용 - 이미
+    // 즐겨찾기된 종목이면 아무 것도 하지 않는다(토글은 toggleFavorite가 담당).
+    const addFavoriteToGroup = useCallback(async (stockCode: string, groupId: number) => {
+        try {
+            await addFavorite(groupId, stockCode);
+            setFavorites(await getFavorites());
+            return true;
+        } catch {
+            return false;
+        }
+    }, []);
+
+    // 관심종목 추가 다이얼로그에서 "새 그룹 만들기"로 즉시 그 그룹에 담을 수 있도록,
+    // 생성된 그룹의 id를 그대로 반환한다.
+    const createGroupReturningId = useCallback(async (name: string) => {
+        try {
+            const created = await createGroup(name);
+            await reload();
+            return created.groupId;
+        } catch {
+            return null;
+        }
+    }, [reload]);
+
     const addGroup = useCallback(async (name: string) => {
         try {
             await createGroup(name);
@@ -144,6 +168,8 @@ export function useWatchlist(enabled = true) {
         favorites,
         isFavorite,
         toggleFavorite,
+        addFavoriteToGroup,
+        createGroupReturningId,
         addGroup,
         renameGroup,
         removeGroup,

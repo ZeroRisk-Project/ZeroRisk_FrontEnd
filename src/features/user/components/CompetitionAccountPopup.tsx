@@ -39,6 +39,7 @@ export function CompetitionAccountPopup({ accountId, competitionTitle, onClose }
   const done = (tradesQuery.data?.content ?? []).map((trade) => ({
     type: trade.side === "BUY" ? "buy" : "sell",
     stock: trade.stockName,
+    stockCode: trade.stockCode,
     date: formatTransactionDate(trade.tradedAt),
     price: trade.price,
     qty: trade.quantity,
@@ -48,6 +49,7 @@ export function CompetitionAccountPopup({ accountId, competitionTitle, onClose }
     orderId: order.orderId,
     type: order.side === "BUY" ? "buy" : "sell",
     stock: order.stockName,
+    stockCode: order.stockCode,
     date: formatTransactionDate(order.createdAt),
     price: order.limitPrice ?? 0,
     qty: order.quantity,

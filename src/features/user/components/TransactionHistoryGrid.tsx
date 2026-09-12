@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { X } from "lucide-react";
 import { formatPrice, cn } from "@/src/shared/lib/utils";
 
@@ -11,6 +12,7 @@ export function formatTransactionDate(isoDateTime: string): string {
 export interface TransactionDoneItem {
   type: string;
   stock: string;
+  stockCode: string;
   date: string;
   price: number;
   qty: number;
@@ -20,6 +22,7 @@ export interface TransactionPendingItem {
   orderId: number | null;
   type: string;
   stock: string;
+  stockCode: string;
   date: string;
   price: number;
   qty: number;
@@ -33,6 +36,7 @@ interface TransactionHistoryGridProps {
 }
 
 export function TransactionHistoryGrid({ subTab, done, pending, onCancelOrder }: TransactionHistoryGridProps) {
+  const navigate = useNavigate();
   const pendingGridCols = onCancelOrder
     ? "grid-cols-[120px_1fr_60px_100px_70px_120px_40px]"
     : "grid-cols-[120px_1fr_60px_100px_70px_120px]";
@@ -59,7 +63,8 @@ export function TransactionHistoryGrid({ subTab, done, pending, onCancelOrder }:
               return (
                 <div
                   key={idx}
-                  className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]"
+                  onClick={() => navigate(`/stocks/${log.stockCode}`)}
+                  className="grid grid-cols-[120px_1fr_60px_100px_70px_120px] items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px] cursor-pointer"
                 >
                   <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
                   <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
@@ -100,7 +105,8 @@ export function TransactionHistoryGrid({ subTab, done, pending, onCancelOrder }:
               return (
                 <div
                   key={idx}
-                  className={cn("grid items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px]", pendingGridCols)}
+                  onClick={() => navigate(`/stocks/${log.stockCode}`)}
+                  className={cn("grid items-center h-[52px] border-b border-[#F2F4F6] hover:bg-[#F9FAFB] px-6 transition-colors text-[14px] cursor-pointer", pendingGridCols)}
                 >
                   <div className="text-[13px] text-[#8B95A1] whitespace-nowrap pr-2">{log.date}</div>
                   <div className="font-bold text-[#191F28] px-2 truncate">{log.stock}</div>
@@ -118,7 +124,10 @@ export function TransactionHistoryGrid({ subTab, done, pending, onCancelOrder }:
                   {onCancelOrder && (
                     <div className="flex justify-end pl-2">
                       <button
-                        onClick={() => log.orderId !== null && onCancelOrder(log.orderId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (log.orderId !== null) onCancelOrder(log.orderId);
+                        }}
                         disabled={log.orderId === null}
                         className="w-8 h-8 flex items-center justify-center text-[#8B95A1] hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                       >
