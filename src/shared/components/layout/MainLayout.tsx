@@ -84,6 +84,7 @@ export function MainLayout() {
   const [showRankAlert, setShowRankAlert] = useState(true);
   const [accounts, setAccounts] = useState<AccountOption[]>([]);
   const [activeAccount, setActiveAccount] = useState<AccountOption>(EMPTY_ACCOUNT);
+  const [scheduledCompetitions, setScheduledCompetitions] = useState<{ id: number; title: string }[]>([]);
   const [userProfile, setUserProfile] = useState<{ nickname: string; profileImageUrl: string | null }>({ nickname: "", profileImageUrl: null });
   const [accountLinked, setAccountLinked] = useState(true);
   const [ongoingCompetition, setOngoingCompetition] = useState<OngoingCompetition | null>(null);
@@ -159,10 +160,29 @@ export function MainLayout() {
     }
   };
 
+  // 모집 중(예정)인 대회는 계좌가 아직 비활성이라 /accounts에 없다 - 참가 이력에서 따로 뽑아
+  // 계좌 선택 드롭다운에 "개최 전 입니다" 안내로만 노출한다 (마이페이지와 동일한 처리).
+  const fetchScheduledCompetitions = async () => {
+    try {
+      const competitionIds = await getMyJoinedCompetitionIds();
+      const details = await Promise.all(
+          competitionIds.map((competitionId) => getCompetitionDetail(competitionId).catch(() => null)),
+      );
+      setScheduledCompetitions(
+          details
+              .filter((detail): detail is NonNullable<typeof detail> => detail !== null && detail.status === "SCHEDULED")
+              .map((detail) => ({ id: detail.id, title: detail.title })),
+      );
+    } catch {
+      setScheduledCompetitions([]);
+    }
+  };
+
   useEffect(() => {
     if (!isLoggedIn || !user) {
       setAccounts([]);
       setActiveAccount(EMPTY_ACCOUNT);
+      setScheduledCompetitions([]);
       setAccountLinked(true);
       setOngoingCompetition(null);
       setTopRanking(null);
@@ -171,6 +191,7 @@ export function MainLayout() {
 
     setUserProfile({ nickname: user.nickname, profileImageUrl: user.profileImageUrl });
     fetchAccounts();
+    fetchScheduledCompetitions();
 
     if (!isAdmin) {
       fetchAccountLinked().then((linked) => {
@@ -431,6 +452,17 @@ export function MainLayout() {
                             보유 자산 {formatPrice(acc.balance)}원
                           </span>
                         </button>
+                      ))}
+                      {scheduledCompetitions.map((comp) => (
+                        <div
+                          key={`sched-${comp.id}`}
+                          className="w-full text-left px-4 py-3 flex flex-col gap-1"
+                        >
+                          <span className="text-sm font-medium text-brand truncate max-w-[200px]">
+                            {comp.title}
+                          </span>
+                          <span className="text-xs text-brand font-bold">개최 전 입니다.</span>
+                        </div>
                       ))}
                     </div>
                   </div>

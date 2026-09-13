@@ -71,6 +71,9 @@ const formatVolume = (volume: number): string => {
   return String(volume);
 };
 
+const formatStartAt = (startAt: string | undefined): string =>
+    startAt ? startAt.slice(0, 10).replaceAll("-", ".") : "-";
+
 const getTickSize = (price: number): number => {
   if (price < 2_000) return 1;
   if (price < 5_000) return 5;
@@ -196,7 +199,9 @@ export function Stocks() {
       setSelectedAccountId(basicAccount.accountId);
     }
   }, [basicAccount, selectedAccountId]);
-  const selectedAccountBalance = accountOptions.find((a) => a.accountId === selectedAccountId)?.balance ?? 0;
+  const selectedAccountOption = accountOptions.find((a) => a.accountId === selectedAccountId) ?? null;
+  const selectedAccountBalance = selectedAccountOption?.balance ?? 0;
+  const isScheduledCompetitionAccount = selectedAccountOption?.competitionStatus === "SCHEDULED";
   const [pendingAccount, setPendingAccount] = useState<AccountOption | null>(null);
 
   // 주문 성공 후 잔고를 다시 반영해야 할 때, 직접 재조회하는 대신 캐시를 무효화해서
@@ -413,6 +418,12 @@ export function Stocks() {
     if (!stock) return;
     if (selectedAccountId === null) {
       showToast("계좌 정보를 불러오지 못했습니다.");
+      return;
+    }
+    if (isScheduledCompetitionAccount) {
+      showToast(
+          `대회가 아직 시작 전이라 거래할 수 없어요. 대회 시작일: ${formatStartAt(selectedAccountOption?.startAt)}`,
+      );
       return;
     }
 
@@ -1092,13 +1103,19 @@ export function Stocks() {
                             </div>
                           </div>
 
+                          {isScheduledCompetitionAccount && (
+                              <p className="text-[13px] text-[#F04452] text-center">
+                                대회가 아직 시작 전이라 거래할 수 없어요. 대회 시작일: {formatStartAt(selectedAccountOption?.startAt)}
+                              </p>
+                          )}
+
                           <div className="flex gap-2 relative">
                             <Button
                                 variant="outline"
                                 size="lg"
                                 className="flex-1 shrink-1 min-w-0 border-border-color text-text-primary hover:bg-bg-main"
                                 onClick={handleBooking}
-                                disabled={isSubmittingOrder}
+                                disabled={isSubmittingOrder || isScheduledCompetitionAccount}
                             >
                               예약
                             </Button>
@@ -1107,7 +1124,7 @@ export function Stocks() {
                                 size="lg"
                                 className="flex-[3] text-base"
                                 onClick={handleOrder}
-                                disabled={isSubmittingOrder}
+                                disabled={isSubmittingOrder || isScheduledCompetitionAccount}
                             >
                               {orderType === "buy" ? "매수하기" : "매도하기"}
                             </Button>

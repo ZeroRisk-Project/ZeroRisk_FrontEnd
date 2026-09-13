@@ -200,22 +200,22 @@ export function Competitions() {
                 <div className="flex justify-between items-start min-h-[24px] mb-[1px]">
                   <div className="flex gap-1.5 items-center">
                     {comp.status === "ONGOING" && (
-                      <Badge className="bg-[#FF9500] text-white border-transparent font-bold shrink-0">
+                      <Badge className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase shrink-0 bg-brand/11 text-brand border-transparent">
                         진행중
                       </Badge>
                     )}
                     {comp.status === "SCHEDULED" && (
-                      <Badge className="bg-[#000000] text-white border-transparent font-bold shrink-0">
+                      <Badge className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase shrink-0 bg-[#FF9500]/11 text-[#FF9500] border-transparent">
                         예정
                       </Badge>
                     )}
                     {comp.status === "CALCULATING" && (
-                      <Badge className="bg-[#8B95A1] text-white border-transparent font-bold shrink-0">
+                      <Badge className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase shrink-0 bg-[#8B95A1]/11 text-[#8B95A1] border-transparent">
                         결과 집계중
                       </Badge>
                     )}
                     {comp.status === "ENDED" && (
-                      <Badge className="bg-border-color text-text-secondary border-transparent font-bold shrink-0">
+                      <Badge className="px-2.5 py-1 rounded-[16px] text-xs font-black uppercase shrink-0 bg-border-color text-text-secondary border-transparent">
                         종료
                       </Badge>
                     )}

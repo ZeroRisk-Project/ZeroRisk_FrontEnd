@@ -82,5 +82,23 @@ Mypage.tsx에 액션 토스트(`actionToast`) 공통 UI 추가. `tsc --noEmit` �
 
 백엔드 전체 테스트 스위트(`gradlew test`) + 프론트 `tsc --noEmit` 통과 확인.
 
+## Tier 6 — 대회 계좌 거래 UX + 마이페이지 대회별 거래내역/보유종목 팝업 (FE)
+
+스펙 문서의 "대회 계좌 거래가 안 됨" 증상은 백엔드 확인 결과 버그가 아니라 의도된 설계(대회 시작 전까지 계좌 비활성)로 확인됨. 실제 필요한 작업만 진행. 상세 계획: `C:\Users\dog49\.claude\plans\agile-tinkering-noodle.md`.
+
+- [x] **Part A** `MainLayout.tsx` — `AccountOption`에 `competitionStatus`/`startAt` 추가(기존 `getCompetitionDetail` 응답 재사용, 새 API 호출 없음), `activeAccount`+`refreshAccounts`를 `<Outlet context={...}>`로 노출.
+- [x] **Part B** `Stocks.tsx` — 독자적 BASIC 계좌 조회 제거하고 헤더의 `activeAccount`를 실제 주문(`createOrder`)에 연결(현재는 헤더에서 대회 계좌를 선택해도 항상 BASIC 계좌로 주문 나가던 버그). `competitionStatus === "SCHEDULED"`면 주문 버튼 비활성화 + 안내 문구 노출.
+- [x] **Part C-1** `Mypage.tsx`에서 거래내역/미체결 렌더링 블록을 `TransactionHistoryGrid.tsx`(신규 공용 컴포넌트)로 추출 — 추출 후 기존 화면이 동일하게 렌더되는지 먼저 확인.
+- [x] **Part C-2** `CompetitionAccountPopup.tsx` 신규 작성 — "참여한 대회" 우클릭 시 열리는 팝업, "거래내역·미체결"/"보유 종목" 2탭(pill 스타일, Mypage.tsx 기존 클래스 재사용).
+- [x] **Part C-3** `Mypage.tsx` "참여한 대회" 테이블 행에 컨텍스트 메뉴 연결(`AdminLogsTab.tsx` 패턴 재사용), 대회 계좌가 아직 없는(SCHEDULED) 경우 토스트로 안내.
+- [x] **검증** `tsc --noEmit`(=`npm run lint`) 및 `npm run build` 통과 확인. 로그인 필요 라우트라 브라우저 직접 확인(실제 클릭 동작)은 못 했음 — 아래 review 참고.
+
+### Review
+
+- **Part A/B**: `MainLayout.tsx`의 `toAccountOption`이 이미 대회 계좌마다 `getCompetitionDetail`을 호출하고 있어서, `competitionStatus`/`startAt`을 추가로 얻는 데 새 API 호출이 필요 없었음. `Stocks.tsx`의 독자적 `accountsQuery`(`["stocks","accounts"]`)를 제거하고 `useOutletContext`로 헤더의 `activeAccount`를 직접 사용하도록 교체 — 이 과정에서 더는 쓰이지 않게 된 `queryClient`/`useQueryClient` import도 함께 제거(내 변경으로 unused가 된 것만 정리, 그 외 로직은 그대로 둠).
+- **Part C**: `Mypage.tsx`의 거래내역/미체결 그리드(약 90줄)를 `TransactionHistoryGrid.tsx`로 추출하면서, 날짜 포맷 유틸(`formatTransactionDate`)과 페이지 크기 상수(`TRADES_PAGE_SIZE`)도 그 공용 컴포넌트로 옮겨서 `Mypage.tsx`와 `CompetitionAccountPopup.tsx` 양쪽이 순환 참조 없이 재사용하도록 함(처음엔 Mypage.tsx에서 export하려 했으나 팝업이 Mypage.tsx를 다시 import하는 순환 구조가 될 뻔해서 방향을 바꿈).
+- **GET /accounts는 비활성 계좌를 제외**한다는 걸 백엔드(`AccountService.java:23-24`, `.filter(Account::isActive)`)에서 직접 확인 — 그래서 `SCHEDULED` 대회는 우클릭해도 `competitionAccounts`에서 매칭되는 계좌가 없고, 이 경우 팝업 대신 토스트("대회가 아직 시작되지 않아 계좌 내역이 없습니다.")만 띄우도록 처리. 백엔드 변경은 전혀 없음.
+- **미확인**: `/mypage`, `/stocks`는 로그인 필요 라우트라 브라우저로 직접 로그인해서 실제 동작(헤더에서 대회 계좌 전환 후 주문, 우클릭 팝업 오픈, 탭 전환) 확인은 못 했음 — 로그인해서 확인 부탁.
+
 ---
 _생성: 2026-09-10. 각 항목 착수 전에 실제 최신 코드로 재확인할 것 — 특히 Tier 3의 스키마 드리프트 항목은 라이브 DB 확인이 선행되어야 함._

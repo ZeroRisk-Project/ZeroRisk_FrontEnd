@@ -1,5 +1,5 @@
 import api from '@/src/shared/lib/api';
-import { getCompetitionDetail } from '@/src/features/competition/api/competition';
+import { getCompetitionDetail, type CompetitionStatus } from '@/src/features/competition/api/competition';
 
 export type AccountType = 'BASIC' | 'COMPETITION';
 
@@ -19,6 +19,8 @@ export interface AccountOption {
     accountId: number;
     name: string;
     balance: number;
+    competitionStatus?: CompetitionStatus;
+    startAt?: string;
 }
 
 // 계좌 선택 UI에 보여줄 이름을 붙인다 - 대회 계좌는 잔액만으론 구분이 안 돼서 대회명을 붙여준다.
@@ -29,7 +31,13 @@ export async function toAccountOption(account: AccountResponse): Promise<Account
 
     try {
         const competition = await getCompetitionDetail(account.competitionId);
-        return { accountId: account.accountId, name: competition.title, balance: account.balance };
+        return {
+            accountId: account.accountId,
+            name: competition.title,
+            balance: account.balance,
+            competitionStatus: competition.status,
+            startAt: competition.startAt,
+        };
     } catch {
         return { accountId: account.accountId, name: '대회 계좌', balance: account.balance };
     }

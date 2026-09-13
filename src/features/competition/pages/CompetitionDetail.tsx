@@ -134,7 +134,18 @@ export function CompetitionDetail() {
       <div className="bg-surface border border-border-color rounded-[16px] overflow-hidden shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
         <div className="bg-gradient-to-r from-brand to-[#007AFF] p-8 text-white relative">
           <div className="flex gap-2 items-center mb-1.5 flex-wrap">
-            <Badge className="bg-[#FF9500] text-white border-transparent">
+            <Badge
+              className={cn(
+                "px-2.5 py-1 rounded-[16px] text-xs font-black uppercase border-transparent text-white",
+                comp.status === "ONGOING"
+                  ? "bg-brand"
+                  : comp.status === "SCHEDULED"
+                    ? "bg-[#FF9500]"
+                    : comp.status === "CALCULATING"
+                      ? "bg-[#8B95A1]"
+                      : "bg-text-secondary"
+              )}
+            >
               {comp.status === "ONGOING" ? "진행중" : comp.status === "SCHEDULED" ? "예정" : comp.status === "CALCULATING" ? "결과 집계중" : "종료"}
             </Badge>
           </div>
