@@ -7,6 +7,7 @@ export type RankingType = 'VOLUME' | 'RISE' | 'FALL' | 'TRADING_VALUE' | 'POPULA
 export type ChartInterval = 'DAY' | 'WEEK' | 'MONTH' | 'MINUTE';
 
 export interface StockDetailResponse {
+    id: number;
     code: string;
     name: string;
     market: Market;

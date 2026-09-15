@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getStockDetail } from "@/src/features/stock/api/stock";
-import { uploadImage } from "@/src/features/community/api/posts";
+import { uploadImage, getPosts, PostResponse } from "@/src/features/community/api/posts";
 import { Card, CardContent } from "@/src/shared/components/ui/Card";
 import { Button } from "@/src/shared/components/ui/Button";
 import { Badge } from "@/src/shared/components/ui/Badge";
@@ -35,6 +35,24 @@ export function CommunityStock() {
     queryFn: () => getStockDetail(stockCode),
     retry: false,
   });
+
+  const [postPage, setPostPage] = useState(0);
+
+  const formatRelativeTime = (isoString: string) => {
+    const diffMs = Date.now() - new Date(isoString).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 60) return `${diffMinutes}분 전`;
+    if (diffMinutes < 1440) return `${Math.floor(diffMinutes / 60)}시간 전`;
+    return `${Math.floor(diffMinutes / 1440)}일 전`;
+  };
+
+  const { data: postsData } = useQuery({
+    queryKey: ["posts", "STOCK", stockDetail?.id, postPage],
+    queryFn: () => getPosts("STOCK", postPage, 10, "createdAt,desc", stockDetail?.id),
+    enabled: !!stockDetail?.id,
+  });
+  const stockPosts = postsData?.content ?? [];
 
   const stockInfo = {
     name: stockDetail?.name ?? stockCode,
@@ -198,145 +216,87 @@ export function CommunityStock() {
                     </div>
                   </div>
                 </div>
-                {[
-                  {
-                    id: 0,
-                    title: "삼성전자 종목 토론방 클린 캠페인 안내",
-                    content:
-                      "건전한 투자 문화 조성을 위해 욕설 및 비방글은 통보 없이 삭제될 수 있습니다.",
-                    author: "운영자",
-                    level: "GM",
-                    time: "1일 전",
-                    views: 3102,
-                    likes: 124,
-                    comments: 41,
-                    isNotice: true,
-                  },
-                  {
-                    id: 1,
-                    title: "삼성전자 진짜 이가격에 사는게 맞을까요?",
-                    content:
-                      "물려도 삼전이라고 배웠습니다. 지금 6.8만에 평단 맞춰놨는데 더 내려갈까요?",
-                    author: "제로주린이",
-                    level: "Lv.2",
-                    time: "10분 전",
-                    views: 245,
-                    likes: 12,
-                    comments: 24,
-                  },
-                  {
-                    id: 2,
-                    title: "오늘 외인 매도세 장난아니네요",
-                    content: "다들 조심하세요. 당분간 현금 확보가 답인듯",
-                    author: "투자의신",
-                    level: "Lv.5",
-                    time: "30분 전",
-                    views: 89,
-                    likes: 5,
-                    comments: 8,
-                  },
-                  {
-                    id: 3,
-                    title: "장기투자자분들 멘탈 관리 어떻게 하시나요",
-                    content:
-                      "매일 창 보면서 일희일비하게 되네요. 노하우 좀 공유해주세요.",
-                    author: "장투가미래다",
-                    level: "Lv.3",
-                    time: "1시간 전",
-                    views: 412,
-                    likes: 8,
-                    comments: 13,
-                  },
-                  {
-                    id: 4,
-                    title: "실적 발표 언제인가요?",
-                    content:
-                      "이번 분기 기대된다던데 혹시 정확한 날짜 아시는 분 계신가요?",
-                    author: "정보빌런",
-                    level: "Lv.4",
-                    time: "2시간 전",
-                    views: 231,
-                    likes: 3,
-                    comments: 5,
-                  },
-                ].map((post, i) => (
-                  <div
-                    key={post.id}
-                    onClick={() => navigate(`/community/${post.id}`)}
-                    className={cn(
-                      "block border-b border-border-color last:border-0 hover:bg-bg-main transition-colors first:rounded-t-[16px] last:rounded-b-[16px] cursor-pointer",
-                      post.isNotice ? "bg-brand/5 border-b-brand/20" : "",
-                    )}
-                  >
-                    <div className="py-4 px-6 flex items-center gap-4">
-                      <div className="w-10 text-center shrink-0 flex justify-center">
-                        {post.isNotice ? (
-                          <span className="text-xs font-bold text-brand">
-                            공지
-                          </span>
-                        ) : (
+                {stockPosts.length === 0 ? (
+                  <div className="py-16 text-center text-text-secondary text-sm">
+                    아직 작성된 게시글이 없습니다.
+                  </div>
+                ) : (
+                  stockPosts.map((post: PostResponse) => (
+                    <div
+                      key={post.id}
+                      onClick={() => navigate(`/community/${post.id}`)}
+                      className="block border-b border-border-color last:border-0 hover:bg-bg-main transition-colors first:rounded-t-[16px] last:rounded-b-[16px] cursor-pointer"
+                    >
+                      <div className="py-4 px-6 flex items-center gap-4">
+                        <div className="w-10 text-center shrink-0 flex justify-center">
                           <span className="text-xs text-text-secondary text-opacity-80">
-                            {post.id > 0 ? post.id : '-'}
+                            {post.id}
                           </span>
-                        )}
-                      </div>
-                      <div className="flex-1 flex items-center min-w-0 gap-4">
-                        <h3
-                          className={cn(
-                            "font-semibold truncate flex-1 text-sm px-2",
-                            post.isNotice ? "text-brand" : "text-text-primary",
-                          )}
-                        >
-                          {post.title}
-                        </h3>
-                        <div className="flex items-center gap-2 text-xs text-text-secondary shrink-0">
-                          <div className="flex items-center justify-center gap-2 w-[100px]">
-                            {post.isNotice ? (
-                              <span className="font-bold text-brand truncate">
-                                {post.author}
-                              </span>
-                            ) : (
+                        </div>
+                        <div className="flex-1 flex items-center min-w-0 gap-4">
+                          <h3 className="font-semibold truncate flex-1 text-sm px-2 text-text-primary">
+                            {post.title}
+                          </h3>
+                          <div className="flex items-center gap-2 text-xs text-text-secondary shrink-0">
+                            <div className="flex items-center justify-center gap-2 w-[100px]">
                               <Link
-                                to={`/users/${encodeURIComponent(post.author)}`}
+                                to={`/users/${encodeURIComponent(post.authorNickname)}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                 }}
                                 className="font-bold text-text-primary hover:underline truncate transition-colors cursor-pointer"
                               >
-                                {post.author}
+                                {post.authorNickname}
                               </Link>
-                            )}
-                            {!post.isNotice && (
                               <Badge className="bg-text-secondary/10 text-text-secondary py-0 text-[10px] h-4 px-1 border-transparent font-bold">
-                                {post.level}
+                                Lv.{post.authorLevel}
                               </Badge>
-                            )}
-                            {post.isNotice && (
-                              <span className="bg-brand/20 text-brand py-0 text-[10px] h-4 px-1 rounded font-bold flex items-center shrink-0">
-                                {post.level}
+                            </div>
+                            <span className="ml-1 w-12 text-center">
+                              {formatRelativeTime(post.createdAt)}
+                            </span>
+                            <div className="flex items-center gap-3 ml-2 text-xs font-mono">
+                              <span className="flex items-center gap-1 font-bold w-12 justify-end">
+                                {post.viewCount}
                               </span>
-                            )}
-                          </div>
-                          <span className="ml-1 w-12 text-center">
-                            {post.time}
-                          </span>
-                          <div className="flex items-center gap-3 ml-2 text-xs font-mono">
-                            <span className="flex items-center gap-1 font-bold w-12 justify-end">
-                              {post.views}
-                            </span>
-                            <span className="flex items-center gap-1 font-bold text-up w-12 justify-end">
-                              {post.likes}
-                            </span>
-                            <span className="flex items-center gap-1 font-bold text-emerald-500 w-12 justify-end">
-                              {post.comments}
-                            </span>
+                              <span className="flex items-center gap-1 font-bold text-up w-12 justify-end">
+                                {post.likeCount}
+                              </span>
+                              <span className="flex items-center gap-1 font-bold text-emerald-500 w-12 justify-end">
+                                {post.commentCount}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
+
+              {postsData && postsData.totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 py-4 border-t border-border-color">
+                  <button
+                    type="button"
+                    onClick={() => setPostPage((p) => Math.max(0, p - 1))}
+                    disabled={postPage === 0}
+                    className="px-3 py-1.5 rounded-[8px] text-sm font-bold text-text-secondary hover:bg-bg-main transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    이전
+                  </button>
+                  <span className="text-sm text-text-secondary">
+                    {postPage + 1} / {postsData.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPostPage((p) => Math.min(postsData.totalPages - 1, p + 1))}
+                    disabled={postPage >= postsData.totalPages - 1}
+                    className="px-3 py-1.5 rounded-[8px] text-sm font-bold text-text-secondary hover:bg-bg-main transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

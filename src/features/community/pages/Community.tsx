@@ -44,14 +44,22 @@ export function Community() {
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-  // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 10개 종목으로 자동 구성
-  // (KIS 실시간 시세 API 부하 및 AWS 크레딧 고려하여 10개로 제한)
-  const { data: stockBoardList = [] } = useQuery({
-    queryKey: ["stocks", "rankings", "VOLUME", 10],
-    queryFn: () => getStockRankings("VOLUME", 10),
+  // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 종목 전체를 받아와서 10개씩 페이징
+  // (KIS 거래량순위 API는 count 파라미터와 무관하게 매번 고정된 전체 목록을 반환하므로,
+  // count는 "얼마나 잘라 받을지"만 결정함 - 넉넉하게 100으로 요청해 사실상 전량을 받는다)
+  const [stockBoardPage, setStockBoardPage] = useState(0);
+  const STOCK_BOARD_PAGE_SIZE = 10;
+  const { data: stockBoardAll = [] } = useQuery({
+    queryKey: ["stocks", "rankings", "VOLUME"],
+    queryFn: () => getStockRankings("VOLUME", 100),
     enabled: activeTab === "종목게시판",
     retry: false,
   });
+  const stockBoardTotalPages = Math.ceil(stockBoardAll.length / STOCK_BOARD_PAGE_SIZE);
+  const stockBoardList = stockBoardAll.slice(
+    stockBoardPage * STOCK_BOARD_PAGE_SIZE,
+    (stockBoardPage + 1) * STOCK_BOARD_PAGE_SIZE,
+  );
 
   // 우측 사이드바는 탭과 무관하게 항상 노출되므로 별도로 조회
   const { data: weeklyPopularPosts = [] } = useQuery({
@@ -346,6 +354,32 @@ export function Community() {
                         </Link>
                       ))}
                   </div>
+
+                  {searchQuery.trim() === "" && stockBoardTotalPages > 1 && (
+                    <div className="flex items-center justify-center gap-2 py-4 mt-2 border-t border-border-color">
+                      <button
+                        type="button"
+                        onClick={() => setStockBoardPage((p) => Math.max(0, p - 1))}
+                        disabled={stockBoardPage === 0}
+                        className="px-3 py-1.5 rounded-[8px] text-sm font-bold text-text-secondary hover:bg-bg-main transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        이전
+                      </button>
+                      <span className="text-sm text-text-secondary">
+                        {stockBoardPage + 1} / {stockBoardTotalPages}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setStockBoardPage((p) => Math.min(stockBoardTotalPages - 1, p + 1))
+                        }
+                        disabled={stockBoardPage >= stockBoardTotalPages - 1}
+                        className="px-3 py-1.5 rounded-[8px] text-sm font-bold text-text-secondary hover:bg-bg-main transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

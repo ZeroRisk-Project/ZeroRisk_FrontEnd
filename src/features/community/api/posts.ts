@@ -47,9 +47,15 @@ interface PageResponse<T> {
 }
 
 // 게시판 목록 조회. boardType으로 자유/종목/공지 구분 (기본 최신순 정렬)
-export async function getPosts(boardType: BoardType, page = 0, size = 20, sort = 'createdAt,desc'): Promise<PageResponse<PostResponse>> {
+export async function getPosts(
+    boardType: BoardType,
+    page = 0,
+    size = 20,
+    sort = 'createdAt,desc',
+    stockId?: number,
+): Promise<PageResponse<PostResponse>> {
     const response = await api.get<PageResponse<PostResponse>>('/posts', {
-        params: { boardType, page, size, sort },
+        params: { boardType, page, size, sort, stockId },
     });
 
     return response.data;
