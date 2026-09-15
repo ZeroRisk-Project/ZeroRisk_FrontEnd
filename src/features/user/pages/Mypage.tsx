@@ -386,7 +386,7 @@ export function Mypage() {
                 </Link>
                 <Button
                   onClick={() => navigate(isLinked ? "/account-link/recharge/confirm" : "/account-link/intro")}
-                  className="bg-brand hover:bg-brand/90 text-white border-transparent px-4 py-2 rounded-xl text-sm font-bold transition-colors cursor-pointer"
+                  className="bg-brand hover:bg-brand/90 text-white border-transparent px-4 py-2 rounded-full text-sm font-bold transition-colors cursor-pointer"
                 >
                   {isLinked ? "충전하기" : "연동하기"}
                 </Button>
