@@ -160,6 +160,7 @@ export function Community() {
                     id: p.id,
                     title: p.title,
                     author: p.authorNickname,
+                    authorId: p.authorId,
                     level: "GM",
                     time: formatRelativeTime(p.createdAt),
                     views: p.viewCount,
@@ -171,6 +172,7 @@ export function Community() {
                     id: p.id,
                     title: p.title,
                     author: p.authorNickname,
+                    authorId: p.authorId,
                     level: `Lv.${p.authorLevel}`,
                     time: formatRelativeTime(p.createdAt),
                     views: p.viewCount,
@@ -222,7 +224,7 @@ export function Community() {
                                 </span>
                               ) : (
                                 <Link
-                                  to={`/users/${encodeURIComponent(post.author)}`}
+                                  to={`/users/${post.authorId}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
                                   }}

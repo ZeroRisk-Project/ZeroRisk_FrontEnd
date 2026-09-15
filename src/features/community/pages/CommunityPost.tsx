@@ -232,7 +232,7 @@ export function CommunityPost() {
       <div className={cn('flex-1', depth > 0 && 'bg-bg-main p-3 rounded-[12px]')}>
         <div className="flex items-center gap-2">
           <Link
-            to={`/users/${encodeURIComponent(comment.authorNickname)}`}
+            to={`/users/${comment.authorId}`}
             className="font-bold text-sm text-text-primary hover:underline transition-colors"
           >
             {comment.authorNickname}
@@ -354,7 +354,7 @@ export function CommunityPost() {
                 <div>
                   <div className="flex items-center gap-2">
                     <Link
-                      to={`/users/${encodeURIComponent(post.authorNickname)}`}
+                      to={`/users/${post.authorId}`}
                       className="font-bold text-text-primary hover:underline transition-colors"
                     >
                       {post.authorNickname}

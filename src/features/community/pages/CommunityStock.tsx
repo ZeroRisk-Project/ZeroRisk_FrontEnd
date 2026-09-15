@@ -240,7 +240,7 @@ export function CommunityStock() {
                           <div className="flex items-center gap-2 text-xs text-text-secondary shrink-0">
                             <div className="flex items-center justify-center gap-2 w-[100px]">
                               <Link
-                                to={`/users/${encodeURIComponent(post.authorNickname)}`}
+                                to={`/users/${post.authorId}`}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                 }}
@@ -334,7 +334,7 @@ export function CommunityStock() {
                   >
                     {!isMe && (
                       <Link
-                        to={`/users/${encodeURIComponent(msg.authorNickname)}`}
+                        to={`/users/${msg.authorId}`}
                         className="text-xs text-text-secondary hover:underline font-semibold mb-1 ml-1 transition-colors cursor-pointer"
                       >
                         {msg.authorNickname}

@@ -74,7 +74,7 @@ export function CompetitionChatPanel({ competitionId, myUserId }: CompetitionCha
             >
               {!isMe && (
                 <Link
-                  to={`/users/${encodeURIComponent(msg.authorNickname)}`}
+                  to={`/users/${msg.authorId}`}
                   className="text-xs text-text-secondary hover:underline font-semibold mb-1 ml-1 transition-colors cursor-pointer"
                 >
                   {msg.authorNickname}

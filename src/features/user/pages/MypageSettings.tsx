@@ -832,9 +832,6 @@ export function MypageSettings() {
                   <div>
                     <span className="text-[15px] font-bold text-neutral-800 flex items-center gap-1.5">
                       {item.label}
-                      {item.key !== "showCompetitions" && (
-                        <span className="text-[9px] font-bold text-neutral-400 bg-neutral-100 px-1.5 py-0.5 rounded-full">준비중</span>
-                      )}
                     </span>
                     <span className="text-[11px] font-medium text-neutral-400 mt-0.5">{item.desc}</span>
                   </div>
