@@ -232,7 +232,9 @@ export function CompetitionDetail() {
               )}
               {activeTab === "채팅" && (
                 isJoined ? (
-                  <CompetitionChatPanel competitionId={compId} myUserId={myUserId} />
+                  <div className="border border-border-color rounded-[16px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] overflow-hidden">
+                    <CompetitionChatPanel competitionId={compId} myUserId={myUserId} />
+                  </div>
                 ) : (
                   <div className="p-6 text-center text-text-secondary py-12">
                     <p>대회 참가자만 채팅에 참여할 수 있습니다.</p>

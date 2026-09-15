@@ -23,16 +23,22 @@ export function Community() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("자유게시판");
   const [searchQuery, setSearchQuery] = useState("");
+  const [freePage, setFreePage] = useState(0);
+  const FREE_BOARD_PAGE_SIZE = 6;
 
-  // 공지(NOTICE)와 일반 자유글(FREE)을 최신순으로 조회해서 공지를 목록 상단에 얹는 구조
+  // 공지(NOTICE)는 항상 최신 5개 고정 노출, 일반 자유글(FREE)만 페이지네이션 대상
   const { data: freeBoardData } = useQuery({
-    queryKey: ["community", "free-board"],
+    queryKey: ["community", "free-board", freePage],
     queryFn: async () => {
       const [noticeRes, freeRes] = await Promise.all([
         getPosts("NOTICE", 0, 5, "createdAt,desc"),
-        getPosts("FREE", 0, 20, "createdAt,desc"),
+        getPosts("FREE", freePage, FREE_BOARD_PAGE_SIZE, "createdAt,desc"),
       ]);
-      return { noticePosts: noticeRes.content, freePosts: freeRes.content };
+      return {
+        noticePosts: noticeRes.content,
+        freePosts: freeRes.content,
+        freeTotalPages: freeRes.totalPages,
+      };
     },
     enabled: activeTab === "자유게시판",
     retry: false,
@@ -43,6 +49,7 @@ export function Community() {
   const freePosts = (freeBoardData?.freePosts ?? [])
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const freeTotalPages = freeBoardData?.freeTotalPages ?? 1;
 
   // 종목게시판 탭: 토론방으로 진입할 종목 목록은 거래량 상위 종목 전체를 받아와서 10개씩 페이징
   // (KIS 거래량순위 API는 count 파라미터와 무관하게 매번 고정된 전체 목록을 반환하므로,
@@ -259,29 +266,30 @@ export function Community() {
                     variant="outline"
                     size="icon"
                     className="w-8 h-8"
-                    disabled
+                    onClick={() => setFreePage((p) => Math.max(0, p - 1))}
+                    disabled={freePage === 0}
                   >
                     <span className="text-xs">&lt;</span>
                   </Button>
-                  <Button className="w-8 h-8 font-bold p-0 text-white">
-                    1
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-8 h-8 font-bold p-0 hover:bg-bg-main"
-                  >
-                    2
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="w-8 h-8 font-bold p-0 hover:bg-bg-main"
-                  >
-                    3
-                  </Button>
+                  {Array.from({ length: freeTotalPages }, (_, i) => i).map((pageNum) => (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === freePage ? "primary" : "ghost"}
+                      className={cn(
+                        "w-8 h-8 font-bold p-0",
+                        pageNum === freePage ? "text-white" : "hover:bg-bg-main",
+                      )}
+                      onClick={() => setFreePage(pageNum)}
+                    >
+                      {pageNum + 1}
+                    </Button>
+                  ))}
                   <Button
                     variant="outline"
                     size="icon"
                     className="w-8 h-8 text-xs"
+                    onClick={() => setFreePage((p) => Math.min(freeTotalPages - 1, p + 1))}
+                    disabled={freePage >= freeTotalPages - 1}
                   >
                     <span className="text-xs">&gt;</span>
                   </Button>

@@ -314,7 +314,6 @@ export function CommunityStock() {
                 <MessageCircle className="w-5 h-5 text-brand" /> 실시간 종목
                 채팅
               </h3>
-              <span className="w-2 h-2 rounded-full bg-[#34C759] animate-pulse"></span>
             </div>
 
             <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-bg-main/50">
